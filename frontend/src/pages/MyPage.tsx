@@ -1,0 +1,1876 @@
+import React, { useState, useEffect } from 'react';
+import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save } from 'lucide-react';
+import { MOCK_CLASSES, MOCK_FREELANCER_APPROVALS, UserRole, REGIONS, MOCK_USERS_ADMIN, AdminUserItem, FreelancerApprovalRequest, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
+import ExplorerItemCard from '@/src/components/ExplorerItemCard';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '@/src/lib/utils';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
+import { useEnrollments } from '../context/EnrollmentContext';
+import { useReports } from '../context/ReportContext';
+import { useClasses } from '../context/ClassContext';
+import { useFreelancers } from '../context/FreelancerContext';
+import { useFollow } from '../context/FollowContext';
+import ReviewModal from '../components/ReviewModal';
+import { ReviewItem } from '@/src/constants';
+
+import { useNavigate, Link } from 'react-router-dom';
+
+const REVENUE_DATA = [
+  { month: '1월', revenue: 1200000, students: 45 },
+  { month: '2월', revenue: 1800000, students: 62 },
+  { month: '3월', revenue: 1500000, students: 58 },
+  { month: '4월', revenue: 2100000, students: 75 },
+  { month: '5월', revenue: 2800000, students: 92 },
+  { month: '6월', revenue: 3200000, students: 108 },
+];
+
+const TASTE_KEYWORDS = ['#힐링', '#손재주', '#액티브', '#자기계발', '#포근함'];
+const AI_SUMMARY = "포근이 AI 분석 결과: 당신은 정적인 활동에서 에너지를 얻는 '섬세한 예술가' 타입이에요. 최근 수채화 클래스에 큰 만족감을 느끼셨네요!";
+
+type MenuType = 'activity' | 'reviews' | 'freelancer_dashboard' | 'freelancer_classes' | 'freelancer_students' | 'freelancer_profile' | 'admin_home' | 'admin_users' | 'admin_reports' | 'admin_approvals' | 'admin' | 'settings' | 'pick' | 'following';
+
+export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
+  const navigate = useNavigate();
+  const { enrollments, updateEnrollmentStatus } = useEnrollments();
+  const { reports } = useReports();
+  const { classes, deleteClass } = useClasses();
+  const { freelancers, updateFreelancer, approvals: adminApprovals, updateApprovalStatus } = useFreelancers();
+  const { followingIds, toggleFollow } = useFollow();
+
+  const [activeMenu, setActiveMenu] = useState<MenuType>(initialMenu || 'activity');
+  const [activityTab, setActivityTab] = useState<'enrolled' | 'waiting' | 'finished'>('enrolled');
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewMode, setReviewMode] = useState<'create' | 'edit'>('create');
+  const [selectedReviewData, setSelectedReviewData] = useState<Partial<ReviewItem>>({});
+  const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
+
+  // Load reviews from localStorage
+  useEffect(() => {
+    const savedReviews = localStorage.getItem('all_reviews');
+    if (savedReviews) {
+      setAllReviews(JSON.parse(savedReviews));
+    } else {
+      // Initialize with mock reviews if empty
+      localStorage.setItem('all_reviews', JSON.stringify(MOCK_REVIEWS));
+      setAllReviews(MOCK_REVIEWS);
+    }
+  }, []);
+
+  const saveReviewsToStorage = (reviews: ReviewItem[]) => {
+    localStorage.setItem('all_reviews', JSON.stringify(reviews));
+    setAllReviews(reviews);
+  };
+  const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+  const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
+  const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [studentCancelReason, setStudentCancelReason] = useState('');
+  const [selectedCity, setSelectedCity] = useState(localStorage.getItem('userCity') || '');
+  const [selectedDistrict, setSelectedDistrict] = useState(localStorage.getItem('userDistrict') || '');
+  const [dashboardDateRange, setDashboardDateRange] = useState({ start: '2024-01-01', end: '2024-06-30' });
+  const [freelancerProfile, setFreelancerProfile] = useState({
+    id: 'f1',
+    name: '',
+    specialty: '',
+    introduction: '',
+    career: '',
+    portfolio: '',
+    location: '',
+    portfolioImages: [] as string[]
+  });
+
+  // Load profile from context on mount or when freelancers change
+  useEffect(() => {
+    const profile = freelancers.find(f => f.id === 'f1');
+    if (profile) {
+      setFreelancerProfile({
+        id: profile.id,
+        name: profile.name,
+        specialty: profile.specialty,
+        introduction: profile.introduction,
+        career: profile.career,
+        portfolio: (profile as any).portfolio || '', // portfolio might not be in the base interface but we use it
+        location: profile.location,
+        portfolioImages: profile.portfolioImages
+      });
+    }
+  }, [freelancers]);
+
+  // Admin States
+  const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>(MOCK_USERS_ADMIN);
+  const [adminReports, setAdminReports] = useState<ReportItem[]>(MOCK_REPORTS);
+  const [userSearch, setUserSearch] = useState('');
+  const [userFilter, setUserFilter] = useState('ALL');
+  const [userSort, setUserSort] = useState<'joinedAt' | 'role'>('joinedAt');
+  const [isApprovalRejectModalOpen, setIsApprovalRejectModalOpen] = useState(false);
+  const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
+  const [approvalRejectReason, setApprovalRejectReason] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+  
+  const userRole = (localStorage.getItem('userRole') as UserRole) || 'ROLE_USER';
+  
+  // Set default menu based on role
+  useEffect(() => {
+    if (initialMenu) {
+      setActiveMenu(initialMenu);
+      return;
+    }
+    if (userRole === 'ROLE_ADMIN') setActiveMenu('admin');
+    else if (userRole === 'ROLE_FREELANCER') setActiveMenu('freelancer_dashboard');
+    else setActiveMenu('activity');
+  }, [userRole, initialMenu]);
+  
+  const pickedClasses = classes.slice(0, 2);
+  const appliedClasses = classes.slice(2, 4);
+  const teachingClasses = classes.filter(c => c.freelancer === '포근프리랜서' || c.freelancer === '김화가'); // For demo
+
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleLogout = () => {
+    if (window.confirm('로그아웃 하시겠습니까?')) {
+      localStorage.removeItem('isLoggedIn');
+      alert('성공적으로 로그아웃되었습니다! (Toast)');
+      navigate('/');
+    }
+  };
+
+  const handleSaveChanges = () => {
+    localStorage.setItem('userCity', selectedCity);
+    localStorage.setItem('userDistrict', selectedDistrict);
+    alert('성공적으로 처리되었습니다.');
+  };
+
+  const handleChangePassword = () => {
+    if (window.confirm('비밀번호를 변경하시겠습니까?')) {
+      alert('성공적으로 처리되었습니다.');
+    }
+  };
+
+  const handleWithdraw = () => {
+    if (window.confirm('정말 탈퇴하시겠습니까?')) {
+      localStorage.removeItem('isLoggedIn');
+      alert('성공적으로 처리되었습니다.');
+      navigate('/');
+    }
+  };
+
+  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImage(reader.result as string);
+        alert('프로필 사진이 변경되었습니다! (Toast)');
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCancelApplication = (id: string) => {
+    if (window.confirm('신청을 취소하시겠습니까?')) {
+      updateEnrollmentStatus(id, 'CANCELLED');
+      alert('신청이 취소되었습니다.');
+    }
+  };
+
+  const handleConfirmCancelRequest = () => {
+    if (!studentCancelReason.trim()) {
+      alert('취소 사유를 입력해주세요.');
+      return;
+    }
+    if (selectedEnrollmentId) {
+      updateEnrollmentStatus(selectedEnrollmentId, 'CANCEL_REQUESTED', studentCancelReason);
+      alert('취소 요청이 접수되었습니다.');
+      setIsCancelRequestModalOpen(false);
+      setStudentCancelReason('');
+      setSelectedEnrollmentId(null);
+    }
+  };
+
+  const renderEnrollmentButton = (enrollment: any) => {
+    if (enrollment.status === 'PENDING') {
+      return (
+        <button 
+          onClick={() => handleCancelApplication(enrollment.id)}
+          className="w-full py-3 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all text-sm border border-coral/10 shadow-sm"
+        >
+          신청 취소
+        </button>
+      );
+    }
+    return null;
+  };
+
+  const renderActivity = () => (
+    <div className="space-y-8">
+      <div className="flex flex-wrap gap-4 p-1 bg-ivory rounded-2xl w-fit">
+        <button
+          onClick={() => setActivityTab('enrolled')}
+          className={cn(
+            "px-6 py-2 rounded-xl font-bold transition-all",
+            activityTab === 'enrolled' ? "bg-coral text-white shadow-md" : "text-gray-500 hover:text-coral"
+          )}
+        >
+          수강 중
+        </button>
+        <button
+          onClick={() => setActivityTab('waiting')}
+          className={cn(
+            "px-6 py-2 rounded-xl font-bold transition-all",
+            activityTab === 'waiting' ? "bg-coral text-white shadow-md" : "text-gray-500 hover:text-coral"
+          )}
+        >
+          승인 대기
+        </button>
+        <button
+          onClick={() => setActivityTab('finished')}
+          className={cn(
+            "px-6 py-2 rounded-xl font-bold transition-all",
+            activityTab === 'finished' ? "bg-coral text-white shadow-md" : "text-gray-500 hover:text-coral"
+          )}
+        >
+          수강 완료
+        </button>
+      </div>
+
+      <AnimatePresence mode="wait">
+        {activityTab === 'enrolled' ? (
+          <motion.div
+            key="enrolled"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+          >
+            {enrollments.filter(e => e.status === 'APPROVED' || e.status === 'CANCEL_REQUESTED').map(e => {
+              const classItem = MOCK_CLASSES.find(c => c.id === e.classId);
+              return classItem ? (
+                <div key={e.id} className="flex flex-col gap-4">
+                  <ExplorerItemCard
+                    id={classItem.id}
+                    image={classItem.image}
+                    title={classItem.title}
+                    value={classItem.price}
+                    valueLabel="수강료"
+                    personName={classItem.freelancer}
+                    personLabel="프리랜서"
+                    category={classItem.category}
+                    categoryName={e.status === 'APPROVED' ? "수강 중" : "취소 요청 중"}
+                  />
+                  <div className="flex gap-2">
+                    {e.status === 'APPROVED' ? (
+                      <>
+                        <button 
+                          onClick={() => {
+                            setSelectedEnrollmentId(e.id);
+                            setIsCancelRequestModalOpen(true);
+                          }}
+                          className="flex-1 py-3 bg-ivory text-gray-500 font-bold rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all text-sm border border-coral/10 shadow-sm"
+                        >
+                          취소 요청
+                        </button>
+                      </>
+                    ) : (
+                      <div className="w-full py-3 bg-gray-50 text-gray-400 font-bold rounded-2xl text-center text-sm border border-coral/5">
+                        취소 검토 중
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : null;
+            })}
+          </motion.div>
+        ) : activityTab === 'waiting' ? (
+          <motion.div
+            key="waiting"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="grid grid-cols-1 md:grid-cols-2 gap-8"
+          >
+            {enrollments.filter(e => e.status === 'PENDING').map(e => {
+              const classItem = MOCK_CLASSES.find(c => c.id === e.classId);
+              return classItem ? (
+                <div key={e.id} className="flex flex-col gap-4">
+                  <ExplorerItemCard
+                    id={classItem.id}
+                    image={classItem.image}
+                    title={classItem.title}
+                    value={classItem.price}
+                    valueLabel="수강료"
+                    personName={classItem.freelancer}
+                    personLabel="프리랜서"
+                    category={classItem.category}
+                    categoryName="승인 대기"
+                  />
+                  {renderEnrollmentButton(e)}
+                </div>
+              ) : null;
+            })}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="finished"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-4"
+          >
+            {/* Mock finished classes */}
+            {[
+              { id: '1', title: '따스한 수채화 원데이 클래스', date: '2024-03-20', image: 'https://picsum.photos/seed/art1/400/300' },
+              { id: '2', title: '초보 자전거 정비 및 라이딩 기초', date: '2024-03-15', image: 'https://picsum.photos/seed/bike/400/300' }
+            ].map(item => {
+              const existingReview = allReviews.find(r => r.classId === item.id);
+              return (
+                <div key={item.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex flex-col gap-6 shadow-sm">
+                  <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                    <div className="flex items-center gap-6 w-full md:w-auto">
+                      <img 
+                        src={item.image} 
+                        alt={item.title} 
+                        className="w-20 h-20 rounded-2xl object-cover cursor-pointer hover:opacity-80 transition-opacity" 
+                        referrerPolicy="no-referrer" 
+                        onClick={() => handleClassClick(item.id)}
+                      />
+                      <div>
+                        <h4 
+                          className="font-bold text-gray-900 mb-1 cursor-pointer hover:text-coral transition-colors"
+                          onClick={() => handleClassClick(item.id)}
+                        >
+                          {item.title}
+                        </h4>
+                        <p className="text-sm text-gray-400">수강 완료일: {item.date}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => existingReview ? handleEditReview(existingReview) : handleCreateReview(item)}
+                      className={cn(
+                        "w-full md:w-auto px-8 py-3 font-bold rounded-2xl transition-all shadow-lg",
+                        existingReview 
+                          ? "bg-white text-coral border border-coral hover:bg-coral/5 shadow-coral/10" 
+                          : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
+                      )}
+                    >
+                      {existingReview ? '리뷰 수정하기' : '리뷰 작성하기'}
+                    </button>
+                  </div>
+                  
+                  {existingReview && (
+                    <div className="mt-2 p-4 bg-ivory/50 rounded-2xl border border-coral/5">
+                      <div className="flex gap-1 mb-2">
+                        {[...Array(5)].map((_, i) => (
+                          <Star key={i} size={14} className={cn(i < existingReview.rating ? "text-coral fill-coral" : "text-gray-200")} />
+                        ))}
+                      </div>
+                      <p className="text-sm text-gray-600 line-clamp-2">{existingReview.content}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+
+  const renderPick = () => (
+    <div className="space-y-12">
+      <div>
+        <h3 className="text-xl font-bold text-gray-900 mb-6">Pick 클래스</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {pickedClasses.map(item => (
+            <ExplorerItemCard
+              key={item.id}
+              id={item.id}
+              image={item.image}
+              title={item.title}
+              value={item.price}
+              valueLabel="수강료"
+              personName={item.freelancer}
+              personLabel="프리랜서"
+              category={item.category}
+              categoryName="Pick"
+            />
+          ))}
+        </div>
+      </div>
+      <div>
+        <h3 className="text-xl font-bold text-gray-900 mb-6">관심 요청글</h3>
+        <div className="space-y-4">
+          {[
+            { id: 'req1', title: '주말 오전에 수채화 배우고 싶어요', budget: '50,000원', date: '2024.04.01' },
+            { id: 'req2', title: '강아지 산책 대행 구합니다', budget: '20,000원', date: '2024.03.28' }
+          ].map(req => (
+            <div key={req.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex justify-between items-center shadow-sm">
+              <div>
+                <h4 className="font-bold text-gray-900 mb-1">{req.title}</h4>
+                <p className="text-sm text-gray-500">희망 예산: {req.budget} | 등록일: {req.date}</p>
+              </div>
+              <ChevronRight className="text-gray-300" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderFollowing = () => {
+    const followedFreelancers = freelancers.filter(f => followingIds.includes(f.id));
+
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-8">팔로잉 프리랜서</h2>
+        {followedFreelancers.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-[32px] border border-coral/10">
+            <p className="text-gray-400">팔로잉 중인 프리랜서가 없습니다.</p>
+            <Link to="/browse" className="text-coral font-bold mt-2 inline-block hover:underline">전문가 찾아보기</Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {followedFreelancers.map(freelancer => (
+              <div key={freelancer.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex items-center gap-6 shadow-sm group hover:border-coral transition-all">
+                <Link to={`/freelancer/${freelancer.id}`}>
+                  <img src={freelancer.avatar} alt={freelancer.name} className="w-16 h-16 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+                </Link>
+                <div className="flex-1">
+                  <Link to={`/freelancer/${freelancer.id}`}>
+                    <h4 className="font-bold text-gray-900 mb-1 hover:text-coral transition-colors">{freelancer.name}</h4>
+                  </Link>
+                  <p className="text-sm text-gray-500 mb-2">{freelancer.specialty}</p>
+                  <span className="text-xs text-coral font-medium">팔로워 {freelancer.followerCount}명</span>
+                </div>
+                <button 
+                  onClick={() => toggleFollow(freelancer.id)}
+                  className="px-4 py-2 bg-coral/10 text-coral font-bold rounded-xl hover:bg-coral hover:text-white transition-all text-xs"
+                >
+                  팔로잉 중
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const handleClassClick = (classId: string) => {
+    navigate(`/class/${classId}`);
+  };
+
+  const handleEditReview = (review: ReviewItem) => {
+    setReviewMode('edit');
+    setSelectedReviewData(review);
+    setIsReviewModalOpen(true);
+  };
+
+  const handleCreateReview = (classItem: any) => {
+    setReviewMode('create');
+    setSelectedReviewData({
+      classId: classItem.id,
+      className: classItem.title,
+    });
+    setIsReviewModalOpen(true);
+  };
+
+  const handleSaveReview = (reviewData: Partial<ReviewItem>) => {
+    const now = new Date().toISOString().split('T')[0];
+    
+    if (reviewMode === 'create') {
+      const newReview: ReviewItem = {
+        id: `rv${Date.now()}`,
+        author: '포근사용자', // In real app, get from user context
+        userId: 'u1',
+        rating: reviewData.rating || 5,
+        content: reviewData.content || '',
+        image: reviewData.image,
+        date: now,
+        className: selectedReviewData.className || '',
+        classId: selectedReviewData.classId || '',
+      };
+      saveReviewsToStorage([...allReviews, newReview]);
+      showToast('리뷰가 등록되었습니다!');
+    } else {
+      const updatedReviews = allReviews.map(r => 
+        r.id === selectedReviewData.id 
+          ? { ...r, ...reviewData, date: now } 
+          : r
+      );
+      saveReviewsToStorage(updatedReviews);
+      showToast('리뷰가 수정되었습니다!');
+    }
+    setIsReviewModalOpen(false);
+  };
+
+  const handleApprove = (id: string) => {
+    updateEnrollmentStatus(id, 'APPROVED');
+    alert('수강 신청이 승인되었습니다. 유저 상태가 수강자로 변경되었습니다.');
+  };
+
+  const handleRejectClick = (id: string) => {
+    setSelectedEnrollmentId(id);
+    setIsRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = () => {
+    if (!rejectReason.trim()) {
+      alert('거절 사유를 입력해주세요.');
+      return;
+    }
+    if (selectedEnrollmentId) {
+      updateEnrollmentStatus(selectedEnrollmentId, 'REJECTED', rejectReason);
+      alert('수강 신청이 거절되었습니다.');
+      setIsRejectModalOpen(false);
+      setRejectReason('');
+      setSelectedEnrollmentId(null);
+    }
+  };
+
+  const handleChatSimulation = (studentName: string) => {
+    alert(`${studentName}님과의 1:1 대화방으로 이동합니다.`);
+    navigate('/chat');
+  };
+
+  const renderEnrollmentManagement = () => (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-8">수강 신청 관리</h2>
+      <div className="bg-white rounded-[40px] border border-coral/10 overflow-hidden shadow-sm">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-ivory border-b border-coral/10">
+              <th className="px-6 py-4 text-sm font-bold text-gray-600">클래스명</th>
+              <th className="px-6 py-4 text-sm font-bold text-gray-600">신청자</th>
+              <th className="px-6 py-4 text-sm font-bold text-gray-600">신청일</th>
+              <th className="px-6 py-4 text-sm font-bold text-gray-600">상태</th>
+              <th className="px-6 py-4 text-sm font-bold text-gray-600">액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {enrollments.map((e) => (
+              <tr key={e.id} className="border-b border-coral/5 hover:bg-ivory/30 transition-colors">
+                <td className="px-6 py-4">
+                  <p className="font-bold text-gray-900 text-sm">{e.classTitle}</p>
+                </td>
+                <td className="px-6 py-4">
+                  <p className="text-sm text-gray-600">{e.studentName}</p>
+                  <p className="text-xs text-gray-400">{e.studentEmail}</p>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">{e.appliedAt}</td>
+                <td className="px-6 py-4">
+                  <span className={cn(
+                    "px-3 py-1 rounded-full text-[10px] font-bold",
+                    e.status === 'PENDING' ? "bg-yellow-100 text-yellow-600" :
+                    e.status === 'APPROVED' ? "bg-green-100 text-green-600" :
+                    e.status === 'CANCEL_REQUESTED' ? "bg-orange-100 text-orange-600" :
+                    "bg-red-100 text-red-600"
+                  )}>
+                    {e.status === 'PENDING' ? '승인 대기' :
+                     e.status === 'APPROVED' ? '수강 중' : 
+                     e.status === 'CANCEL_REQUESTED' ? '취소 요청 중' :
+                     e.status === 'CANCELLED' ? '취소됨' : '거절됨'}
+                  </span>
+                  {e.cancelReason && <p className="text-[10px] text-red-400 mt-1">사유: {e.cancelReason}</p>}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex gap-2">
+                    {e.status === 'PENDING' && (
+                      <>
+                        <button 
+                          onClick={() => handleApprove(e.id)}
+                          className="px-3 py-1.5 bg-coral text-white text-xs font-bold rounded-lg hover:bg-coral/90 transition-all"
+                        >
+                          승인
+                        </button>
+                        <button 
+                          onClick={() => handleRejectClick(e.id)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all"
+                        >
+                          거절
+                        </button>
+                      </>
+                    )}
+                    <button 
+                      onClick={() => handleChatSimulation(e.studentName)}
+                      className="px-3 py-1.5 border border-coral text-coral text-xs font-bold rounded-lg hover:bg-coral/5 transition-all"
+                    >
+                      1:1 대화
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderReviews = () => (
+    <div className="space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 mb-8">나의 리뷰</h2>
+      <div className="space-y-4">
+        {allReviews.length === 0 && (
+          <div className="text-center py-20 text-gray-400">작성한 리뷰가 없습니다.</div>
+        )}
+        {allReviews.map(review => (
+          <div key={review.id} className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+            <div className="flex justify-between items-start mb-4">
+              <div className="flex-1">
+                <h3 
+                  className="font-bold text-gray-900 mb-1 cursor-pointer hover:text-coral transition-colors"
+                  onClick={() => handleClassClick(review.classId)}
+                >
+                  {review.className}
+                </h3>
+                <div className="flex gap-1 mb-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} size={16} className={cn(i < review.rating ? "text-coral fill-coral" : "text-gray-200")} />
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => handleEditReview(review)}
+                  className="p-2 text-gray-400 hover:text-coral hover:bg-coral/10 rounded-xl transition-all"
+                >
+                  <Edit2 size={18} />
+                </button>
+                <button 
+                  onClick={() => {
+                    if (window.confirm('리뷰를 삭제하시겠습니까?')) {
+                      saveReviewsToStorage(allReviews.filter(r => r.id !== review.id));
+                      showToast('리뷰가 삭제되었습니다.');
+                    }
+                  }}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                >
+                  <Trash2 size={18} />
+                </button>
+              </div>
+            </div>
+            {review.image && (
+              <div className="mb-4 rounded-2xl overflow-hidden max-w-sm border border-coral/10">
+                <img src={review.image} alt="Review" className="w-full h-auto" />
+              </div>
+            )}
+            <p className="text-gray-600 leading-relaxed mb-4">{review.content}</p>
+            <span className="text-sm text-gray-400">{review.date}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderFreelancerDashboard = () => (
+    <div className="space-y-12">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm bg-gradient-to-br from-white to-coral/5">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-coral text-white rounded-2xl shadow-lg shadow-coral/20">
+              <CreditCard size={24} />
+            </div>
+            <span className="font-bold text-gray-500">이번 달 예상 수익</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">2,450,000원</p>
+          <p className="text-sm text-green-500 font-bold mt-2">▲ 지난 달 대비 15%</p>
+        </div>
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-coral/10 rounded-2xl text-coral">
+              <Users size={24} />
+            </div>
+            <span className="font-bold text-gray-500">수강생 수</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">128명</p>
+          <p className="text-sm text-coral font-bold mt-2">이번 달 +12명</p>
+        </div>
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-yellow-400/10 rounded-2xl text-yellow-500">
+              <Star size={24} />
+            </div>
+            <span className="font-bold text-gray-500">평균 별점</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">4.9 / 5.0</p>
+          <p className="text-sm text-gray-400 mt-2">총 56개의 리뷰</p>
+        </div>
+      </div>
+
+      {/* Charts Section */}
+      <div className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+          <h3 className="text-xl font-bold text-gray-900">수익 및 수강생 추이</h3>
+          <div className="flex items-center gap-2 bg-ivory p-2 rounded-2xl">
+            <input 
+              type="date" 
+              value={dashboardDateRange.start}
+              onChange={(e) => setDashboardDateRange(prev => ({ ...prev, start: e.target.value }))}
+              className="bg-transparent text-sm font-bold text-gray-600 outline-none"
+            />
+            <span className="text-gray-300">~</span>
+            <input 
+              type="date" 
+              value={dashboardDateRange.end}
+              onChange={(e) => setDashboardDateRange(prev => ({ ...prev, end: e.target.value }))}
+              className="bg-transparent text-sm font-bold text-gray-600 outline-none"
+            />
+          </div>
+        </div>
+        
+        <div className="h-[350px] w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={REVENUE_DATA}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} dy={10} />
+              <YAxis yAxisId="left" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} tickFormatter={(value) => `${value/10000}만`} />
+              <YAxis yAxisId="right" orientation="right" axisLine={false} tickLine={false} tick={{ fill: '#9ca3af', fontSize: 12 }} />
+              <Tooltip 
+                contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+              />
+              <Legend verticalAlign="top" align="right" height={36}/>
+              <Line yAxisId="left" type="monotone" dataKey="revenue" name="수익(원)" stroke="#FF7F6E" strokeWidth={4} dot={{ r: 6, fill: '#FF7F6E', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+              <Line yAxisId="right" type="monotone" dataKey="students" name="수강생(명)" stroke="#4ade80" strokeWidth={4} dot={{ r: 6, fill: '#4ade80', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 8 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+
+        <div className="grid grid-cols-2 gap-8 mt-12 pt-8 border-t border-coral/5">
+          <div className="text-center">
+            <p className="text-sm font-bold text-gray-400 mb-1">누적 총 수익</p>
+            <p className="text-2xl font-bold text-gray-900">15,800,000원</p>
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-bold text-gray-400 mb-1">누적 총 수강생</p>
+            <p className="text-2xl font-bold text-gray-900">482명</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const handleDeleteClassClick = (id: string) => {
+    setSelectedClassId(id);
+    setIsDeleteConfirmModalOpen(true);
+  };
+
+  const handleConfirmDeleteClass = () => {
+    if (selectedClassId) {
+      deleteClass(selectedClassId);
+      showToast('삭제되었습니다.');
+      setIsDeleteConfirmModalOpen(false);
+      setSelectedClassId(null);
+    }
+  };
+
+  const renderFreelancerClasses = () => (
+    <div className="space-y-8">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">내 클래스 관리</h2>
+        <button 
+          onClick={() => navigate('/class/create')}
+          className="px-6 py-3 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center gap-2"
+        >
+          <Plus size={20} /> 새 클래스 등록
+        </button>
+      </div>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {teachingClasses.map(item => (
+          <div key={item.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex gap-6 items-center shadow-sm group hover:border-coral transition-all">
+            <img src={item.image} alt={item.title} className="w-20 h-20 rounded-2xl object-cover" referrerPolicy="no-referrer" />
+            <div className="flex-1">
+              <h4 className="font-bold text-gray-900 mb-1 line-clamp-1">{item.title}</h4>
+              <div className="flex items-center gap-3 text-sm text-gray-400">
+                <span className="flex items-center gap-1"><Users size={14} /> 12명</span>
+                <span className="flex items-center gap-1"><Star size={14} className="text-coral fill-coral" /> {item.rating}</span>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => navigate(`/class/edit/${item.id}`)}
+                className="p-2 text-coral hover:bg-coral/10 rounded-xl transition-all"
+                title="수정"
+              >
+                <Edit2 size={18} />
+              </button>
+              <button 
+                onClick={() => handleDeleteClassClick(item.id)}
+                className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all"
+                title="삭제"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const handleSaveFreelancerProfile = async () => {
+    try {
+      // Update global context
+      updateFreelancer(freelancerProfile.id, {
+        name: freelancerProfile.name,
+        specialty: freelancerProfile.specialty,
+        introduction: freelancerProfile.introduction,
+        career: freelancerProfile.career,
+        location: freelancerProfile.location,
+        portfolioImages: freelancerProfile.portfolioImages
+      });
+
+      // Simulation for MyBatis/API
+      const payload = {
+        id: freelancerProfile.id,
+        name: freelancerProfile.name,
+        specialty: freelancerProfile.specialty,
+        introduction: freelancerProfile.introduction,
+        career: freelancerProfile.career,
+        portfolio: freelancerProfile.portfolio,
+        location: freelancerProfile.location,
+        portfolioImages: JSON.stringify(freelancerProfile.portfolioImages)
+      };
+
+      console.log('Saving profile with payload:', payload);
+      
+      alert('프로필이 성공적으로 저장되었습니다.');
+      navigate(`/freelancer/${freelancerProfile.id}`);
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('저장 중 오류가 발생했습니다.');
+    }
+  };
+
+  const renderFreelancerProfile = () => (
+    <div className="max-w-3xl space-y-10">
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-gray-900">프리랜서 프로필 관리</h2>
+        <button 
+          onClick={handleSaveFreelancerProfile}
+          className="px-8 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center gap-2"
+        >
+          <Save size={20} /> 저장하기
+        </button>
+      </div>
+
+      <div className="space-y-8 bg-white p-10 rounded-[40px] border border-coral/10 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-gray-700 ml-1">활동명</label>
+            <input 
+              type="text"
+              value={freelancerProfile.name}
+              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, name: e.target.value }))}
+              className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all font-bold"
+              placeholder="활동명을 입력해주세요."
+            />
+          </div>
+          <div className="space-y-3">
+            <label className="text-sm font-bold text-gray-700 ml-1">전문 분야</label>
+            <input 
+              type="text"
+              value={freelancerProfile.specialty}
+              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, specialty: e.target.value }))}
+              className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all font-bold"
+              placeholder="예: 수채화, 드로잉"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1">한 줄 소개</label>
+          <textarea 
+            value={freelancerProfile.introduction}
+            onChange={(e) => setFreelancerProfile(prev => ({ ...prev, introduction: e.target.value }))}
+            className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all min-h-[100px] resize-none"
+            placeholder="자신을 한 줄로 소개해주세요."
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1">경력 사항</label>
+          <textarea 
+            value={freelancerProfile.career}
+            onChange={(e) => setFreelancerProfile(prev => ({ ...prev, career: e.target.value }))}
+            className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all min-h-[150px] resize-none"
+            placeholder="주요 경력을 입력해주세요."
+          />
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1">포트폴리오 링크</label>
+          <div className="relative">
+            <BookOpen className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="url" 
+              value={freelancerProfile.portfolio}
+              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, portfolio: e.target.value }))}
+              placeholder="https://..."
+              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1">활동 지역</label>
+          <div className="relative">
+            <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <input 
+              type="text" 
+              value={freelancerProfile.location}
+              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, location: e.target.value }))}
+              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+            />
+          </div>
+          <p className="text-xs text-gray-400 ml-1">마이페이지 계정 설정에서 설정한 지역이 기본으로 적용됩니다.</p>
+        </div>
+
+        <div className="space-y-4">
+          <label className="text-sm font-bold text-gray-700 ml-1">포트폴리오 이미지</label>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            {freelancerProfile.portfolioImages.map((img, idx) => (
+              <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group border border-coral/10">
+                <img src={img} alt="" className="w-full h-full object-cover" />
+                <button 
+                  onClick={() => {
+                    const newImages = [...freelancerProfile.portfolioImages];
+                    newImages.splice(idx, 1);
+                    setFreelancerProfile({ ...freelancerProfile, portfolioImages: newImages });
+                  }}
+                  className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ))}
+            <button className="aspect-square rounded-2xl border-2 border-dashed border-coral/20 flex flex-col items-center justify-center text-coral/40 hover:text-coral hover:border-coral transition-all bg-ivory/50">
+              <Plus size={24} />
+              <span className="text-[10px] font-bold mt-1">추가</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Admin Handlers
+  const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
+    setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
+    alert('사용자 권한이 변경되었습니다.');
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    if (window.confirm('정말 이 사용자를 탈퇴 처리하시겠습니까?')) {
+      setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, isDeleted: true, quitAt: new Date().toISOString().split('T')[0] } : u));
+      alert('사용자가 탈퇴 처리되었습니다.');
+    }
+  };
+
+  const handleApproveFreelancer = (approvalId: string) => {
+    updateApprovalStatus(approvalId, 'APPROVED');
+    // Also update user role in adminUsers if found
+    const approval = adminApprovals.find(a => a.id === approvalId);
+    if (approval) {
+      setAdminUsers(prev => prev.map(u => u.email === approval.email ? { ...u, role: 'ROLE_FREELANCER' } : u));
+    }
+    alert('프리랜서 승인이 완료되었습니다.');
+  };
+
+  const handleRejectFreelancerClick = (id: string) => {
+    setSelectedApprovalId(id);
+    setIsApprovalRejectModalOpen(true);
+  };
+
+  const handleConfirmApprovalReject = () => {
+    if (!approvalRejectReason.trim()) {
+      alert('거절 사유를 입력해주세요.');
+      return;
+    }
+    if (selectedApprovalId) {
+      updateApprovalStatus(selectedApprovalId, 'REJECTED', approvalRejectReason);
+      setIsApprovalRejectModalOpen(false);
+      setApprovalRejectReason('');
+      setSelectedApprovalId(null);
+      alert('프리랜서 요청이 반려되었습니다.');
+    }
+  };
+
+  const handleSoftDeleteReport = (reportId: string) => {
+    if (window.confirm('해당 콘텐츠를 삭제(논리 삭제)하시겠습니까?')) {
+      setAdminReports(prev => prev.map(r => r.id === reportId ? { ...r, isDeleted: true } : r));
+      alert('콘텐츠가 논리 삭제되었습니다.');
+    }
+  };
+
+  const renderAdminHome = () => (
+    <div className="space-y-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-blue-50 text-blue-500 rounded-2xl">
+              <Users size={24} />
+            </div>
+            <span className="font-bold text-gray-500">전체 사용자 수</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">{adminUsers.length}명</p>
+          <p className="text-sm text-gray-400 mt-2">신규 가입 +5명</p>
+        </div>
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-green-50 text-green-500 rounded-2xl">
+              <CreditCard size={24} />
+            </div>
+            <span className="font-bold text-gray-500">오늘 결제 금액</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">1,250,000원</p>
+          <p className="text-sm text-green-500 font-bold mt-2">▲ 어제 대비 12%</p>
+        </div>
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+          <div className="flex items-center gap-4 mb-4">
+            <div className="p-3 bg-red-50 text-red-500 rounded-2xl">
+              <AlertCircle size={24} />
+            </div>
+            <span className="font-bold text-gray-500">오늘 접수된 신고</span>
+          </div>
+          <p className="text-3xl font-bold text-gray-900">{adminReports.length}건</p>
+          <p className="text-sm text-red-500 font-bold mt-2">긴급 처리 필요 2건</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm">
+        <h3 className="text-xl font-bold text-gray-900 mb-8">최근 활동 요약</h3>
+        <div className="space-y-4">
+          {adminReports.slice(0, 3).map(report => (
+            <div key={report.id} className="flex items-center justify-between p-4 bg-ivory/50 rounded-2xl border border-coral/5">
+              <div className="flex items-center gap-4">
+                <div className="p-2 bg-white rounded-xl text-coral">
+                  <Shield size={18} />
+                </div>
+                <div>
+                  <p className="font-bold text-gray-900 text-sm">{report.reason}</p>
+                  <p className="text-xs text-gray-400">{report.reportedAt} · {report.type}</p>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-coral/10 text-coral text-[10px] font-bold rounded-full">처리 대기</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAdminUsers = () => {
+    const filteredUsers = adminUsers
+      .filter(u => u.name.includes(userSearch) || u.id.includes(userSearch))
+      .filter(u => userFilter === 'ALL' ? true : u.role === userFilter)
+      .sort((a, b) => {
+        if (userSort === 'joinedAt') return b.joinedAt.localeCompare(a.joinedAt);
+        return a.role.localeCompare(b.role);
+      });
+
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const paginatedUsers = filteredUsers.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    return (
+      <div className="space-y-8">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <h2 className="text-2xl font-bold text-gray-900">사용자 관리</h2>
+          <div className="flex items-center gap-3 w-full md:w-auto">
+            <div className="relative flex-1 md:w-64">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+              <input 
+                type="text" 
+                placeholder="ID 또는 이름 검색"
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all text-sm"
+              />
+            </div>
+            <select 
+              value={userFilter}
+              onChange={(e) => setUserFilter(e.target.value)}
+              className="px-4 py-3 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all text-sm font-bold text-gray-600"
+            >
+              <option value="ALL">전체 등급</option>
+              <option value="ROLE_USER">일반 유저</option>
+              <option value="ROLE_FREELANCER">프리랜서</option>
+              <option value="ROLE_ADMIN">관리자</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-[32px] border border-coral/10 shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-ivory border-b border-coral/10">
+                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">ID / 이름</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">생년월일</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">등급</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">연락처 / 주소</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">가입일 / 상태</th>
+                  <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">액션</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paginatedUsers.map(u => (
+                  <tr key={u.id} className="border-b border-coral/5 hover:bg-ivory/30 transition-colors group">
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-gray-900 text-sm">{u.name}</p>
+                      <p className="text-[10px] text-gray-400">{u.id}</p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-600">{u.birth}</td>
+                    <td className="px-6 py-4">
+                      <select 
+                        value={u.role}
+                        onChange={(e) => handleUpdateUserRole(u.id, e.target.value as UserRole)}
+                        className="bg-transparent text-xs font-bold text-coral outline-none cursor-pointer"
+                      >
+                        <option value="ROLE_USER">USER</option>
+                        <option value="ROLE_FREELANCER">FREELANCER</option>
+                        <option value="ROLE_ADMIN">ADMIN</option>
+                      </select>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-gray-600">{u.phone}</p>
+                      <p className="text-[10px] text-gray-400">{u.address}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-gray-600">{u.joinedAt}</p>
+                      <span className={cn(
+                        "text-[10px] font-bold",
+                        u.isDeleted ? "text-red-500" : "text-green-500"
+                      )}>
+                        {u.isDeleted ? `탈퇴 (${u.quitAt})` : '정상'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex justify-center gap-2">
+                        {!u.isDeleted && (
+                          <button 
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                            title="탈퇴 처리"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Pagination */}
+        <div className="flex justify-center items-center gap-2">
+          {[...Array(totalPages)].map((_, i) => (
+            <button
+              key={i}
+              onClick={() => setCurrentPage(i + 1)}
+              className={cn(
+                "w-10 h-10 rounded-xl font-bold transition-all",
+                currentPage === i + 1 
+                  ? "bg-coral text-white shadow-lg shadow-coral/20" 
+                  : "bg-white text-gray-400 hover:bg-ivory border border-coral/5"
+              )}
+            >
+              {i + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAdminReports = () => (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900">신고 및 콘텐츠 관리</h2>
+      <div className="bg-white rounded-[32px] border border-coral/10 shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-ivory border-b border-coral/10">
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">유형</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">신고 사유</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">신고일</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase">상태</th>
+              <th className="px-6 py-4 text-xs font-bold text-gray-500 uppercase text-center">액션</th>
+            </tr>
+          </thead>
+          <tbody>
+            {adminReports.map(report => (
+              <tr key={report.id} className="border-b border-coral/5 hover:bg-ivory/30 transition-colors">
+                <td className="px-6 py-4">
+                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-[10px] font-bold rounded-md">{report.type}</span>
+                </td>
+                <td className="px-6 py-4">
+                  <p className="text-sm text-gray-900">{report.isDeleted ? <span className="text-red-400 italic">삭제된 게시글입니다</span> : report.reason}</p>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">{report.reportedAt}</td>
+                <td className="px-6 py-4">
+                  <span className={cn(
+                    "text-xs font-bold",
+                    report.status === 'PENDING' ? "text-coral" : "text-gray-400"
+                  )}>
+                    {report.status === 'PENDING' ? '처리 대기' : '처리 완료'}
+                  </span>
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex justify-center gap-2">
+                    {!report.isDeleted && (
+                      <button 
+                        onClick={() => handleSoftDeleteReport(report.id)}
+                        className="px-3 py-1.5 bg-red-50 text-red-500 text-xs font-bold rounded-lg hover:bg-red-100 transition-all"
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+
+  const renderAdminApprovals = () => (
+    <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900">프리랜서 승인 관리</h2>
+      <div className="grid grid-cols-1 gap-6">
+        {adminApprovals.map(approval => (
+          <div key={approval.id} className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="flex-1 space-y-4">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-xl font-bold text-gray-900">{approval.name}</h3>
+                  <span className="px-3 py-1 bg-ivory text-coral text-[10px] font-bold rounded-full">{approval.specialty}</span>
+                  <span className={cn(
+                    "px-3 py-1 text-[10px] font-bold rounded-full",
+                    approval.status === 'PENDING' ? "bg-yellow-100 text-yellow-600" :
+                    approval.status === 'APPROVED' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                  )}>
+                    {approval.status === 'PENDING' ? '승인 대기' : approval.status === 'APPROVED' ? '승인 완료' : '반려됨'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-400 font-bold mb-1">이메일</p>
+                    <p className="text-gray-600">{approval.email}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-400 font-bold mb-1">신청일</p>
+                    <p className="text-gray-600">{approval.appliedAt}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-gray-400 font-bold mb-1">경력 사항</p>
+                    <p className="text-gray-600 whitespace-pre-line">{approval.career}</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-gray-400 font-bold mb-1">포트폴리오</p>
+                    <a href={approval.portfolio} target="_blank" rel="noreferrer" className="text-coral hover:underline">{approval.portfolio}</a>
+                  </div>
+                  {approval.rejectReason && (
+                    <div className="md:col-span-2 p-4 bg-red-50 rounded-2xl">
+                      <p className="text-red-500 font-bold text-xs mb-1">반려 사유</p>
+                      <p className="text-red-600 text-sm">{approval.rejectReason}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {approval.status === 'PENDING' && (
+                <div className="flex md:flex-col gap-3 w-full md:w-auto">
+                  <button 
+                    onClick={() => handleApproveFreelancer(approval.id)}
+                    className="flex-1 md:w-32 py-3 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center justify-center gap-2"
+                  >
+                    <Check size={18} /> 수락
+                  </button>
+                  <button 
+                    onClick={() => handleRejectFreelancerClick(approval.id)}
+                    className="flex-1 md:w-32 py-3 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Ban size={18} /> 거절
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const renderSettings = () => (
+    <div className="max-w-2xl space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900 mb-8">계정 설정</h2>
+      
+      {/* Profile Image Change */}
+      <div className="flex flex-col items-center gap-4 mb-10 pb-8 border-b border-coral/5">
+        <div className="relative group">
+          <div className="w-32 h-32 bg-coral/10 rounded-full flex items-center justify-center border-4 border-ivory shadow-inner overflow-hidden">
+            <img 
+              src={profileImage || "https://picsum.photos/seed/pogeun-expert/100/100"} 
+              alt="Profile" 
+              className="w-full h-full object-cover" 
+            />
+          </div>
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleProfileImageChange} 
+            accept="image/*" 
+            className="hidden" 
+          />
+          <button 
+            onClick={() => fileInputRef.current?.click()}
+            className="absolute bottom-0 right-0 p-2.5 bg-coral text-white rounded-full shadow-lg hover:scale-110 transition-all"
+          >
+            <Edit2 size={18} />
+          </button>
+        </div>
+        <p className="text-sm font-medium text-gray-500">프로필 사진 변경</p>
+      </div>
+
+      <div className="space-y-6">
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-500 ml-1">이름</label>
+          <input type="text" defaultValue="포근한 사용자님" className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all" />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-500 ml-1">이메일</label>
+          <input type="email" defaultValue="haruyuki0479@gmail.com" disabled className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-2 border-transparent text-gray-400 cursor-not-allowed" />
+        </div>
+        <div className="space-y-2">
+          <label className="text-sm font-bold text-gray-500 ml-1">전화번호</label>
+          <input type="tel" defaultValue="010-1234-5678" className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all" />
+        </div>
+
+        <div className="space-y-4">
+          <label className="text-sm font-bold text-gray-500 ml-1">활동 지역</label>
+          <div className="grid grid-cols-2 gap-4">
+            <select 
+              value={selectedCity}
+              onChange={(e) => {
+                setSelectedCity(e.target.value);
+                setSelectedDistrict('');
+              }}
+              className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="">시/도 선택</option>
+              {REGIONS.map(region => (
+                <option key={region.name} value={region.name}>{region.name}</option>
+              ))}
+            </select>
+            <select 
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              disabled={!selectedCity}
+              className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <option value="">시/군/구 선택</option>
+              {REGIONS.find(r => r.name === selectedCity)?.districts.map(district => (
+                <option key={district} value={district}>{district}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-gray-400 ml-1">활동 지역은 마이페이지에서 언제든 수정할 수 있습니다.</p>
+        </div>
+        
+        <div className="pt-2">
+          <button 
+            onClick={handleChangePassword}
+            className="text-sm font-bold text-coral hover:underline flex items-center gap-1"
+          >
+            비밀번호 변경
+          </button>
+        </div>
+
+        <div className="pt-4">
+          <button 
+            onClick={handleSaveChanges}
+            className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20"
+          >
+            변경사항 저장하기
+          </button>
+        </div>
+      </div>
+      
+      <div className="pt-12 border-t border-coral/10">
+        <button 
+          onClick={handleWithdraw}
+          className="text-gray-400 hover:text-red-500 font-medium flex items-center gap-2 transition-colors"
+        >
+          회원 탈퇴하기
+        </button>
+      </div>
+    </div>
+  );
+
+  const learningItems = [
+    { id: 'activity', label: '수강 관리', icon: Heart },
+    { id: 'reviews', label: '나의 리뷰', icon: MessageSquare },
+    { id: 'pick', label: 'Pick', icon: Star },
+    { id: 'following', label: '팔로잉', icon: Users },
+  ];
+
+  const teachingItems = [
+    { id: 'freelancer_dashboard', label: '수익 대시보드', icon: TrendingUp },
+    { id: 'freelancer_classes', label: '내 클래스 관리', icon: LayoutDashboard },
+    { id: 'freelancer_students', label: '수강생 관리', icon: CheckCircle },
+    { id: 'freelancer_profile', label: '프로필 관리', icon: User },
+  ];
+
+  const adminItems = [
+    { id: 'admin_home', label: '관리자 홈', icon: Shield },
+    { id: 'admin_users', label: '사용자 관리', icon: Users },
+    { id: 'admin_reports', label: '신고/콘텐츠 관리', icon: AlertCircle },
+    { id: 'admin_approvals', label: '프리랜서 승인', icon: BadgeCheck },
+  ];
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-12">
+        {/* Sidebar */}
+        <aside className="lg:col-span-1 space-y-6">
+          <div className="bg-white rounded-[40px] p-8 shadow-sm border border-coral/5 text-center">
+            <div className="w-24 h-24 bg-coral/10 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-ivory shadow-inner overflow-hidden">
+              <img 
+                src={profileImage || "https://picsum.photos/seed/pogeun-expert/100/100"} 
+                alt="Profile" 
+                className="w-full h-full object-cover" 
+              />
+            </div>
+            <div className="flex items-center justify-center gap-1 mb-1">
+              <h2 className="text-xl font-bold text-gray-900">
+                {userRole === 'ROLE_ADMIN' ? '관리자' : userRole === 'ROLE_FREELANCER' ? '포근프리랜서' : '포근사용자'}
+              </h2>
+              {userRole !== 'ROLE_USER' && <BadgeCheck size={20} className="text-coral" />}
+            </div>
+            <p className="text-sm text-gray-400">{userRole}</p>
+          </div>
+
+          <nav className="bg-white rounded-[40px] p-4 shadow-sm border border-coral/5 overflow-hidden">
+            <div className="space-y-6">
+              {/* Learning Section */}
+              <div>
+                <h3 className="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">배우는 포근</h3>
+                <div className="space-y-1">
+                  {learningItems.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => setActiveMenu(item.id as MenuType)}
+                      className={cn(
+                        "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
+                        activeMenu === item.id 
+                          ? "bg-coral/10 text-coral font-bold" 
+                          : "text-gray-600 hover:bg-ivory"
+                      )}
+                    >
+                      <span className="flex items-center gap-3">
+                        <item.icon size={20} className={cn(activeMenu === item.id ? "text-coral" : "text-gray-400 group-hover:text-coral")} />
+                        {item.label}
+                      </span>
+                      <ChevronRight size={18} className={cn(activeMenu === item.id ? "text-coral" : "text-gray-300")} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Teaching Section (Freelancer Only) */}
+              {userRole === 'ROLE_FREELANCER' && (
+                <div>
+                  <h3 className="px-4 mb-2 text-[10px] font-bold text-coral uppercase tracking-wider">나누는 포근</h3>
+                  <div className="space-y-1">
+                    {teachingItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveMenu(item.id as MenuType)}
+                        className={cn(
+                          "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
+                          activeMenu === item.id 
+                            ? "bg-coral text-white font-bold shadow-lg shadow-coral/20" 
+                            : "text-gray-600 hover:bg-coral/5 hover:text-coral"
+                        )}
+                      >
+                        <span className="flex items-center gap-3">
+                          <item.icon size={20} className={cn(activeMenu === item.id ? "text-white" : "text-gray-400 group-hover:text-coral")} />
+                          {item.label}
+                        </span>
+                        <ChevronRight size={18} className={cn(activeMenu === item.id ? "text-white" : "text-gray-300")} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Section */}
+              {userRole === 'ROLE_ADMIN' && (
+                <div>
+                  <h3 className="px-4 mb-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider">관리자 메뉴</h3>
+                  <div className="space-y-1">
+                    {adminItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setActiveMenu(item.id as MenuType)}
+                        className={cn(
+                          "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
+                          activeMenu === item.id 
+                            ? "bg-gray-900 text-white font-bold" 
+                            : "text-gray-600 hover:bg-ivory"
+                        )}
+                      >
+                        <span className="flex items-center gap-3">
+                          <item.icon size={20} className={cn(activeMenu === item.id ? "text-white" : "text-gray-400 group-hover:text-gray-900")} />
+                          {item.label}
+                        </span>
+                        <ChevronRight size={18} className={cn(activeMenu === item.id ? "text-white" : "text-gray-300")} />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-coral/5">
+                <button
+                  onClick={() => setActiveMenu('settings')}
+                  className={cn(
+                    "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
+                    activeMenu === 'settings' 
+                      ? "bg-coral/10 text-coral font-bold" 
+                      : "text-gray-600 hover:bg-ivory"
+                  )}
+                >
+                  <span className="flex items-center gap-3">
+                    <Settings size={20} className={cn(activeMenu === 'settings' ? "text-coral" : "text-gray-400 group-hover:text-coral")} />
+                    계정 설정
+                  </span>
+                  <ChevronRight size={18} className={cn(activeMenu === 'settings' ? "text-coral" : "text-gray-300")} />
+                </button>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-between p-4 text-gray-600 hover:bg-ivory rounded-2xl transition-all"
+                >
+                  <span className="flex items-center gap-3"><LogOut size={20} /> 로그아웃</span>
+                  <ChevronRight size={18} />
+                </button>
+              </div>
+            </div>
+          </nav>
+        </aside>
+
+        {/* Main Content */}
+        <main className="lg:col-span-3 min-h-[600px] space-y-8">
+          {(userRole === 'ROLE_USER' || userRole === 'ROLE_FREELANCER') && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm"
+            >
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 bg-coral/10 rounded-3xl flex items-center justify-center border-2 border-ivory shadow-inner overflow-hidden">
+                    <img 
+                      src={profileImage || "https://picsum.photos/seed/pogeun-expert/100/100"} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover" 
+                    />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h2 className="text-2xl font-bold text-gray-900">포근사용자님</h2>
+                      <span className="px-3 py-1 bg-coral/10 text-coral text-[10px] font-bold rounded-full">새싹 등급</span>
+                      {userRole === 'ROLE_FREELANCER' && (
+                        <Link to="/freelancer/f1" className="ml-2 text-xs font-bold text-coral hover:underline">
+                          프로필 보기
+                        </Link>
+                      )}
+                    </div>
+                    <p className="text-gray-500 text-sm">{AI_SUMMARY}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="pt-6 border-t border-coral/5">
+                <h4 className="text-sm font-bold text-gray-400 mb-4">나의 취향 키워드</h4>
+                <div className="flex flex-wrap gap-2">
+                  {TASTE_KEYWORDS.map(keyword => (
+                    <span key={keyword} className="px-4 py-2 bg-ivory text-coral font-bold rounded-xl text-sm border border-coral/10">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeMenu}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.2 }}
+            >
+              {activeMenu === 'activity' && renderActivity()}
+              {activeMenu === 'reviews' && renderReviews()}
+              {activeMenu === 'pick' && renderPick()}
+              {activeMenu === 'following' && renderFollowing()}
+              {activeMenu === 'freelancer_dashboard' && renderFreelancerDashboard()}
+              {activeMenu === 'freelancer_classes' && renderFreelancerClasses()}
+              {activeMenu === 'freelancer_students' && renderEnrollmentManagement()}
+              {activeMenu === 'freelancer_profile' && renderFreelancerProfile()}
+              {activeMenu === 'admin_home' && renderAdminHome()}
+              {activeMenu === 'admin_users' && renderAdminUsers()}
+              {activeMenu === 'admin_reports' && renderAdminReports()}
+              {activeMenu === 'admin_approvals' && renderAdminApprovals()}
+              {activeMenu === 'settings' && renderSettings()}
+            </motion.div>
+          </AnimatePresence>
+        </main>
+      </div>
+
+      {/* Review Modal */}
+      <ReviewModal 
+        isOpen={isReviewModalOpen}
+        onClose={() => setIsReviewModalOpen(false)}
+        onSave={handleSaveReview}
+        mode={reviewMode}
+        initialData={selectedReviewData}
+      />
+
+      {/* Reject Reason Modal */}
+      <AnimatePresence>
+        {isRejectModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsRejectModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl"
+            >
+              <button 
+                onClick={() => setIsRejectModalOpen(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-coral transition-colors"
+              >
+                <X size={24} />
+              </button>
+              
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">수강 신청 거절</h2>
+              <p className="text-gray-500 mb-8">거절 사유를 입력해주세요. 신청자에게 전달됩니다.</p>
+              
+              <div className="space-y-4">
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all min-h-[120px] resize-none"
+                  placeholder="예: 해당 시간대에 이미 정원이 초과되었습니다."
+                />
+                
+                <button 
+                  onClick={handleConfirmReject}
+                  className="w-full py-5 bg-red-500 text-white font-bold rounded-3xl hover:bg-red-600 transition-all shadow-xl shadow-red-500/30 text-lg mt-4"
+                >
+                  거절 완료
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Student Cancel Request Modal */}
+      <AnimatePresence>
+        {isCancelRequestModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCancelRequestModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl"
+            >
+              <button 
+                onClick={() => setIsCancelRequestModalOpen(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-coral transition-colors"
+              >
+                <X size={24} />
+              </button>
+              
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">취소 사유 입력</h2>
+              <p className="text-sm text-gray-500 mb-6">
+                수강 취소를 원하시는 사유를 입력해주세요. <br />
+                프리랜서 확인 후 취소 처리가 진행됩니다.
+              </p>
+              
+              <textarea 
+                value={studentCancelReason}
+                onChange={(e) => setStudentCancelReason(e.target.value)}
+                placeholder="취소 사유를 입력해주세요."
+                className="w-full p-6 bg-ivory border-2 border-transparent focus:border-coral rounded-3xl outline-none transition-all min-h-[150px] resize-none mb-8"
+              ></textarea>
+              
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsCancelRequestModalOpen(false)}
+                  className="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                >
+                  닫기
+                </button>
+                <button 
+                  onClick={handleConfirmCancelRequest}
+                  className="flex-1 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20"
+                >
+                  취소 요청
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      {/* Approval Reject Modal */}
+      <AnimatePresence>
+        {isApprovalRejectModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsApprovalRejectModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg bg-white rounded-[40px] p-10 shadow-2xl"
+            >
+              <button 
+                onClick={() => setIsApprovalRejectModalOpen(false)}
+                className="absolute top-6 right-6 text-gray-400 hover:text-coral transition-colors"
+              >
+                <X size={24} />
+              </button>
+              
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">프리랜서 요청 반려</h2>
+              <p className="text-gray-500 mb-8">반려 사유를 입력해주세요. 해당 사유는 신청자에게 전달됩니다.</p>
+              
+              <div className="space-y-4">
+                <textarea 
+                  value={approvalRejectReason}
+                  onChange={(e) => setApprovalRejectReason(e.target.value)}
+                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all min-h-[150px] resize-none"
+                  placeholder="반려 사유를 상세히 적어주세요."
+                />
+                <div className="flex gap-4 pt-4">
+                  <button 
+                    onClick={() => setIsApprovalRejectModalOpen(false)}
+                    className="flex-1 py-4 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                  >
+                    취소
+                  </button>
+                  <button 
+                    onClick={handleConfirmApprovalReject}
+                    className="flex-1 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20"
+                  >
+                    반려하기
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Class Delete Confirm Modal */}
+      <AnimatePresence>
+        {isDeleteConfirmModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDeleteConfirmModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl text-center"
+            >
+              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle size={40} />
+              </div>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4">클래스 삭제</h2>
+              <p className="text-gray-500 mb-8 leading-relaxed">
+                이 클래스를 삭제하시겠습니까? <br />
+                삭제된 클래스는 복구할 수 없습니다.
+              </p>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setIsDeleteConfirmModalOpen(false)}
+                  className="flex-1 py-4 bg-gray-100 text-gray-500 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={handleConfirmDeleteClass}
+                  className="flex-1 py-4 bg-red-500 text-white font-bold rounded-2xl hover:bg-red-600 transition-all shadow-lg shadow-red-200"
+                >
+                  삭제하기
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: '-50%' }}
+            animate={{ opacity: 1, y: 0, x: '-50%' }}
+            exit={{ opacity: 0, y: 50, x: '-50%' }}
+            className={cn(
+              "fixed bottom-10 left-1/2 z-[200] px-8 py-4 rounded-2xl shadow-2xl font-bold text-white flex items-center gap-3 min-w-[300px] justify-center",
+              toast.type === 'success' ? "bg-gray-900" : "bg-red-500"
+            )}
+          >
+            {toast.type === 'success' ? <Check size={20} className="text-green-400" /> : <AlertCircle size={20} />}
+            {toast.message}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

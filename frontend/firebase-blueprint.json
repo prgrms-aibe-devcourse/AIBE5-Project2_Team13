@@ -1,0 +1,31 @@
+{
+  "entities": {
+    "users": {
+      "title": "User",
+      "description": "App users and their profiles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "role": { "type": "string", "enum": ["ROLE_USER", "ROLE_FREELANCER", "ROLE_ADMIN"] },
+        "city": { "type": "string" },
+        "district": { "type": "string" },
+        "macros": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "Frequently used chat responses for freelancers"
+        },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "users",
+      "description": "User profile documents"
+    }
+  }
+}

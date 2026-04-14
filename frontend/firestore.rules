@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId} (matches auth.uid)
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string
+    //   - photoURL: string
+    //   - role: string (required, ['ROLE_USER', 'ROLE_FREELANCER', 'ROLE_ADMIN'])
+    //   - city: string
+    //   - district: string
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'ROLE_ADMIN' ||
+         (request.auth.token.email == "haruyuki0479@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'email', 'role']) &&
+             data.uid is string &&
+             data.email is string &&
+             data.role in ['ROLE_USER', 'ROLE_FREELANCER', 'ROLE_ADMIN'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('city' in data) || (data.city is string)) &&
+             (!('district' in data) || (data.district is string)) &&
+             (!('macros' in data) || (data.macros is list));
+    }
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.role == 'ROLE_USER'; // Default role for new users
+      allow update: if (isOwner(userId) && isValidUser(request.resource.data) && 
+                        request.resource.data.role == resource.data.role) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /follows/{followId} {
+      allow read: if isAuthenticated() && (resource == null || resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.keys().hasAll(['userId', 'freelancerId', 'followedAt']) &&
+                      request.resource.data.userId is string &&
+                      request.resource.data.freelancerId is string &&
+                      request.resource.data.followedAt is timestamp;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
