@@ -22,7 +22,7 @@ jobs:
         with:
           distribution: temurin
           java-version: "17"
-          cache: gradle
+          cache: maven
 
       - name: Make gradlew executable
         run: chmod +x gradlew
