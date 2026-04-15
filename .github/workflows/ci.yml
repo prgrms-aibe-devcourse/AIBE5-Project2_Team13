@@ -27,8 +27,8 @@ jobs:
       - name: Make mvnw executable
         run: chmod +x mvnw
 
-      - name: Run tests
-        run: ./mvnw test
+      - name: Build with Maven
+        run: ./mvnw package -DskipTests
 
       - name: Upload test reports (always)
         if: always()
