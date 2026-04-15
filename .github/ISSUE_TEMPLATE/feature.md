@@ -1,21 +1,15 @@
 ---
-name: Bug
-about: 버그 리포트 템플릿
-title: '[Bug] '
-labels: bug
+name: Feature
+about: 기능 구현 이슈 생성 템플릿
+title: '[Feat] '
+labels: enhancement
 assignees: ''
 ---
 
-## 📝 무엇이 문제인가요?
+## 📝 무엇을 하나요?
 
-- 버그를 간단히 설명해주세요
-
-## 📍 재현 방법
-
-1.
-2.
-3.
+- 할 일을 간단히 설명해주세요
 
 ## 📌 To do
 
-- [ ] 수정할 작업들 리스트업
+- [ ] 할 작업들 리스트업
