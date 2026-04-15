@@ -4,9 +4,7 @@ import { Mail, Lock, User, Shield, MapPin, Loader2, CheckCircle2, X } from 'luci
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { REGIONS } from '@/src/constants';
-import { auth, googleProvider, signInWithPopup, signInWithCustomToken } from '../firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import axios from 'axios';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -16,8 +14,8 @@ export default function SignUp() {
     email: '',
     password: '',
     passwordConfirm: '',
-    birthdate: '',
-    city: '',
+    birth: '',
+    addr: '',
     district: '',
     phone: '',
   });
@@ -97,121 +95,7 @@ export default function SignUp() {
     return () => window.removeEventListener('message', handleMessage);
   }, [location]);
 
-  const handleCustomTokenSignUp = async (token: string) => {
-    setIsSocialLoading(true);
-    try {
-      const result = await signInWithCustomToken(auth, token);
-      const user = result.user;
 
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      
-      if (!userDoc.exists()) {
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: 'ROLE_USER',
-          createdAt: serverTimestamp(),
-        });
-        localStorage.setItem('userRole', 'ROLE_USER');
-      } else {
-        localStorage.setItem('userRole', userDoc.data().role);
-      }
-
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userEmail', user.email || '');
-      localStorage.setItem('userName', user.displayName || '');
-      localStorage.setItem('userPhoto', user.photoURL || '');
-      
-      alert(`${user.displayName}님, 포근에 오신 것을 환영합니다!`);
-      navigate('/', { replace: true });
-    } catch (error) {
-      console.error('Custom token signup failed:', error);
-      alert('가입 처리 중 오류가 발생했습니다.');
-    } finally {
-      setIsSocialLoading(false);
-    }
-  };
-
-  const handleSocialSignUp = async (provider: string) => {
-    if (provider === 'kakao') {
-      setIsSocialLoading(true);
-      try {
-        const response = await fetch('/api/auth/kakao/url');
-        if (!response.ok) throw new Error('Failed to get Kakao auth URL');
-        const { url } = await response.json();
-        
-        const width = 500;
-        const height = 600;
-        const left = window.screen.width / 2 - width / 2;
-        const top = window.screen.height / 2 - height / 2;
-        
-        const authWindow = window.open(
-          url,
-          'kakao_oauth_popup',
-          `width=${width},height=${height},left=${left},top=${top}`
-        );
-
-        if (!authWindow) {
-          setIsSocialLoading(false);
-          alert('팝업 차단을 해제해주세요.');
-        }
-      } catch (error) {
-        console.error('Kakao signup error:', error);
-        setIsSocialLoading(false);
-        alert('카카오 가입 초기화 중 오류가 발생했습니다.');
-      }
-      return;
-    }
-
-    if (provider !== 'google') {
-      alert(`${provider} 가입은 현재 준비 중입니다. 구글 가입을 이용해주세요.`);
-      return;
-    }
-
-    setIsSocialLoading(true);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-
-      // Check if user exists in Firestore
-      const userDoc = await getDoc(doc(db, 'users', user.uid));
-      
-      if (!userDoc.exists()) {
-        // Create new user
-        await setDoc(doc(db, 'users', user.uid), {
-          uid: user.uid,
-          email: user.email,
-          displayName: user.displayName,
-          photoURL: user.photoURL,
-          role: 'ROLE_USER',
-          createdAt: serverTimestamp(),
-        });
-        localStorage.setItem('userRole', 'ROLE_USER');
-      } else {
-        localStorage.setItem('userRole', userDoc.data().role);
-      }
-
-      localStorage.setItem('isLoggedIn', 'true');
-      localStorage.setItem('userEmail', user.email || '');
-      localStorage.setItem('userName', user.displayName || '');
-      localStorage.setItem('userPhoto', user.photoURL || '');
-      
-      alert(`${user.displayName}님, 포근에 오신 것을 환영합니다!`);
-      navigate('/');
-    } catch (error: any) {
-      if (error?.code === 'auth/popup-closed-by-user') {
-        console.log('사용자가 가입 팝업을 닫았습니다.');
-        return;
-      }
-      console.error('구글 가입 실패:', error);
-      alert('가입에 실패했습니다. 다시 시도해주세요.');
-    } finally {
-      setIsSocialLoading(false);
-    }
-  };
 
   const handlePassVerify = () => {
     setShowPassPopup(true);
@@ -223,50 +107,35 @@ export default function SignUp() {
     alert('본인인증이 완료되었습니다.');
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isVerified) {
-      alert('PASS 본인인증을 완료해주세요.');
-      return;
-    }
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
 
-    // Final validation check
-    if (errors.email || errors.password || errors.passwordConfirm) {
-      alert('입력 정보를 다시 확인해주세요.');
-      return;
-    }
-
-    console.log('Backend API로 전송할 데이터:', formData);
-
-    /* 
-    // Axios 요청 예시 구조
-    import axios from 'axios';
-    
-    const registerUser = async () => {
-      try {
-        const response = await axios.post('/api/auth/signup', formData);
-        console.log('회원가입 성공:', response.data);
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userRole', 'ROLE_USER');
-        alert('포근에 오신 것을 환영합니다!');
-        navigate('/');
-      } catch (error) {
-        console.error('회원가입 실패:', error);
-        alert('회원가입 중 오류가 발생했습니다.');
-      }
-    };
-    registerUser();
-    */
-
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userRole', 'ROLE_USER');
-    localStorage.setItem('userCity', formData.city);
-    localStorage.setItem('userDistrict', formData.district);
-    alert('포근에 오신 것을 환영합니다!');
-    navigate('/');
+  const requestData = {
+    name: formData.name,
+    email: formData.email,
+    password: formData.password,
+    passwordConfirm: formData.passwordConfirm,
+    birth: formData.birth,
+    phone: formData.phone,
+    addr: formData.addr,
+    addr2: formData.district,
   };
 
+  try {
+    const response = await axios.post(
+      "http://localhost:8080/api/auth/signup",
+      requestData
+    );
+
+    console.log("회원가입 성공:", response.data);
+
+    alert("회원가입 완료");
+    navigate("/login");
+  } catch (error: any) {
+    console.error("회원가입 실패:", error);
+    alert(error.response?.data?.message || "회원가입 중 오류 발생");
+  }
+};
   return (
     <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12 bg-ivory">
       <motion.div 
@@ -405,10 +274,10 @@ export default function SignUp() {
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500 ml-1">생년월일</label>
               <input 
-                name="birthdate"
+                name="birth"
                 type="date" 
                 required
-                value={formData.birthdate}
+                value={formData.birth}
                 onChange={handleInputChange}
                 className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
               />
@@ -434,10 +303,10 @@ export default function SignUp() {
               <div className="relative">
                 <MapPin className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                 <select 
-                  name="city"
+                  name="addr"
                   required
-                  value={formData.city}
-                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value, district: '' }))}
+                  value={formData.addr}
+                  onChange={(e) => setFormData(prev => ({ ...prev, addr: e.target.value, district: '' }))}
                   className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all appearance-none cursor-pointer"
                 >
                   <option value="">시/도 선택</option>
@@ -451,11 +320,11 @@ export default function SignUp() {
                 required
                 value={formData.district}
                 onChange={(e) => setFormData(prev => ({ ...prev, district: e.target.value }))}
-                disabled={!formData.city}
+                disabled={!formData.addr}
                 className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all appearance-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <option value="">시/군/구 선택</option>
-                {REGIONS.find(r => r.name === formData.city)?.districts.map(district => (
+                {REGIONS.find(r => r.name === formData.addr)?.districts.map(district => (
                   <option key={district} value={district}>{district}</option>
                 ))}
               </select>

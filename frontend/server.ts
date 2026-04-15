@@ -3,24 +3,14 @@ import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import axios from "axios";
-import admin from "firebase-admin";
-import dotenv from "dotenv";
-import fs from "fs";
+import "dotenv/config";
 
-dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Initialize Firebase Admin
-const firebaseConfigPath = path.join(process.cwd(), "firebase-applet-config.json");
-const firebaseConfig = JSON.parse(fs.readFileSync(firebaseConfigPath, "utf-8"));
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    projectId: firebaseConfig.projectId,
-  });
-}
+
 
 async function startServer() {
   const app = express();
@@ -82,14 +72,7 @@ async function startServer() {
       // 3. Create or update user in Firebase Auth (optional, but good for custom token)
       // We don't strictly need to create the user in Auth first, 
       // createCustomToken will work and Firebase will create the user on first sign-in.
-      
-      // 4. Create Firebase Custom Token
-      const customToken = await admin.auth().createCustomToken(uid, {
-        email,
-        displayName,
-        photoURL,
-        provider: "kakao",
-      });
+
 
       // 5. Send success message to parent window and close popup
       res.send(`
