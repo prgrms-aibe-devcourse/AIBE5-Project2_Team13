@@ -3,9 +3,6 @@ import { Search, Plus, Send, Paperclip, MoreVertical, ChevronLeft, User, Message
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useNavigate } from 'react-router-dom';
-import { db, auth } from '../firebase';
-import { doc, getDoc, updateDoc, onSnapshot } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
 
 interface ChatRoom {
   id: string;

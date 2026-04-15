@@ -37,4 +37,11 @@ public class RoleCode {
     @Builder.Default
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+
+    public static RoleCode create(String roleCode, String roleName) {
+        RoleCode role = new RoleCode();
+        role.roleCode = roleCode;
+        role.roleName = roleName;
+        return role;
+    }
 }

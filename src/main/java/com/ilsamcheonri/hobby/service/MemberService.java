@@ -1,8 +1,11 @@
 package com.ilsamcheonri.hobby.service;
 
+import com.ilsamcheonri.hobby.dto.LoginRequestDto;
+import com.ilsamcheonri.hobby.dto.LoginResponseDto;
 import com.ilsamcheonri.hobby.dto.MemberSignUpRequestDto;
 import com.ilsamcheonri.hobby.entity.Member;
 import com.ilsamcheonri.hobby.entity.RoleCode;
+import com.ilsamcheonri.hobby.jwt.JwtTokenProvider;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
 import com.ilsamcheonri.hobby.repository.RoleCodeRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,40 +18,53 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional(readOnly = true)
 public class MemberService {
 
+    private final JwtTokenProvider jwtTokenProvider;
+
     private final MemberRepository memberRepository;
     private final RoleCodeRepository roleCodeRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
-    public Long signUp(MemberSignUpRequestDto requestDto) {
+    public Long signUp(MemberSignUpRequestDto dto) {
 
-        // 1. 이메일 중복 검사 (비즈니스 규칙 검증)
-        if (memberRepository.existsByEmail(requestDto.getEmail())) {
+        if (memberRepository.existsByEmail(dto.getEmail())) {
             throw new IllegalStateException("이미 가입된 이메일입니다.");
         }
 
-        // 2. 비밀번호 암호화
-        String encodedPassword = passwordEncoder.encode(requestDto.getPassword());
+        String encodedPassword = passwordEncoder.encode(dto.getPassword());
 
-        // 3. 회원가입 기본 권한('U') 조회
-        RoleCode userRole = roleCodeRepository.findByRoleCode("U");
-        if (userRole == null) {
-            throw new IllegalStateException("기본 권한을 찾을 수 없습니다.");
-        }
+        RoleCode role = roleCodeRepository.findByRoleCode("U")
+                .orElseThrow(() -> new IllegalStateException("기본 권한을 찾을 수 없습니다."));
 
-        // 4. DTO -> Entity 변환
         Member member = Member.builder()
-                .email(requestDto.getEmail())
+                .email(dto.getEmail())
                 .password(encodedPassword)
-                .name(requestDto.getName())
-                .birth(requestDto.getBirth())
-                .phone(requestDto.getPhone())
-                .addr(requestDto.getAddr())
-                .roleCode(userRole)
+                .name(dto.getName())
+                .birth(dto.getBirth())
+                .phone(dto.getPhone())
+                .addr(dto.getAddr())
+                .addr2(dto.getAddr2())
+                .roleCode(role)
                 .build();
 
-        // 5. DB 저장
-        Member savedMember = memberRepository.save(member);
-        return savedMember.getId();
+        return memberRepository.save(member).getId();
     }
+
+
+    public LoginResponseDto login(LoginRequestDto dto) {
+        System.out.println("LOGIN METHOD CALLED");
+        Member member = memberRepository.findByEmail(dto.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+        System.out.println("AFTER FIND MEMBER");
+        if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        }
+        System.out.println("LOGIN SUCCESS");
+
+        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
+
+        return new LoginResponseDto(accessToken, refreshToken);
+    }
+
 }

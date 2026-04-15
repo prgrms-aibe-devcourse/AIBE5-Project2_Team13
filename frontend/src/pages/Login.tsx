@@ -4,9 +4,7 @@ import { Mail, Lock, Shield, User, Star, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { UserRole } from '../constants';
-import { auth, googleProvider, signInWithPopup, signInWithCustomToken } from '../firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import axios from 'axios';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -165,35 +163,25 @@ export default function Login() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    console.log('Backend API로 전송할 데이터:', formData);
+      console.log("LOGIN CLICKED");
 
-    /* 
-    // Axios 요청 예시 구조
-    import axios from 'axios';
-    
-    const loginUser = async () => {
-      try {
-        const response = await axios.post('/api/auth/login', formData);
-        console.log('로그인 성공:', response.data);
-        localStorage.setItem('isLoggedIn', 'true');
-        localStorage.setItem('userRole', selectedRole);
-        alert(`성공적으로 로그인되었습니다! (${selectedRole})`);
-        navigate('/');
-      } catch (error) {
-        console.error('로그인 실패:', error);
-        alert('이메일 또는 비밀번호를 확인해주세요.');
-      }
-    };
-    loginUser();
-    */
+    try {
+      const res = await axios.post('/api/auth/login', formData);
 
-    localStorage.setItem('isLoggedIn', 'true');
-    localStorage.setItem('userRole', selectedRole);
-    alert(`성공적으로 로그인되었습니다! (${selectedRole})`);
-    navigate('/');
+      console.log('로그인 성공:', res.data);
+
+      localStorage.setItem('isLoggedIn', 'true');
+      localStorage.setItem('accessToken', res.data.accessToken);
+      localStorage.setItem('refreshToken', res.data.refreshToken);
+
+      navigate('/');
+    } catch (err: any) {
+      console.log('로그인 실패:', err.response?.data);
+
+      alert('이메일 또는 비밀번호가 올바르지 않습니다.');
+    }
   };
 
   return (
