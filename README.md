@@ -18,6 +18,7 @@
 - `feature/[파트]-[도메인]-[기능]`: 각 기능별 작업 공간 (**반드시 영문 소문자 및 하이픈(-)만 사용**)
   - *예시 (FE):* `feature/fe-member-login` (프론트엔드 로그인 화면 개발)
   - *예시 (BE):* `feature/be-class-register` (백엔드 클래스 등록 API)
+  - *예시 (FE/BE):* `feature/all-class-register` (프론트엔드/백엔드 클래스 등록 수정)
 
 ## 🏷 3. 커밋 및 네이밍 규칙
 ### 커밋 메시지 태그
