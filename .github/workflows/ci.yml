@@ -24,11 +24,11 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: Make gradlew executable
-        run: chmod +x gradlew
+      - name: Make mvnw executable
+        run: chmod +x mvnw
 
       - name: Run tests
-        run: ./gradlew test
+        run: ./mvnw test
 
       - name: Upload test reports (always)
         if: always()
@@ -36,5 +36,5 @@ jobs:
         with:
           name: test-reports
           path: |
-            **/build/reports/tests/test
-            **/build/test-results/test
+            **/target/surefire-reports
+            **/target/site/jacoco
