@@ -1,0 +1,15 @@
+import apiClient from "./axios";
+
+export type MemberDetail = {
+  imgUrl?: string | null;
+  name: string;
+  email: string;
+  phone?: string | null;
+  addr?: string | null;
+  addr2?: string | null;
+};
+
+export const getMyDetail = async (): Promise<MemberDetail> => {
+  const res = await apiClient.get("/member/me/detail");
+  return res.data;
+};

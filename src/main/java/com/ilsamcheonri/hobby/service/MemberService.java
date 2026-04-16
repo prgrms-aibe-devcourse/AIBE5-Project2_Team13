@@ -1,8 +1,6 @@
 package com.ilsamcheonri.hobby.service;
 
-import com.ilsamcheonri.hobby.dto.LoginRequestDto;
-import com.ilsamcheonri.hobby.dto.LoginResponseDto;
-import com.ilsamcheonri.hobby.dto.MemberSignUpRequestDto;
+import com.ilsamcheonri.hobby.dto.*;
 import com.ilsamcheonri.hobby.entity.Member;
 import com.ilsamcheonri.hobby.entity.RoleCode;
 import com.ilsamcheonri.hobby.jwt.JwtTokenProvider;
@@ -65,6 +63,16 @@ public class MemberService {
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
 
         return new LoginResponseDto(accessToken, refreshToken);
+    }
+
+    // MyPage 첫 화면
+    public MemberSummaryDto getMySummary(Long memberId) {
+        return memberRepository.findSummaryById(memberId);
+    }
+
+    // 계정 설정 화면
+    public MemberDetailDto getMyDetail(Long memberId) {
+        return memberRepository.findDetailById(memberId);
     }
 
 }

@@ -12,6 +12,8 @@ import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
+import { getMyDetail, type MemberDetail } from '@/src/api/member';
+import { useAuth } from '@/src/context/AuthContext';
 
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -24,13 +26,23 @@ const REVENUE_DATA = [
   { month: '6월', revenue: 3200000, students: 108 },
 ];
 
-const TASTE_KEYWORDS = ['#힐링', '#손재주', '#액티브', '#자기계발', '#포근함'];
-const AI_SUMMARY = "포근이 AI 분석 결과: 당신은 정적인 활동에서 에너지를 얻는 '섬세한 예술가' 타입이에요. 최근 수채화 클래스에 큰 만족감을 느끼셨네요!";
-
 type MenuType = 'activity' | 'reviews' | 'freelancer_dashboard' | 'freelancer_classes' | 'freelancer_students' | 'freelancer_profile' | 'admin_home' | 'admin_users' | 'admin_reports' | 'admin_approvals' | 'admin' | 'settings' | 'pick' | 'following';
+
+const toRoleCode = (role?: string): UserRole => {
+  if (role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'A') return 'ROLE_ADMIN';
+  if (role === 'FREELANCER' || role === 'ROLE_FREELANCER' || role === 'F') return 'ROLE_FREELANCER';
+  return 'ROLE_USER';
+};
+
+const toRoleLabel = (role: UserRole): string => {
+  if (role === 'ROLE_ADMIN') return '관리자';
+  if (role === 'ROLE_FREELANCER') return '프리랜서';
+  return '회원';
+};
 
 export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const navigate = useNavigate();
+  const { user, loading: authLoading, logout } = useAuth();
   const { enrollments, updateEnrollmentStatus } = useEnrollments();
   const { reports } = useReports();
   const { classes, deleteClass } = useClasses();
@@ -68,8 +80,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [studentCancelReason, setStudentCancelReason] = useState('');
-  const [selectedCity, setSelectedCity] = useState(localStorage.getItem('userCity') || '');
-  const [selectedDistrict, setSelectedDistrict] = useState(localStorage.getItem('userDistrict') || '');
+  const [selectedCity, setSelectedCity] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
   const [dashboardDateRange, setDashboardDateRange] = useState({ start: '2024-01-01', end: '2024-06-30' });
   const [freelancerProfile, setFreelancerProfile] = useState({
     id: 'f1',
@@ -99,6 +111,15 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     }
   }, [freelancers]);
 
+  const [myDetail, setMyDetail] = useState<MemberDetail | null>(null);
+  const [detailLoading, setDetailLoading] = useState(true);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [settingsForm, setSettingsForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+  });
+
   // Admin States
   const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>(MOCK_USERS_ADMIN);
   const [adminReports, setAdminReports] = useState<ReportItem[]>(MOCK_REPORTS);
@@ -110,8 +131,13 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [approvalRejectReason, setApprovalRejectReason] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   
-  const userRole = (localStorage.getItem('userRole') as UserRole) || 'ROLE_USER';
+  const userRole = toRoleCode(user?.role || localStorage.getItem('userRole') || undefined);
+  const userRoleLabel = toRoleLabel(userRole);
+  const displayName = settingsForm.name || user?.name || '포근사용자';
+  const profileImageSrc = profileImage || myDetail?.imgUrl || "https://picsum.photos/seed/pogeun-expert/100/100";
   
   // Set default menu based on role
   useEffect(() => {
@@ -119,17 +145,71 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       setActiveMenu(initialMenu);
       return;
     }
-    if (userRole === 'ROLE_ADMIN') setActiveMenu('admin');
+    if (userRole === 'ROLE_ADMIN') setActiveMenu('admin_home');
     else if (userRole === 'ROLE_FREELANCER') setActiveMenu('freelancer_dashboard');
     else setActiveMenu('activity');
   }, [userRole, initialMenu]);
+
+  useEffect(() => {
+    if (authLoading) {
+      return;
+    }
+
+    if (!user) {
+      setDetailLoading(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadMyDetail = async () => {
+      setDetailLoading(true);
+      setDetailError(null);
+
+      try {
+        const detail = await getMyDetail();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setMyDetail(detail);
+        setSettingsForm({
+          name: detail.name || user.name || '',
+          email: detail.email || user.email || '',
+          phone: detail.phone || '',
+        });
+        setSelectedCity(detail.addr || '');
+        setSelectedDistrict(detail.addr2 || '');
+        setProfileImage(detail.imgUrl || null);
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        setDetailError('회원 정보를 불러오지 못했습니다.');
+        setSettingsForm({
+          name: user.name || '',
+          email: user.email || '',
+          phone: '',
+        });
+      } finally {
+        if (isMounted) {
+          setDetailLoading(false);
+        }
+      }
+    };
+
+    loadMyDetail();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authLoading, user]);
   
   const pickedClasses = classes.slice(0, 2);
   const appliedClasses = classes.slice(2, 4);
   const teachingClasses = classes.filter(c => c.freelancer === '포근프리랜서' || c.freelancer === '김화가'); // For demo
-
-  const [profileImage, setProfileImage] = useState<string | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -138,30 +218,22 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
   const handleLogout = () => {
     if (window.confirm('로그아웃 하시겠습니까?')) {
-      localStorage.removeItem('isLoggedIn');
-      alert('성공적으로 로그아웃되었습니다! (Toast)');
+      logout();
+      showToast('로그아웃되었습니다.');
       navigate('/');
     }
   };
 
   const handleSaveChanges = () => {
-    localStorage.setItem('userCity', selectedCity);
-    localStorage.setItem('userDistrict', selectedDistrict);
-    alert('성공적으로 처리되었습니다.');
+    showToast('회원 정보 수정 API가 아직 연결되지 않았습니다.', 'error');
   };
 
   const handleChangePassword = () => {
-    if (window.confirm('비밀번호를 변경하시겠습니까?')) {
-      alert('성공적으로 처리되었습니다.');
-    }
+    showToast('비밀번호 변경 API가 아직 연결되지 않았습니다.', 'error');
   };
 
   const handleWithdraw = () => {
-    if (window.confirm('정말 탈퇴하시겠습니까?')) {
-      localStorage.removeItem('isLoggedIn');
-      alert('성공적으로 처리되었습니다.');
-      navigate('/');
-    }
+    showToast('회원 탈퇴 API가 아직 연결되지 않았습니다.', 'error');
   };
 
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,7 +242,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       const reader = new FileReader();
       reader.onloadend = () => {
         setProfileImage(reader.result as string);
-        alert('프로필 사진이 변경되었습니다! (Toast)');
+        showToast('프로필 이미지 미리보기만 적용되었습니다. 저장 API가 필요합니다.', 'error');
       };
       reader.readAsDataURL(file);
     }
@@ -1325,7 +1397,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         <div className="relative group">
           <div className="w-32 h-32 bg-coral/10 rounded-full flex items-center justify-center border-4 border-ivory shadow-inner overflow-hidden">
             <img 
-              src={profileImage || "https://picsum.photos/seed/pogeun-expert/100/100"} 
+              src={profileImageSrc} 
               alt="Profile" 
               className="w-full h-full object-cover" 
             />
@@ -1350,15 +1422,30 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       <div className="space-y-6">
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-500 ml-1">이름</label>
-          <input type="text" defaultValue="포근한 사용자님" className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all" />
+          <input
+            type="text"
+            value={settingsForm.name}
+            onChange={(e) => setSettingsForm(prev => ({ ...prev, name: e.target.value }))}
+            className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+          />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-500 ml-1">이메일</label>
-          <input type="email" defaultValue="haruyuki0479@gmail.com" disabled className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-2 border-transparent text-gray-400 cursor-not-allowed" />
+          <input
+            type="email"
+            value={settingsForm.email}
+            disabled
+            className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-2 border-transparent text-gray-400 cursor-not-allowed"
+          />
         </div>
         <div className="space-y-2">
           <label className="text-sm font-bold text-gray-500 ml-1">전화번호</label>
-          <input type="tel" defaultValue="010-1234-5678" className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all" />
+          <input
+            type="tel"
+            value={settingsForm.phone}
+            onChange={(e) => setSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
+            className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+          />
         </div>
 
         <div className="space-y-4">
@@ -1451,18 +1538,18 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           <div className="bg-white rounded-[40px] p-8 shadow-sm border border-coral/5 text-center">
             <div className="w-24 h-24 bg-coral/10 rounded-full mx-auto mb-4 flex items-center justify-center border-4 border-ivory shadow-inner overflow-hidden">
               <img 
-                src={profileImage || "https://picsum.photos/seed/pogeun-expert/100/100"} 
+                src={profileImageSrc} 
                 alt="Profile" 
                 className="w-full h-full object-cover" 
               />
             </div>
             <div className="flex items-center justify-center gap-1 mb-1">
               <h2 className="text-xl font-bold text-gray-900">
-                {userRole === 'ROLE_ADMIN' ? '관리자' : userRole === 'ROLE_FREELANCER' ? '포근프리랜서' : '포근사용자'}
+                {displayName}
               </h2>
               {userRole !== 'ROLE_USER' && <BadgeCheck size={20} className="text-coral" />}
             </div>
-            <p className="text-sm text-gray-400">{userRole}</p>
+            <p className="text-sm text-gray-400">{userRoleLabel}</p>
           </div>
 
           <nav className="bg-white rounded-[40px] p-4 shadow-sm border border-coral/5 overflow-hidden">
@@ -1576,49 +1663,6 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
         {/* Main Content */}
         <main className="lg:col-span-3 min-h-[600px] space-y-8">
-          {(userRole === 'ROLE_USER' || userRole === 'ROLE_FREELANCER') && (
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm"
-            >
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-                <div className="flex items-center gap-6">
-                  <div className="w-20 h-20 bg-coral/10 rounded-3xl flex items-center justify-center border-2 border-ivory shadow-inner overflow-hidden">
-                    <img 
-                      src={profileImage || "https://picsum.photos/seed/pogeun-expert/100/100"} 
-                      alt="Profile" 
-                      className="w-full h-full object-cover" 
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h2 className="text-2xl font-bold text-gray-900">포근사용자님</h2>
-                      <span className="px-3 py-1 bg-coral/10 text-coral text-[10px] font-bold rounded-full">새싹 등급</span>
-                      {userRole === 'ROLE_FREELANCER' && (
-                        <Link to="/freelancer/f1" className="ml-2 text-xs font-bold text-coral hover:underline">
-                          프로필 보기
-                        </Link>
-                      )}
-                    </div>
-                    <p className="text-gray-500 text-sm">{AI_SUMMARY}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="pt-6 border-t border-coral/5">
-                <h4 className="text-sm font-bold text-gray-400 mb-4">나의 취향 키워드</h4>
-                <div className="flex flex-wrap gap-2">
-                  {TASTE_KEYWORDS.map(keyword => (
-                    <span key={keyword} className="px-4 py-2 bg-ivory text-coral font-bold rounded-xl text-sm border border-coral/10">
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
           <AnimatePresence mode="wait">
             <motion.div
               key={activeMenu}
@@ -1627,6 +1671,16 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
+              {detailLoading && (
+                <div className="mb-6 rounded-2xl bg-ivory px-4 py-3 text-sm text-gray-500">
+                  회원 정보를 불러오는 중입니다.
+                </div>
+              )}
+              {detailError && (
+                <div className="mb-6 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-500">
+                  {detailError}
+                </div>
+              )}
               {activeMenu === 'activity' && renderActivity()}
               {activeMenu === 'reviews' && renderReviews()}
               {activeMenu === 'pick' && renderPick()}
