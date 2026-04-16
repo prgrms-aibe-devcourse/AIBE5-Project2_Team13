@@ -43,8 +43,10 @@ interface RequestContextType {
   loading: boolean;
   error: string | null;
   fetchRequests: () => void;
-  // ✅ 신규: 요청 클래스 생성 함수 (성공 시 true 반환)
   createRequest: (body: RequestClassCreateBody) => Promise<boolean>;
+  // 목록 화면에서 찜 여부 표시용 — 찜한 classId Set
+  wishedIds: Set<string>;
+  fetchWishedIds: () => void;
 }
 
 const RequestContext = createContext<RequestContextType | undefined>(undefined);
@@ -78,9 +80,10 @@ function toRequestItem(api: RequestClassApiResponse): RequestItem {
 }
 
 export function RequestProvider({ children }: { children: ReactNode }) {
-  const [requests, setRequests] = useState<RequestItem[]>([]);
-  const [loading, setLoading]   = useState<boolean>(false);
-  const [error, setError]       = useState<string | null>(null);
+  const [requests,   setRequests]   = useState<RequestItem[]>([]);
+  const [loading,    setLoading]    = useState<boolean>(false);
+  const [error,      setError]      = useState<string | null>(null);
+  const [wishedIds,  setWishedIds]  = useState<Set<string>>(new Set());
 
   // ─────────────────────────────────────
   // 목록 조회
@@ -99,8 +102,25 @@ export function RequestProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ─────────────────────────────────────
+  // 찜 ID 목록 조회 — 로그인한 경우만 호출
+  // ─────────────────────────────────────
+  const fetchWishedIds = async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return; // 비로그인이면 skip
+
+    try {
+      const response = await apiClient.get<number[]>('/wishes');
+      // 숫자 배열 → 문자열 Set (카드의 id는 string이므로 변환)
+      setWishedIds(new Set(response.data.map(String)));
+    } catch {
+      // 에러 시 빈 Set 유지 (찜 표시 안 함)
+    }
+  };
+
   useEffect(() => {
     fetchRequests();
+    fetchWishedIds(); // 목록과 함께 찜 ID도 로드
   }, []);
 
   // ─────────────────────────────────────
@@ -122,7 +142,7 @@ export function RequestProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <RequestContext.Provider value={{ requests, loading, error, fetchRequests, createRequest }}>
+    <RequestContext.Provider value={{ requests, loading, error, fetchRequests, createRequest, wishedIds, fetchWishedIds }}>
       {children}
     </RequestContext.Provider>
   );

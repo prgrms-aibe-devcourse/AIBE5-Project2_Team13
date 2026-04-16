@@ -84,13 +84,6 @@ export default function AICounseling() {
         <h1 className="text-3xl font-bold text-gray-900">포근이 상담소</h1>
         <p className="text-gray-sub">마음속 이야기를 들려주세요. 포근이가 함께할게요.</p>
         
-        <button 
-          onClick={clearMessages}
-          className="absolute right-0 bottom-0 flex items-center gap-2 text-gray-400 hover:text-coral transition-colors text-sm font-medium"
-          title="대화 초기화"
-        >
-          <Trash2 size={16} /> 초기화
-        </button>
       </div>
 
       <div className="flex-1 bg-white rounded-3xl shadow-sm border border-coral/10 overflow-hidden flex flex-col">
