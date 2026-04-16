@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal } from 'lucide-react';
+import { Star, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 
@@ -20,6 +20,7 @@ interface ExplorerItemCardProps {
   rating?: number;
   reviews?: number;
   status?: string;
+  isWished?: boolean; // 찜 여부 — 목록에서 하트 표시용
 }
 
 // ─────────────────────────────────────────────────
@@ -70,7 +71,8 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
   timeSlot,
   rating,
   reviews,
-  status
+  status,
+  isWished = false,
 }) => {
   return (
     <motion.div
@@ -115,6 +117,13 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
               </div>
             )}
           </div>
+
+          {/* 찜 하트 아이콘 — 찜한 클래스에만 표시 */}
+          {isWished && (
+            <div className="absolute top-4 right-4">
+              <Heart size={22} className="fill-coral text-coral drop-shadow" />
+            </div>
+          )}
         </div>
 
         {/* ── 카드 하단 텍스트 영역 ── */}

@@ -50,11 +50,17 @@ public class SecurityConfig {
             HttpSecurity http,
             JwtAuthenticationFilter jwtAuthenticationFilter
     ) throws Exception {
-
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                /*
+                  // GET 요청만 허용
+                  .requestMatchers(HttpMethod.GET, "/api/your-endpoint/**").permitAll()
+
+                  // 모든 메서드 허용
+                  .requestMatchers("/api/your-endpoint/**").permitAll()
+                 */
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         // 카테고리 목록 조회 — 로그인 없이 누구나 접근 가능
@@ -62,7 +68,7 @@ public class SecurityConfig {
                         // 요청 클래스 목록/상세 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()
                         .requestMatchers("/api/member/**").authenticated()
-                        .anyRequest().permitAll()
+                        .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

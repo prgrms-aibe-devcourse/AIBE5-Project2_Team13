@@ -34,6 +34,7 @@ interface ExplorerGridProps<T> {
   renderItem: (item: T) => React.ReactNode;
   filterFn: (item: T, query: string, category: string) => boolean;
   sortFn: (a: T, b: T, sortType: string) => number;
+  wishedIds?: Set<string>; // 찜한 classId Set — 요청 클래스 목록에서 하트 표시용
 }
 
 export default function ExplorerGrid<T>({
@@ -43,6 +44,7 @@ export default function ExplorerGrid<T>({
   description,
   filterFn,
   sortFn,
+  wishedIds = new Set(),
 }: ExplorerGridProps<T>) {
 
   // ✅ DB에서 가져온 실제 카테고리 목록 사용
@@ -187,13 +189,14 @@ export default function ExplorerGrid<T>({
               personLabel={type === 'class' ? '프리랜서' : '요청자'}
               personId={type === 'class' ? item.freelancerId : undefined}
               category={item.category}
-              categoryName={item.category}  // DB에서 이미 name으로 저장되어 있으므로 그대로 전달
+              categoryName={item.category}
               type={type}
               location={item.location}
               timeSlot={item.timeSlot}
               rating={item.rating}
               reviews={item.reviews}
               status={type === 'request' ? '요청 중' : undefined}
+              isWished={wishedIds.has(item.id)}
             />
           ))
         ) : (
