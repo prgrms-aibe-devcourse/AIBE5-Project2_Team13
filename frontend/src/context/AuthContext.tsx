@@ -1,6 +1,7 @@
 // AuthContext.tsx
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import apiClient from "@/src/api/axios";
+import { clearAccessToken, clearStoredUserContext, getAccessToken, setAccessToken, setStoredUserContext } from "@/src/lib/auth";
 
 type User = {
   name: string;
@@ -32,15 +33,32 @@ const normalizeRole = (role?: string): string => {
     : 'USER';
 };
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
 
   const isLoggedIn = !!user;
 
+  const loadCurrentUser = async () => {
+    const [summaryRes, detailRes] = await Promise.all([
+      apiClient.get("/member/me"),
+      apiClient.get("/member/me/detail"),
+    ]);
+
+    const nextUser = {
+      name: detailRes.data.name || summaryRes.data.name,
+      email: detailRes.data.email,
+      role: normalizeRole(summaryRes.data.role),
+      imgUrl: detailRes.data.imgUrl,
+    };
+
+    setStoredUserContext(`ROLE_${nextUser.role}`, nextUser.email);
+    setUser(nextUser);
+  };
+
   useEffect(() => {
-    const token = sessionStorage.getItem("accessToken");
+    const token = getAccessToken();
 
     if (!token) {
       setLoading(false);
@@ -49,14 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       try {
-        const me = await apiClient.get("/member/me");
-
-        setUser({
-          name: me.data.name,
-          email: me.data.email,
-          role: normalizeRole(me.data.role),
-          imgUrl: me.data.imgUrl,
-        });
+        await loadCurrentUser();
       } catch {
         logout();
       } finally {
@@ -68,25 +79,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await apiClient.post("/auth/login", { email, password });
 
-    sessionStorage.setItem("accessToken", res.data.accessToken);
-
-    const me = await apiClient.get("/member/me");
-
-
-
-    setUser({
-      name: me.data.name,
-      email: me.data.email,
-      role: normalizeRole(me.data.role),
-      imgUrl: me.data.imgUrl,
-    });
+    setAccessToken(res.data.accessToken);
+    await loadCurrentUser();
   };
 
   const logout = () => {
-      //2025/04/16.rtu.로컬스토리지를 아예 지우는 것보다는 로그인한 토큰 값을 날리는 게 더 좋아서 변경함
-    //localStorage.clear();
-    sessionStorage.removeItem("accessToken");
-
+    clearAccessToken();
+    clearStoredUserContext();
     setUser(null);
   };
 

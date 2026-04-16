@@ -10,6 +10,7 @@ import { cn } from '@/src/lib/utils';
 import { useRequests } from '../context/RequestContext';
 import { useReports } from '../context/ReportContext';
 import apiClient from '../api/axios';
+import { getAccessToken } from '../lib/auth';
 
 const TABS = [
   { id: 'request-info', label: '요청 내용' },
@@ -23,7 +24,7 @@ export default function RequestDetail() {
   const { requests } = useRequests();
   const { addReport } = useReports();
 
-  const currentUserEmail = localStorage.getItem('userEmail') ?? '';
+  const currentUserEmail = localStorage.getItem('userEmail') ?? sessionStorage.getItem('userEmail') ?? '';
 
   // ── 상태 ──────────────────────────────────────
   const [isPicked,         setIsPicked]         = useState(false);
@@ -53,7 +54,7 @@ export default function RequestDetail() {
   // 상세 페이지 진입 시 서버에서 찜 상태를 읽어옵니다.
   // 다른 화면을 갔다 와도 하트가 유지되는 이유: DB를 직접 조회하기 때문입니다.
   useEffect(() => {
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (!token || !item) return;
 
     apiClient.get(`/wishes/${item.id}`)
@@ -91,7 +92,7 @@ export default function RequestDetail() {
 
   /** 비로그인 시 alert + 로그인 페이지 이동. 로그인 상태면 true 반환 */
   const requireLogin = (): boolean => {
-    if (!localStorage.getItem('accessToken')) {
+    if (!getAccessToken()) {
       alert('로그인이 필요한 서비스입니다.');
       navigate('/login');
       return false;

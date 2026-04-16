@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { RequestItem } from '../constants';
 import apiClient from '../api/axios';
+import { getAccessToken } from '../lib/auth';
 
 /**
  * 백엔드 GET /api/request-classes 응답 타입
@@ -106,7 +107,7 @@ export function RequestProvider({ children }: { children: ReactNode }) {
   // 찜 ID 목록 조회 — 로그인한 경우만 호출
   // ─────────────────────────────────────
   const fetchWishedIds = async () => {
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (!token) return; // 비로그인이면 skip
 
     try {

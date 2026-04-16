@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getAccessToken } from '@/src/lib/auth';
 
 /**
  * 전역 axios 인스턴스
@@ -14,9 +15,8 @@ const apiClient = axios.create({
 
 // 요청 인터셉터 — 모든 API 호출 직전에 실행됩니다.
 apiClient.interceptors.request.use((config) => {
-  // localStorage에 저장된 JWT 토큰을 꺼냅니다.
-  // 토큰은 로그인 성공 시 저장되어야 합니다. (Login.tsx에서 처리)
-  const token = localStorage.getItem('accessToken');
+  // 로그인 방식에 따라 session/local storage 어디에 있든 읽습니다.
+  const token = getAccessToken();
 
   if (token) {
     // "Authorization: Bearer [토큰값]" 형태로 헤더에 추가

@@ -4,6 +4,7 @@ import { ChevronLeft, Send } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useRequests, RequestClassCreateBody } from '../context/RequestContext';
 import { useCategories } from '../context/CategoryContext';
+import { getAccessToken } from '../lib/auth';
 
 export default function RequestWrite() {
   const navigate   = useNavigate();
@@ -28,7 +29,7 @@ export default function RequestWrite() {
     e.preventDefault();
 
     // 제출 시점에 로그인 여부 확인 (렌더링 시점에 막으면 공유 URL 접근도 차단됨)
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken();
     if (!token) {
       alert('로그인이 필요한 서비스입니다.');
       navigate('/login');
@@ -229,4 +230,3 @@ export default function RequestWrite() {
     </div>
   );
 }
-

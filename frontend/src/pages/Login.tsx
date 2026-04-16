@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import apiClient from '@/src/api/axios';
 import { useAuth } from "@/src/context/AuthContext";
+import axios from 'axios';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -32,7 +33,12 @@ const handleSocialLogin = (provider: string) => {
       await login(formData.email, formData.password);
       navigate('/');
     } catch (err) {
-      alert('이메일 또는 비밀번호가 올바르지 않습니다.');
+      if (axios.isAxiosError(err) && (err.response?.status === 400 || err.response?.status === 401 || err.response?.status === 403)) {
+        alert('이메일 또는 비밀번호가 올바르지 않습니다.');
+        return;
+      }
+
+      alert('로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
