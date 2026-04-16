@@ -17,18 +17,30 @@ type AuthContextType = {
   loading: boolean;
 };
 
+
 const AuthContext = createContext<AuthContextType | null>(null);
+
+const normalizeRole = (role?: string): string => {
+  if (!role) return 'USER';
+  if (role === 'A') return 'ADMIN';
+  if (role === 'F') return 'FREELANCER';
+  if (role === 'U') return 'USER';
+
+  const cleaned = role.replace('ROLE_', '');
+  return ['ADMIN', 'FREELANCER', 'USER'].includes(cleaned)
+    ? cleaned
+    : 'USER';
+};
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const LOGIN_ALERT_KEY = "loginAlertShown";
 
   const isLoggedIn = !!user;
 
   useEffect(() => {
-    const token = localStorage.getItem("accessToken");
+    const token = sessionStorage.getItem("accessToken");
 
     if (!token) {
       setLoading(false);
@@ -42,7 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser({
           name: me.data.name,
           email: me.data.email,
-          role: me.data.roleCode,
+          role: normalizeRole(me.data.role),
           imgUrl: me.data.imgUrl,
         });
       } catch {
@@ -56,28 +68,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await apiClient.post("/auth/login", { email, password });
 
-    localStorage.setItem("accessToken", res.data.accessToken);
+    sessionStorage.setItem("accessToken", res.data.accessToken);
 
     const me = await apiClient.get("/member/me");
+
+
 
     setUser({
       name: me.data.name,
       email: me.data.email,
-      role: me.data.roleCode,
+      role: normalizeRole(me.data.role),
       imgUrl: me.data.imgUrl,
     });
-
-    if (!sessionStorage.getItem(LOGIN_ALERT_KEY)) {
-      alert("로그인 성공");
-      sessionStorage.setItem(LOGIN_ALERT_KEY, "true");
-    }
   };
 
   const logout = () => {
       //2025/04/16.rtu.로컬스토리지를 아예 지우는 것보다는 로그인한 토큰 값을 날리는 게 더 좋아서 변경함
     //localStorage.clear();
-    localStorage.removeItem("accessToken");
-    sessionStorage.removeItem(LOGIN_ALERT_KEY);
+    sessionStorage.removeItem("accessToken");
 
     setUser(null);
   };

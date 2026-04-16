@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -14,15 +14,6 @@ import { useAuth } from '@/src/context/AuthContext';
 
 type Role = 'ADMIN' | 'FREELANCER' | 'USER';
 
-const normalizeRole = (role?: string): Role => {
-  if (!role) return 'USER';
-
-  const cleaned = role.replace('ROLE_', '');
-  return (['ADMIN', 'FREELANCER', 'USER'] as const).includes(cleaned as Role)
-    ? (cleaned as Role)
-    : 'USER';
-};
-
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotiOpen, setIsNotiOpen] = useState(false);
@@ -32,42 +23,10 @@ export default function Header() {
 const { user, logout, loading } = useAuth();
 const isLoggedIn = !loading && !!user;
 
-  const prevLoggedIn = useRef(false);
-  const isInitialLoading = useRef(true);
-
-  useEffect(() => {
-    const loginAlertKey = 'loginAlertShown';
-
-    // 로딩 중에는 상태 변화 처리하지 않음
-    if (loading) {
-      prevLoggedIn.current = false;
-      isInitialLoading.current = true;
-      return;
-    }
-
-    // 로그인 상태로 진입했을 때 1회만 알림
-    if (isLoggedIn && !prevLoggedIn.current) {
-      const alreadyShown = sessionStorage.getItem(loginAlertKey);
-
-      if (!alreadyShown) {
-        alert('로그인 성공');
-        sessionStorage.setItem(loginAlertKey, 'true');
-      }
-    }
-
-    // 로그아웃 상태로 바뀌면 플래그 초기화
-    if (!isLoggedIn) {
-      sessionStorage.removeItem(loginAlertKey);
-    }
-
-    prevLoggedIn.current = isLoggedIn;
-    isInitialLoading.current = false;
-  }, [isLoggedIn, loading]);
-
   const location = useLocation();
   const navigate = useNavigate();
 
-  const role = normalizeRole(user?.role);
+  const role = (user?.role as Role) ?? 'USER';
 
   const navItems = [
     { name: 'AI 추천', path: '/ai-recommend' },
@@ -110,7 +69,6 @@ const isLoggedIn = !loading && !!user;
   };
 
   const handleLogout = () => {
-    alert('로그아웃 되었습니다');
     logout();
     navigate('/');
   };
