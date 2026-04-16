@@ -26,6 +26,9 @@ export interface RequestItem {
   location?: string;
   timeSlot?: string;
   lessonType?: string;
+  startAt?: string;       // 희망 시작 일시
+  endAt?: string;         // 희망 종료 일시
+  requesterEmail?: string; // 본인 글 여부 판단용
 }
 
 export const REGIONS = [
@@ -603,50 +606,7 @@ export const MOCK_CLASSES: ClassItem[] = [
   }
 ];
 
-export const MOCK_REQUESTS: RequestItem[] = [
-  {
-    id: '1',
-    title: '강남역 근처에서 도자기 물레 체험하고 싶어요!',
-    author: '취미찾는사람',
-    date: '2024-03-20',
-    content: '주말에 친구랑 같이 도자기 만들고 싶은데 강남 근처에 클래스 있을까요?',
-    reward: 40000,
-    category: 'art',
-    image: 'https://picsum.photos/seed/request1/400/300',
-    comments: 5,
-    location: '서울 강남구',
-    timeSlot: '주말 오후',
-    lessonType: 'Group'
-  },
-  {
-    id: '2',
-    title: '직장인 저녁 밴드 보컬 레슨 구합니다',
-    author: '노래왕',
-    date: '2024-03-19',
-    content: '퇴근 후에 취미로 노래 배우고 싶어요. 7시 이후 가능한 분 계신가요?',
-    reward: 30000,
-    category: 'music',
-    image: 'https://picsum.photos/seed/request2/400/300',
-    comments: 3,
-    location: '서울 마포구',
-    timeSlot: '평일 저녁',
-    lessonType: '1:1'
-  },
-  {
-    id: '3',
-    title: '주말 아침 테니스 같이 배우실 분!',
-    author: '테린이',
-    date: '2024-03-18',
-    content: '테니스 기초부터 같이 배우실 분 계신가요? 장소는 송파구 근처면 좋겠습니다.',
-    reward: 20000,
-    category: 'sports',
-    image: 'https://picsum.photos/seed/request3/400/300',
-    comments: 2,
-    location: '서울 송파구',
-    timeSlot: '주말 오전',
-    lessonType: 'Group'
-  }
-];
+// ✅ MOCK_REQUESTS 제거 완료 — 실제 API(/api/request-classes)에서 데이터를 가져옵니다.
 
 export type EnrollmentStatus = 'PENDING' | 'APPROVED' | 'CANCEL_REQUESTED' | 'CANCELLED';
 
