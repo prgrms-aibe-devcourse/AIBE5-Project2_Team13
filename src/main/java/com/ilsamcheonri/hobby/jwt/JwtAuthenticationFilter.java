@@ -35,6 +35,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String email = jwtTokenProvider.getEmail(token);
 
+                System.out.println("[JwtAuthenticationFilter] 인증 성공 - email: " + email);
+
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 email,
@@ -45,8 +47,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
             } catch (Exception e) {
+                // 토큰 검증 실패 시 어떤 에러인지 콘솔에 출력
+                System.out.println("[JwtAuthenticationFilter] 토큰 검증 실패: " + e.getMessage());
                 SecurityContextHolder.clearContext();
             }
+        } else {
+            System.out.println("[JwtAuthenticationFilter] 토큰 없음 - URI: " + request.getRequestURI());
         }
 
         filterChain.doFilter(request, response);

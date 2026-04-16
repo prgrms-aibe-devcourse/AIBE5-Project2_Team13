@@ -5,7 +5,6 @@ import {
   Clock, Users, BadgeCheck, CheckCircle2, X, AlertCircle, 
   ChevronDown, ChevronUp, Send, Calendar, DollarSign
 } from 'lucide-react';
-import { CATEGORIES } from '@/src/constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useRequests } from '../context/RequestContext';
@@ -22,9 +21,28 @@ export default function RequestDetail() {
   const navigate = useNavigate();
   const { requests } = useRequests();
   const { addReport } = useReports();
-  
+
+  // 현재 로그인한 사용자 이메일 (localStorage에서 가져옴)
+  const currentUserEmail = localStorage.getItem('userEmail') ?? '';
+
+  /**
+   * 로그인 여부를 확인하고, 비로그인이면 alert 후 로그인 페이지로 이동합니다.
+   * 버튼 클릭 시점마다 localStorage를 직접 읽어서 최신 상태를 확인합니다.
+   * 로그인 상태면 true를 반환해서 이후 동작을 실행합니다.
+   */
+  const requireLogin = (): boolean => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) {
+      alert('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+      return false;
+    }
+    return true;
+  };
+
   const [isPicked, setIsPicked] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isSelfModalOpen, setIsSelfModalOpen] = useState(false); // 본인 문의 방지 모달
   const [reportReason, setReportReason] = useState('');
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState('request-info');
@@ -41,21 +59,15 @@ export default function RequestDetail() {
     setTimeout(() => setToast(null), 3000);
   };
 
+  // item을 useEffect 보다 먼저 선언 (useEffect 의존성으로 사용하기 위해)
   const item = requests.find(r => r.id === id);
 
-  if (!item) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <p className="text-gray-500 mb-4">요청 정보를 찾을 수 없습니다.</p>
-        <button onClick={() => navigate('/requests')} className="text-coral font-bold">목록으로 돌아가기</button>
-      </div>
-    );
-  }
-
-  const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '기타';
-
-  // Intersection Observer for scroll sync
+  // ✅ useEffect를 조건부 return 이전에 위치
+  // React 규칙: Hook은 조건부 return 이전에 항상 실행되어야 합니다.
+  // item이 없을 때 내부에서 skip 처리하여 Hook 순서를 고정합니다.
   useEffect(() => {
+    if (!item) return; // item이 없으면 Observer 등록만 skip
+
     const observerOptions = {
       root: null,
       rootMargin: '-100px 0px -70% 0px',
@@ -71,13 +83,24 @@ export default function RequestDetail() {
     };
 
     const observer = new IntersectionObserver(observerCallback, observerOptions);
-
     Object.values(sectionRefs).forEach((ref) => {
       if (ref.current) observer.observe(ref.current);
     });
 
     return () => observer.disconnect();
-  }, []);
+  }, [item]);
+
+  if (!item) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-gray-500 mb-4">요청 정보를 찾을 수 없습니다.</p>
+        <button onClick={() => navigate('/requests')} className="text-coral font-bold">목록으로 돌아가기</button>
+      </div>
+    );
+  }
+
+  // item.category에 이미 categoryName(한글)이 저장되어 있으므로 그대로 사용
+  const categoryName = item.category || '기타';
 
   const scrollToSection = (id: string) => {
     const ref = sectionRefs[id as keyof typeof sectionRefs];
@@ -134,18 +157,7 @@ export default function RequestDetail() {
           
           {/* Main Content (Left) */}
           <div className="lg:col-span-2 space-y-12">
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="aspect-[16/9] rounded-3xl overflow-hidden shadow-sm"
-            >
-              <img 
-                src={item.image} 
-                alt={item.title} 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-            </motion.div>
+            {/* 이미지 영역 제거 — 요청 클래스는 이미지 등록 기능 없음 */}
 
             <div className="sticky top-[72px] z-40 bg-white border-b border-gray-100 -mx-4 px-4 sm:mx-0 sm:px-0">
               <div className="flex overflow-x-auto no-scrollbar">
@@ -175,13 +187,23 @@ export default function RequestDetail() {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 pt-6 border-t border-coral/10">
+                  {/* 희망 시작/종료 일시 — 등록 시 입력한 값을 표시 */}
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-coral shadow-sm">
                       <Calendar size={20} />
                     </div>
                     <div>
-                      <p className="text-[13px] text-gray-400">희망 일정</p>
-                      <p className="text-base font-bold text-gray-900">{item.timeSlot || '협의 가능'}</p>
+                      <p className="text-[13px] text-gray-400">희망 시작 일시</p>
+                      <p className="text-base font-bold text-gray-900">{item.startAt || '협의 가능'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-coral shadow-sm">
+                      <Calendar size={20} />
+                    </div>
+                    <div>
+                      <p className="text-[13px] text-gray-400">희망 종료 일시</p>
+                      <p className="text-base font-bold text-gray-900">{item.endAt || '협의 가능'}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -189,8 +211,8 @@ export default function RequestDetail() {
                       <Users size={20} />
                     </div>
                     <div>
-                      <p className="text-[13px] text-gray-400">레슨 형태</p>
-                      <p className="text-base font-bold text-gray-900">{item.lessonType === '1:1' ? '개인 레슨' : '그룹 레슨'}</p>
+                      <p className="text-[13px] text-gray-400">수업 방식</p>
+                      <p className="text-base font-bold text-gray-900">{item.lessonType || '협의 가능'}</p>
                     </div>
                   </div>
                 </div>
@@ -205,8 +227,8 @@ export default function RequestDetail() {
                   <MapPin size={24} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900">{item.location || '장소 협의'}</h4>
-                  <p className="text-sm text-gray-500">요청자가 희망하는 지역입니다.</p>
+                  <h4 className="font-bold text-gray-900">1:1 대화 협의</h4>
+                  <p className="text-sm text-gray-500">채팅으로 문의하기를 통해 요청자와 직접 장소를 조율해보세요.</p>
                 </div>
               </div>
             </section>
@@ -274,30 +296,45 @@ export default function RequestDetail() {
                   
                   <div className="bg-ivory/50 rounded-2xl p-4 space-y-3">
                     <div className="flex items-center gap-3 text-[15px] text-gray-500">
+                      <Users size={14} className="text-gray-400" />
+                      <span>수업 방식: {item.lessonType || '협의'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
                       <MapPin size={14} className="text-gray-400" />
-                      <span>지역: {item.location || '협의'}</span>
+                      <span>장소: 협의</span>
                     </div>
                     <div className="flex items-center gap-3 text-[15px] text-gray-500">
                       <Calendar size={14} className="text-gray-400" />
-                      <span>일정: {item.timeSlot || '협의'}</span>
+                      <span>시작: {item.startAt || '협의'}</span>
                     </div>
                     <div className="flex items-center gap-3 text-[15px] text-gray-500">
-                      <MessageCircle size={14} className="text-gray-400" />
-                      <span>제안 수: {item.comments}건</span>
+                      <Calendar size={14} className="text-gray-400" />
+                      <span>종료: {item.endAt || '협의'}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-3">
-                  <button 
-                    onClick={() => navigate('/chat')}
+                  {/* 채팅 버튼 — 비로그인이면 로그인 유도, 본인 글이면 모달 */}
+                  <button
+                    onClick={() => {
+                      if (!requireLogin()) return;
+                      if (item.requesterEmail && currentUserEmail && item.requesterEmail === currentUserEmail) {
+                        setIsSelfModalOpen(true);
+                      } else {
+                        alert('채팅 기능은 현재 구현 중입니다.');
+                      }
+                    }}
                     className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg"
                   >
                     채팅으로 문의하기
                   </button>
                   <div className="grid grid-cols-2 gap-2">
                     <button 
-                      onClick={() => setIsPicked(!isPicked)}
+                      onClick={() => {
+                        if (!requireLogin()) return;
+                        setIsPicked(!isPicked);
+                      }}
                       className={cn(
                         "py-3 border rounded-xl transition-all flex items-center justify-center gap-2 font-bold text-[15px]",
                         isPicked ? "bg-coral/5 border-coral text-coral" : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50"
@@ -318,7 +355,10 @@ export default function RequestDetail() {
               </div>
 
               <button 
-                onClick={() => setIsReportModalOpen(true)}
+                onClick={() => {
+                  if (!requireLogin()) return;
+                  setIsReportModalOpen(true);
+                }}
                 className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-coral transition-colors text-xs font-medium"
               >
                 <AlertCircle size={14} /> 부적절한 요청 신고하기
@@ -327,6 +367,39 @@ export default function RequestDetail() {
           </div>
         </div>
       </div>
+
+      {/* 본인 문의 방지 모달 */}
+      <AnimatePresence>
+        {isSelfModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsSelfModalOpen(false)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-sm bg-white rounded-[40px] p-10 shadow-2xl text-center"
+            >
+              <div className="w-16 h-16 bg-coral/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle size={32} className="text-coral" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">본인에게 문의는 불가능 해요!</h2>
+              <p className="text-sm text-gray-500 mb-8">본인이 작성한 요청 클래스입니다.</p>
+              <button
+                onClick={() => setIsSelfModalOpen(false)}
+                className="w-full py-4 bg-coral text-white font-bold rounded-2xl"
+              >
+                확인
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Report Modal */}
       <AnimatePresence>

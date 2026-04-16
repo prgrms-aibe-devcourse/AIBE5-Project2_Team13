@@ -1,8 +1,30 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal } from 'lucide-react';
-import { CATEGORIES } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
 import ExplorerItemCard from './ExplorerItemCard';
+import { useCategories } from '../context/CategoryContext';
+
+/**
+ * 카테고리 이름 → 아이콘 매핑 함수
+ *
+ * DB의 카테고리 이름(name)을 기준으로 아이콘을 결정합니다.
+ * 하드코딩된 id('art', 'music' 등) 대신 실제 DB 이름으로 매칭하므로
+ * DB 데이터가 바뀌어도 이 함수만 수정하면 됩니다.
+ */
+const getCategoryIcon = (categoryName: string) => {
+  switch (categoryName) {
+    case '뷰티·패션':   return <Sparkles size={18} />;
+    case '음악·악기':   return <Music size={18} />;
+    case '미술·공예':   return <Palette size={18} />;
+    case '댄스·연기':   return <Drama size={18} />;
+    case '어학·교육':   return <Languages size={18} />;
+    case '스포츠·레저': return <Trophy size={18} />;
+    case '게임':        return <Gamepad2 size={18} />;
+    case '라이프·요리': return <Utensils size={18} />;
+    case '기타':        return <MoreHorizontal size={18} />;
+    default:            return null;
+  }
+};
 
 interface ExplorerGridProps<T> {
   items: T[];
@@ -14,43 +36,35 @@ interface ExplorerGridProps<T> {
   sortFn: (a: T, b: T, sortType: string) => number;
 }
 
-const getCategoryIcon = (iconName: string) => {
-  switch (iconName) {
-    case 'Sparkles': return <Sparkles size={18} />;
-    case 'Music': return <Music size={18} />;
-    case 'Palette': return <Palette size={18} />;
-    case 'Drama': return <Drama size={18} />;
-    case 'Languages': return <Languages size={18} />;
-    case 'Trophy': return <Trophy size={18} />;
-    case 'Gamepad2': return <Gamepad2 size={18} />;
-    case 'Utensils': return <Utensils size={18} />;
-    case 'MoreHorizontal': return <MoreHorizontal size={18} />;
-    default: return null;
-  }
-};
-
 export default function ExplorerGrid<T>({
   items,
   type,
   title,
   description,
   filterFn,
-  sortFn
+  sortFn,
 }: ExplorerGridProps<T>) {
-  const [searchQuery, setSearchQuery] = useState('');
+
+  // ✅ DB에서 가져온 실제 카테고리 목록 사용
+  const { categories, loading: catLoading } = useCategories();
+
+  // selectedCategory: 'all' 또는 DB의 카테고리 name 값 (예: "미술·공예")
+  const [searchQuery, setSearchQuery]       = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortType, setSortType] = useState('latest');
-  const [locationFilter, setLocationFilter] = useState('all'); // 'all', 'online', 'offline'
+  const [sortType, setSortType]             = useState('latest');
+  const [locationFilter, setLocationFilter] = useState('all');
 
   const filteredAndSortedItems = useMemo(() => {
     return items
       .filter(item => {
+        // filterFn에 selectedCategory(카테고리 name or 'all')를 넘깁니다.
         const matchesBase = filterFn(item, searchQuery, selectedCategory);
         if (type === 'class') {
           const classItem = item as any;
-          const matchesLocation = locationFilter === 'all' || 
-            (locationFilter === 'online' && !classItem.isOffline) ||
-            (locationFilter === 'offline' && classItem.isOffline);
+          const matchesLocation =
+            locationFilter === 'all' ||
+            (locationFilter === 'online'  && !classItem.isOffline) ||
+            (locationFilter === 'offline' &&  classItem.isOffline);
           return matchesBase && matchesLocation;
         }
         return matchesBase;
@@ -65,20 +79,23 @@ export default function ExplorerGrid<T>({
         <p className="text-gray-sub">{description}</p>
       </div>
 
-      {/* Search and Filters */}
+      {/* 검색 & 필터 영역 */}
       <div className="space-y-8 mb-12">
         <div className="flex flex-col md:flex-row gap-4">
+
+          {/* 검색 입력창 */}
           <div className="flex-1 relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
             <input
               type="text"
-              placeholder={type === 'class' ? "클래스명, 프리랜서명을 검색해보세요" : "요청 제목을 검색해보세요"}
+              placeholder={type === 'class' ? '클래스명, 프리랜서명을 검색해보세요' : '요청 제목을 검색해보세요'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-12 pr-6 py-4 bg-white border-2 border-transparent focus:border-coral rounded-2xl outline-none transition-all shadow-sm"
             />
           </div>
-          
+
+          {/* 온/오프라인 필터 — 일반 클래스 전용 */}
           {type === 'class' && (
             <div className="relative min-w-[140px]">
               <select
@@ -94,6 +111,7 @@ export default function ExplorerGrid<T>({
             </div>
           )}
 
+          {/* 정렬 필터 */}
           <div className="relative min-w-[160px]">
             <select
               value={sortType}
@@ -109,51 +127,52 @@ export default function ExplorerGrid<T>({
           </div>
         </div>
 
-        {/* Quick Search Tags */}
-        <div className="flex flex-wrap gap-2 px-1">
-          {['#초보환영', '#원데이클래스', '#자기계발', '#주말취미'].map(tag => (
-            <button
-              key={tag}
-              onClick={() => setSearchQuery(tag.replace('#', ''))}
-              className="text-sm font-medium text-gray-400 hover:text-coral transition-colors"
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
-
-        {/* Category Chips */}
+        {/* ✅ 카테고리 탭 — DB에서 가져온 실제 카테고리로 렌더링 */}
         <div className="flex flex-wrap gap-3">
+
+          {/* 전체 버튼 */}
           <button
             onClick={() => setSelectedCategory('all')}
             className={cn(
-              "px-5 py-2 rounded-lg font-bold transition-all text-[16px] flex items-center gap-2",
-              selectedCategory === 'all' 
-                ? "bg-gray-900 text-white shadow-md" 
-                : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+              'px-5 py-2 rounded-lg font-bold transition-all text-[16px] flex items-center gap-2',
+              selectedCategory === 'all'
+                ? 'bg-gray-900 text-white shadow-md'
+                : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
             )}
           >
             전체
           </button>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat.id}
-              onClick={() => setSelectedCategory(cat.id)}
-              className={cn(
-                "px-5 py-2 rounded-lg font-bold transition-all text-[16px] flex items-center gap-2",
-                selectedCategory === cat.id 
-                  ? "bg-gray-900 text-white shadow-md" 
-                  : "bg-gray-100 text-gray-500 hover:bg-gray-200"
-              )}
-            >
-              {getCategoryIcon(cat.icon)}
-              {cat.name}
-            </button>
-          ))}
+
+          {/* 카테고리 API 로딩 중엔 스켈레톤 표시 */}
+          {catLoading ? (
+            Array.from({ length: 9 }).map((_, i) => (
+              <div
+                key={i}
+                className="px-5 py-2 rounded-lg bg-gray-100 animate-pulse w-24 h-10"
+              />
+            ))
+          ) : (
+            // ✅ DB 카테고리 name을 selectedCategory 키로 사용
+            categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={cn(
+                  'px-5 py-2 rounded-lg font-bold transition-all text-[16px] flex items-center gap-2',
+                  selectedCategory === cat.name
+                    ? 'bg-gray-900 text-white shadow-md'
+                    : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                )}
+              >
+                {getCategoryIcon(cat.name)}
+                {cat.name}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Grid */}
+      {/* 카드 그리드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {filteredAndSortedItems.length > 0 ? (
           filteredAndSortedItems.map((item: any) => (
@@ -168,7 +187,7 @@ export default function ExplorerGrid<T>({
               personLabel={type === 'class' ? '프리랜서' : '요청자'}
               personId={type === 'class' ? item.freelancerId : undefined}
               category={item.category}
-              categoryName={CATEGORIES.find(c => c.id === item.category)?.name || ''}
+              categoryName={item.category}  // DB에서 이미 name으로 저장되어 있으므로 그대로 전달
               type={type}
               location={item.location}
               timeSlot={item.timeSlot}

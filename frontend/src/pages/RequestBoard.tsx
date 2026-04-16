@@ -7,11 +7,14 @@ import { useRequests } from '../context/RequestContext';
 
 export default function RequestBoard() {
   const navigate = useNavigate();
-  const { requests } = useRequests();
+  // loading, error 상태도 함께 구조분해합니다.
+  const { requests, loading, error } = useRequests();
 
   const filterFn = (item: RequestItem, query: string, category: string) => {
+    // category는 'all' 또는 DB 카테고리 name (예: "미술·공예")
+    // item.category도 toRequestItem()에서 categoryName으로 저장되므로 name끼리 비교됩니다.
     const matchesCategory = category === 'all' || item.category === category;
-    const matchesSearch = item.title.toLowerCase().includes(query.toLowerCase()) || 
+    const matchesSearch = item.title.toLowerCase().includes(query.toLowerCase()) ||
                          item.author.toLowerCase().includes(query.toLowerCase());
     return matchesCategory && matchesSearch;
   };
@@ -21,6 +24,24 @@ export default function RequestBoard() {
     if (sortType === 'priceHigh') return b.reward - a.reward;
     return 0;
   };
+
+  // API 호출 중일 때 로딩 메시지 표시
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64 text-gray-400 text-lg">
+        클래스 목록을 불러오는 중...
+      </div>
+    );
+  }
+
+  // API 호출 실패 시 에러 메시지 표시
+  if (error) {
+    return (
+      <div className="flex justify-center items-center h-64 text-red-400 text-lg">
+        {error}
+      </div>
+    );
+  }
 
   return (
     <div className="relative">
