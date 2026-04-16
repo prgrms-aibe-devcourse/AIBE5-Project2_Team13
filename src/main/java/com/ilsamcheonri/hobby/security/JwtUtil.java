@@ -1,11 +1,11 @@
 package com.ilsamcheonri.hobby.security;
 
 import io.jsonwebtoken.*;
+import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
 import java.security.Key;
 import java.util.Date;
 
@@ -20,7 +20,8 @@ public class JwtUtil {
             @Value("${jwt.secret}") String secretKey,
             @Value("${jwt.expiration}") long expirationTime
     ) {
-        this.key = Keys.hmacShaKeyFor(secretKey.getBytes(StandardCharsets.UTF_8));
+        byte[] keyBytes = Decoders.BASE64.decode(secretKey);
+        this.key = Keys.hmacShaKeyFor(keyBytes);
         this.expirationTime = expirationTime;
     }
 
