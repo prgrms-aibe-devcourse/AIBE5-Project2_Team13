@@ -31,6 +31,14 @@ public class ClassBoardService {
                 .collect(Collectors.toList());
     }
 
+    public ClassBoardResponse getOfferClass(Long id) {
+        ClassBoard classBoard = classBoardRepository
+                .findByIdAndBoardTypeAndIsDeletedFalse(id, "OFFER")
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
+
+        return ClassBoardResponse.from(classBoard);
+    }
+
     @Transactional
     public Long createOfferClass(String email, ClassBoardCreateRequest request) {
         Member member = memberRepository.findByEmail(email)

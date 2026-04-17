@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import apiClient from '../api/axios';
+import { ClassItem } from '@/src/constants';
 import { 
   MessageCircle, CreditCard, ChevronLeft, Star, Share2, Heart, MapPin, 
   Clock, Users, BadgeCheck, ShieldCheck, CheckCircle2, X, AlertCircle, 
@@ -32,6 +34,7 @@ export default function ClassDetail() {
   const { addReport } = useReports();
   const { classes } = useClasses();
   const { toggleFollow, isFollowing: checkFollowing } = useFollow();
+  const [detailItem, setDetailItem] = useState<ClassItem | null>(null);
   
   const [isPicked, setIsPicked] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -59,23 +62,8 @@ export default function ClassDetail() {
 
   const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
 
-  const item = classes.find(c => c.id === id);
+  const itemFromContext = classes.find(c => c.id === id);
 
-  if (!item) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <p className="text-gray-500 mb-4">클래스 정보를 찾을 수 없습니다.</p>
-        <button onClick={() => navigate('/browse')} className="text-coral font-bold">목록으로 돌아가기</button>
-      </div>
-    );
-  }
-
-  const currentEnrollment = enrollments.find(e => e.classId === item.id);
-  const status = currentEnrollment?.status;
-    
-  const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '미술·공예';
-
-  // Load reviews from localStorage
   useEffect(() => {
     const savedReviews = localStorage.getItem('all_reviews');
     if (savedReviews) {
@@ -83,7 +71,6 @@ export default function ClassDetail() {
     }
   }, []);
 
-  // Intersection Observer for scroll sync
   useEffect(() => {
     const observerOptions = {
       root: null,
@@ -107,6 +94,56 @@ export default function ClassDetail() {
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (itemFromContext) {
+      setDetailItem(itemFromContext);
+      return;
+    }
+
+    const fetchClass = async () => {
+      if (!id) return;
+      try {
+        const response = await apiClient.get(`/classes/${id}`);
+        const apiClass = response.data;
+        setDetailItem({
+          id: String(apiClass.id),
+          title: apiClass.title,
+          freelancer: apiClass.freelancerName,
+          freelancerId: String(apiClass.freelancerId),
+          price: apiClass.price,
+          category: apiClass.categoryName,
+          image: `https://picsum.photos/seed/class${apiClass.id}/400/300`,
+          rating: 0,
+          reviews: 0,
+          isOffline: !apiClass.isOnline,
+          location: apiClass.isOnline ? undefined : apiClass.location,
+          curriculum: apiClass.curriculum,
+          createdAt: apiClass.createdAt ?? new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('클래스 상세 조회 실패:', error);
+        setDetailItem(null);
+      }
+    };
+
+    fetchClass();
+  }, [id, itemFromContext]);
+
+  if (!detailItem) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-gray-500 mb-4">클래스 정보를 찾을 수 없습니다.</p>
+        <button onClick={() => navigate('/browse')} className="text-coral font-bold">목록으로 돌아가기</button>
+      </div>
+    );
+  }
+
+  const item = detailItem;
+  const currentEnrollment = enrollments.find(e => e.classId === item.id);
+  const status = currentEnrollment?.status;
+    
+  const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '미술·공예';
 
   const scrollToSection = (id: string) => {
     const ref = sectionRefs[id as keyof typeof sectionRefs];
@@ -154,12 +191,45 @@ export default function ClassDetail() {
     { q: '일정 변경은 가능한가요?', a: '수업 시작 3일 전까지는 자유롭게 변경 가능합니다. 그 이후는 채팅으로 문의주세요.' },
   ];
 
-  const curriculum = (item as any).curriculum || [
-    { week: 1, title: '기초 이해', desc: '도구의 사용법과 기초를 배웁니다.' },
-    { week: 2, title: '심화 표현', desc: '다양한 기법을 익힙니다.' },
-    { week: 3, title: '실습 진행', desc: '직접 작품을 만들어봅니다.' },
-    { week: 4, title: '최종 완성', desc: '나만의 작품을 완성합니다.' },
-  ];
+  const rawCurriculum = (item as any).curriculum;
+  const curriculum = (() => {
+    if (Array.isArray(rawCurriculum)) {
+      return rawCurriculum;
+    }
+    if (typeof rawCurriculum === 'string') {
+      const trimmed = rawCurriculum.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        } catch {
+          // ignore JSON parse failure and fall back to line splitting
+        }
+      }
+      return trimmed
+        .split(/\r?\n/)
+        .map(line => line.trim())
+        .filter(Boolean)
+        .map((line, index) => {
+          const [titlePart, ...descParts] = line.split(/[:\-–—]/);
+          const title = titlePart?.trim();
+          const desc = descParts.join('-').trim();
+          return {
+            week: index + 1,
+            title: title || `단계 ${index + 1}`,
+            desc: desc || line,
+          };
+        });
+    }
+    return [
+      { week: 1, title: '기초 이해', desc: '도구의 사용법과 기초를 배웁니다.' },
+      { week: 2, title: '심화 표현', desc: '다양한 기법을 익힙니다.' },
+      { week: 3, title: '실습 진행', desc: '직접 작품을 만들어봅니다.' },
+      { week: 4, title: '최종 완성', desc: '나만의 작품을 완성합니다.' },
+    ];
+  })();
 
   // Filter reviews for this class
   const classReviews = allReviews.filter(r => r.classId === id);

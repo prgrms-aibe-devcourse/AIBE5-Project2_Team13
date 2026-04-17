@@ -4,6 +4,7 @@ import { ChevronLeft, Send, Image as ImageIcon, X, Calendar, MapPin, Users as Us
 import { motion, AnimatePresence } from 'motion/react';
 import { useClasses } from '../context/ClassContext';
 import { useCategories } from '../context/CategoryContext';
+import { useAuth } from '../context/AuthContext';
 import { cn } from '@/src/lib/utils';
 
 export default function ClassFormPage() {
@@ -11,6 +12,7 @@ export default function ClassFormPage() {
   const navigate = useNavigate();
   const { addClass, updateClass, classes } = useClasses();
   const { categories } = useCategories();
+  const { isLoggedIn } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isEditMode = !!id;
@@ -73,6 +75,12 @@ export default function ClassFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!isLoggedIn) {
+      setToast('로그인 후 클래스 등록이 가능합니다.');
+      setTimeout(() => navigate('/login'), 1500);
+      return;
+    }
+
     if (isEditMode && id) {
       updateClass(id, {
         title,
@@ -103,8 +111,13 @@ export default function ClassFormPage() {
       await addClass(createPayload);
       setToast('클래스가 성공적으로 등록되었습니다!');
       setTimeout(() => navigate('/profile'), 1500);
-    } catch (error) {
+    } catch (error: any) {
       console.error('클래스 등록 실패:', error);
+      if (error?.response?.status === 403) {
+        setToast('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+        setTimeout(() => navigate('/login'), 1500);
+        return;
+      }
       setToast('클래스 등록 중 오류가 발생했습니다.');
     }
   };
