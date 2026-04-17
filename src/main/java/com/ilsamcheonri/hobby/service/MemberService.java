@@ -89,6 +89,27 @@ public class MemberService {
         return memberRepository.findDetailById(member.getId());
     }
 
+    @Transactional
+    public void updateMyPassword(String email, MemberPasswordUpdateRequestDto dto) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+
+        if (!passwordEncoder.matches(dto.getCurrentPassword(), member.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        String nextPassword = dto.getNewPassword().trim();
+        if (nextPassword.length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호는 8자 이상이어야 합니다.");
+        }
+
+        if (passwordEncoder.matches(nextPassword, member.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호와 다른 비밀번호를 입력해주세요.");
+        }
+
+        member.updatePassword(passwordEncoder.encode(nextPassword));
+    }
+
     private String normalizeBlank(String value) {
         if (value == null) {
             return null;

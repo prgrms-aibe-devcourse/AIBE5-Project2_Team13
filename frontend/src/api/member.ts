@@ -16,6 +16,11 @@ export type MemberUpdateRequest = {
   addr2?: string | null;
 };
 
+export type MemberPasswordUpdateRequest = {
+  currentPassword: string;
+  newPassword: string;
+};
+
 export const getMyDetail = async (): Promise<MemberDetail> => {
   const res = await apiClient.get("/member/me/detail");
   return res.data;
@@ -24,4 +29,8 @@ export const getMyDetail = async (): Promise<MemberDetail> => {
 export const updateMyDetail = async (payload: MemberUpdateRequest): Promise<MemberDetail> => {
   const res = await apiClient.put("/member/me/detail", payload);
   return res.data;
+};
+
+export const updateMyPassword = async (payload: MemberPasswordUpdateRequest): Promise<void> => {
+  await apiClient.put("/member/me/password", payload);
 };

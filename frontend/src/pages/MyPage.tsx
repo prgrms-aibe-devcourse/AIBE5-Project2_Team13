@@ -12,7 +12,7 @@ import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
-import { getMyDetail, updateMyDetail, type MemberDetail } from '@/src/api/member';
+import { getMyDetail, updateMyDetail, updateMyPassword, type MemberDetail } from '@/src/api/member';
 import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
 import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
@@ -80,6 +80,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
   const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
@@ -113,6 +114,12 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     phone: '',
   });
   const [settingsSaving, setSettingsSaving] = useState(false);
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   // Admin States
   const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>(MOCK_USERS_ADMIN);
@@ -132,7 +139,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   
   const userRole = toRoleCode(user?.role || localStorage.getItem('userRole') || undefined);
   const userRoleLabel = toRoleLabel(userRole);
-  const displayName = settingsForm.name || user?.name || '포근사용자';
+  const displayName = myDetail?.name || user?.name || '포근사용자';
   const profileImageSrc = profileImage || myDetail?.imgUrl || "https://picsum.photos/seed/pogeun-expert/100/100";
   
   // Set default menu based on role
@@ -298,7 +305,6 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const handleLogout = () => {
     if (window.confirm('로그아웃 하시겠습니까?')) {
       logout();
-      showToast('로그아웃되었습니다.');
       navigate('/');
     }
   };
@@ -355,8 +361,61 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     }
   };
 
+  const resetPasswordForm = () => {
+    setPasswordForm({
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+  };
+
   const handleChangePassword = () => {
-    showToast('비밀번호 변경 API가 아직 연결되지 않았습니다.', 'error');
+    resetPasswordForm();
+    setIsPasswordModalOpen(true);
+  };
+
+  const handleClosePasswordModal = () => {
+    setIsPasswordModalOpen(false);
+    resetPasswordForm();
+  };
+
+  const handleSubmitPasswordChange = async () => {
+    const currentPassword = passwordForm.currentPassword.trim();
+    const newPassword = passwordForm.newPassword.trim();
+    const confirmPassword = passwordForm.confirmPassword.trim();
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      showToast('비밀번호 항목을 모두 입력해주세요.', 'error');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showToast('새 비밀번호 확인이 일치하지 않습니다.', 'error');
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      await updateMyPassword({
+        currentPassword,
+        newPassword,
+      });
+      handleClosePasswordModal();
+      alert('비밀번호가 변경되었습니다.');
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+        const message =
+          typeof responseData === 'string'
+            ? responseData
+            : responseData?.message || responseData?.detail || responseData?.error || '비밀번호 변경 중 오류가 발생했습니다.';
+        showToast(message, 'error');
+        return;
+      }
+      showToast('비밀번호 변경 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleWithdraw = () => {
@@ -1887,7 +1946,67 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         initialData={selectedReviewData}
       />
 
-      {/* Reject Reason Modal */}
+      <AnimatePresence>
+        {isPasswordModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={handleClosePasswordModal}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl"
+            >
+              <button
+                onClick={handleClosePasswordModal}
+                className="absolute top-6 right-6 text-gray-400 hover:text-coral transition-colors"
+              >
+                <X size={24} />
+              </button>
+
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">비밀번호 변경</h2>
+              <p className="text-gray-500 mb-8">현재 비밀번호와 다른 8자 이상의 새 비밀번호를 입력해주세요.</p>
+
+              <div className="space-y-4">
+                <input
+                  type="password"
+                  value={passwordForm.currentPassword}
+                  onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                  placeholder="현재 비밀번호"
+                />
+                <input
+                  type="password"
+                  value={passwordForm.newPassword}
+                  onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                  placeholder="새 비밀번호"
+                />
+                <input
+                  type="password"
+                  value={passwordForm.confirmPassword}
+                  onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                  placeholder="새 비밀번호 확인"
+                />
+                <button
+                  onClick={handleSubmitPasswordChange}
+                  disabled={passwordSaving}
+                  className="w-full py-5 bg-coral text-white font-bold rounded-3xl hover:bg-coral/90 transition-all shadow-xl shadow-coral/20 text-lg mt-4 disabled:opacity-70"
+                >
+                  {passwordSaving ? '변경 중...' : '비밀번호 변경하기'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {isRejectModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">

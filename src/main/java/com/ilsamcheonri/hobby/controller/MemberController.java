@@ -1,6 +1,7 @@
 package com.ilsamcheonri.hobby.controller;
 
 import com.ilsamcheonri.hobby.dto.MemberDetailDto;
+import com.ilsamcheonri.hobby.dto.MemberPasswordUpdateRequestDto;
 import com.ilsamcheonri.hobby.dto.MemberSummaryDto;
 import com.ilsamcheonri.hobby.dto.MemberUpdateRequestDto;
 import com.ilsamcheonri.hobby.entity.Member;
@@ -15,6 +16,9 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/member")
@@ -52,5 +56,19 @@ public class MemberController {
             @Valid @RequestBody MemberUpdateRequestDto request
     ) {
         return ResponseEntity.ok(memberService.updateMyDetail(authentication.getName(), request));
+    }
+
+    @PutMapping("/me/password")
+    public ResponseEntity<?> updateMyPassword(
+            Authentication authentication,
+            @Valid @RequestBody MemberPasswordUpdateRequestDto request
+    ) {
+        try {
+            memberService.updateMyPassword(authentication.getName(), request);
+            return ResponseEntity.ok().build();
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
     }
 }
