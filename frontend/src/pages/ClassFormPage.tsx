@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Send, Image as ImageIcon, X, Calendar, Clock, MapPin, Users as UsersIcon, CreditCard, Save, Check } from 'lucide-react';
+import { ChevronLeft, Send, Image as ImageIcon, X, Calendar, MapPin, Users as UsersIcon, CreditCard, Save, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES } from '@/src/constants';
 import { useClasses } from '../context/ClassContext';
@@ -20,8 +20,6 @@ export default function ClassFormPage() {
   const [content, setContent] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endTime, setEndTime] = useState('');
   const [curriculum, setCurriculum] = useState('');
   const [method, setMethod] = useState('online');
   const [location, setLocation] = useState('');
@@ -42,8 +40,6 @@ export default function ClassFormPage() {
       setContent('기존 클래스 설명입니다.');
       setStartDate('2024-05-01');
       setEndDate('2024-05-31');
-      setStartTime('14:00');
-      setEndTime('16:00');
       setCurriculum('1단계: 기초\n2단계: 실습\n3단계: 완성');
       setCapacity('6');
     }
@@ -235,33 +231,6 @@ export default function ClassFormPage() {
                   required
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-1">
-                  <Clock size={14} /> 시작 시간
-                </label>
-                <input 
-                  type="time" 
-                  required
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-1">
-                  <Clock size={14} /> 종료 시간
-                </label>
-                <input 
-                  type="time" 
-                  required
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
                   className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
                 />
               </div>
