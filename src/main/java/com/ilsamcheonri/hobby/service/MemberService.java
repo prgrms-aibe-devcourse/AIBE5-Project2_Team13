@@ -59,10 +59,13 @@ public class MemberService {
     public LoginResponseDto login(LoginRequestDto dto) {
         System.out.println("LOGIN METHOD CALLED");
         Member member = memberRepository.findByEmail(dto.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 이메일입니다."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "존재하지 않는 이메일입니다."));
         System.out.println("AFTER FIND MEMBER");
+        if (member.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴한 계정입니다.");
+        }
         if (!passwordEncoder.matches(dto.getPassword(), member.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다.");
         }
         System.out.println("LOGIN SUCCESS");
 
@@ -157,11 +160,12 @@ public class MemberService {
         RoleCode role = roleCodeRepository.findByRoleCode(roleCode)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "유효하지 않은 권한입니다."));
 
+        member.updateRoleCode(role);
+        memberRepository.saveAndFlush(member);
+
         if ("F".equals(currentRoleCode) && "U".equals(roleCode)) {
             deleteFreelancerProfile(member.getId());
         }
-
-        member.updateRoleCode(role);
 
         return AdminMemberListItemDto.builder()
                 .id(member.getId())
@@ -173,6 +177,49 @@ public class MemberService {
                 .address(formatAddress(member.getAddr(), member.getAddr2()))
                 .joinedAt(member.getCreatedAt() != null ? member.getCreatedAt().toLocalDate().toString() : "")
                 .quitAt(null)
+                .isDeleted(member.isDeleted())
+                .build();
+    }
+
+    @Transactional
+    public void withdrawMyAccount(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+
+        member.markDeleted();
+    }
+
+    @Transactional
+    public AdminMemberListItemDto toggleMemberDeleted(String adminEmail, Long memberId) {
+        validateAdmin(adminEmail);
+
+        Member admin = memberRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+
+        if (admin.getId().equals(member.getId())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "관리자 본인은 탈퇴 처리할 수 없습니다.");
+        }
+
+        if (member.isDeleted()) {
+            member.restoreDeleted();
+        } else {
+            member.markDeleted();
+        }
+
+        memberRepository.saveAndFlush(member);
+
+        return AdminMemberListItemDto.builder()
+                .id(member.getId())
+                .email(member.getEmail())
+                .name(member.getName())
+                .birth(member.getBirth() != null ? member.getBirth().toString() : "")
+                .role(toFrontendRole(member.getRoleCode().getRoleCode()))
+                .phone(member.getPhone())
+                .address(formatAddress(member.getAddr(), member.getAddr2()))
+                .joinedAt(member.getCreatedAt() != null ? member.getCreatedAt().toLocalDate().toString() : "")
+                .quitAt(member.isDeleted() && member.getUpdatedAt() != null ? member.getUpdatedAt().toLocalDate().toString() : null)
                 .isDeleted(member.isDeleted())
                 .build();
     }

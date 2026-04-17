@@ -1,5 +1,6 @@
 package com.ilsamcheonri.hobby.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -15,5 +16,6 @@ public class AdminMemberListItemDto {
     private String address;
     private String joinedAt;
     private String quitAt;
+    @JsonProperty("isDeleted")
     private boolean isDeleted;
 }

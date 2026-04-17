@@ -12,7 +12,7 @@ import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
-import { getAdminMembers, getMyDetail, updateMemberRole, updateMyDetail, updateMyPassword, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
+import { getAdminMembers, getMyDetail, toggleMemberDeleted, updateMemberRole, updateMyDetail, updateMyPassword, withdrawMyAccount, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
 import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
 import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
@@ -439,7 +439,24 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   };
 
   const handleWithdraw = () => {
-    showToast('회원 탈퇴 API가 아직 연결되지 않았습니다.', 'error');
+    if (!window.confirm('정말 회원 탈퇴하시겠습니까?')) {
+      return;
+    }
+
+    (async () => {
+      try {
+        await withdrawMyAccount();
+        logout();
+        alert('회원 탈퇴가 완료되었습니다.');
+        navigate('/');
+      } catch (error) {
+        if (axios.isAxiosError(error)) {
+          showToast(error.response?.data?.message || '회원 탈퇴 중 오류가 발생했습니다.', 'error');
+          return;
+        }
+        showToast('회원 탈퇴 중 오류가 발생했습니다.', 'error');
+      }
+    })();
   };
 
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1313,10 +1330,23 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     return ['ROLE_USER', 'ROLE_ADMIN'];
   };
 
-  const handleDeleteUser = (userId: number) => {
-    if (window.confirm('정말 이 사용자를 탈퇴 처리하시겠습니까?')) {
-      setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, isDeleted: true, quitAt: new Date().toISOString().split('T')[0] } : u));
-      alert('사용자가 탈퇴 처리되었습니다.');
+  const handleDeleteUser = (targetUser: AdminMemberListItem) => {
+    const isRestoreAction = targetUser.isDeleted;
+    const actionLabel = isRestoreAction ? '탈퇴를 취소하시겠습니까?' : '정말 이 사용자를 탈퇴 처리하시겠습니까?';
+    if (window.confirm(actionLabel)) {
+      (async () => {
+        try {
+          const updatedUser = await toggleMemberDeleted(targetUser.id);
+          setAdminUsers(prev => prev.map(u => u.id === targetUser.id ? updatedUser : u));
+          alert(isRestoreAction ? '사용자 탈퇴가 취소되었습니다.' : '사용자가 탈퇴 처리되었습니다.');
+        } catch (error) {
+          if (axios.isAxiosError(error)) {
+            showToast(error.response?.data?.message || '사용자 탈퇴 처리 중 오류가 발생했습니다.', 'error');
+            return;
+          }
+          showToast('사용자 탈퇴 처리 중 오류가 발생했습니다.', 'error');
+        }
+      })();
     }
   };
 
@@ -1514,13 +1544,18 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex justify-center gap-2">
-                        {!u.isDeleted && (
+                        {u.email !== user?.email && (
                           <button 
-                            onClick={() => handleDeleteUser(u.id)}
-                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
-                            title="탈퇴 처리"
+                            onClick={() => handleDeleteUser(u)}
+                            className={cn(
+                              "px-3 py-1.5 text-xs font-bold rounded-lg transition-all",
+                              u.isDeleted
+                                ? "text-green-600 bg-green-50 hover:bg-green-100"
+                                : "text-red-500 bg-red-50 hover:bg-red-100",
+                            )}
+                            title={u.isDeleted ? "탈퇴 취소" : "탈퇴 처리"}
                           >
-                            <Trash2 size={18} />
+                            {u.isDeleted ? '탈퇴 취소' : '탈퇴'}
                           </button>
                         )}
                       </div>
