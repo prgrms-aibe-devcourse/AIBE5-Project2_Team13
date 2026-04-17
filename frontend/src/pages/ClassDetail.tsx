@@ -401,8 +401,8 @@ export default function ClassDetail() {
                   <MapPin size={24} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900">{item.location || '오프라인 (장소 협의)'}</h4>
-                  <p className="text-base text-gray-500">자세한 참여 방법은 결제 후 안내됩니다.</p>
+                  <h4 className="font-bold text-gray-900">{item.isOffline === false ? '온라인' : (item.location || '오프라인 (장소 협의)')}</h4>
+                  <p className="text-base text-gray-500">{item.isOffline === false ? '화상 미팅을 통해 진행됩니다.' : '자세한 참여 방법은 결제 후 안내됩니다.'}</p>
                 </div>
               </div>
             </section>
