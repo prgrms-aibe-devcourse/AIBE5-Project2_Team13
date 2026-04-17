@@ -21,7 +21,7 @@ import java.util.List;
  * ── 단일 파일 API ────────────────────────────────────────────
  * POST   /api/files/upload                파일 단건 등록
  * PUT    /api/files/{fileId}              파일 수정 (기존 삭제 + 새 파일 등록)
- * DELETE /api/files/{fileId}              파일 삭제 (DB 소프트 삭제 + 실제 파일 삭제)
+ * DELETE /api/files/{fileId}              파일 삭제 (DB 레코드 삭제 + 실제 파일 삭제)
  * GET    /api/files/download/{fileName}   파일 다운로드
  *
  * ── 다중 파일 API ────────────────────────────────────────────
@@ -101,7 +101,7 @@ public class FileController {
     // ✅ 파일 단건 삭제
     // DELETE /api/files/{fileId}?targetType=CLASS
     //
-    // DB 소프트 삭제 + 실제 파일 삭제를 함께 처리합니다.
+     // DB 레코드 삭제 + 실제 파일 삭제를 함께 처리합니다.
     // =========================================================
     @DeleteMapping("/{fileId}")
     public ResponseEntity<Void> delete(
@@ -155,6 +155,9 @@ public class FileController {
         } catch (IllegalArgumentException e) {
             // 파일이 없는 경우 404 응답
             return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            // 잘못된 경로 접근 시 400 응답
+            return ResponseEntity.badRequest().build();
         }
     }
 }

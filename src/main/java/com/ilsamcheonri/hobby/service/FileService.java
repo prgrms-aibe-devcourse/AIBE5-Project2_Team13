@@ -10,6 +10,7 @@ import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -34,7 +35,7 @@ import java.util.UUID;
  */
 @Service
 @RequiredArgsConstructor
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class FileService {
 
     private final ClassAttachmentRepository             classAttachmentRepository;
@@ -53,8 +54,10 @@ public class FileService {
     // ✅ 1. 파일 단건 업로드
     // =========================================================
 
+    private static final String DOWNLOAD_URL_PREFIX = "/api/files/download/";
+
     /**
-     * 파일을 D:\fileDownLoadServer\에 저장하고 해당 첨부파일 테이블에 기록합니다.
+      * 파일을 D:\fileDownLoadServer\에 저장하고 해당 첨부파일 테이블에 기록합니다.
      *
      * [수정 - 문제 1, 3]
      * 기존: ClassBoard.builder().id(classId).build() 방식 (프록시 — 존재 확인 없음)
@@ -67,20 +70,33 @@ public class FileService {
             Long targetId
     ) throws IOException {
 
-        String originalFileName = file.getOriginalFilename();
-        String savedFileName    = UUID.randomUUID() + "_" + originalFileName;
-        String fileUrl          = uploadPath + savedFileName;
-        long   fileSize         = file.getSize();
+        // 1. 경로 조작 방지를 위한 파일명 정제
+        String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
+        if (originalFileName.contains("..")) {
+            throw new SecurityException("잘못된 파일명입니다.");
+        }
 
-        Path savePath = Paths.get(fileUrl);
-        Files.createDirectories(savePath.getParent());
-        file.transferTo(savePath.toFile());
+        // 2. 확장자 추출 및 안전한 랜덤 파일명 생성
+        String extension = "";
+        int dotIndex = originalFileName.lastIndexOf('.');
+        if (dotIndex > 0) {
+            extension = originalFileName.substring(dotIndex);
+        }
+        String savedFileName = UUID.randomUUID().toString() + extension;
+        String fileUrl = DOWNLOAD_URL_PREFIX + savedFileName;
+        long fileSize = file.getSize();
 
+        // 3. DB 존재 검증 및 정보 저장을 먼저 수행 (예외 발생 시 여기서 중단, 파일 저장소 누수 방지)
         Long savedId = switch (targetType) {
             case CLASS      -> uploadClassAttachment(targetId, originalFileName, savedFileName, fileUrl, fileSize);
             case MEMBER     -> uploadMemberAttachment(targetId, originalFileName, savedFileName, fileUrl, fileSize);
             case FREELANCER -> uploadFreelancerAttachment(targetId, originalFileName, savedFileName, fileUrl, fileSize);
         };
+
+        // 4. DB 저장이 성공한 경우에만 실제 물리적 파일 저장
+        Path savePath = Paths.get(uploadPath).resolve(savedFileName).normalize();
+        Files.createDirectories(savePath.getParent());
+        file.transferTo(savePath.toFile());
 
         return FileUploadResponse.builder()
                 .fileId(savedId)
@@ -109,7 +125,7 @@ public class FileService {
             if (file.isEmpty()) continue;
             try {
                 results.add(upload(file, targetType, targetId));
-            } catch (IOException e) {
+            } catch (Exception e) {
                 System.err.println("[FileService] 파일 업로드 실패: "
                         + file.getOriginalFilename() + " / " + e.getMessage());
             }
@@ -151,34 +167,34 @@ public class FileService {
     }
 
     // =========================================================
-    // ✅ 4. 파일 단건 삭제 (DB 소프트 삭제 + 실제 파일 삭제)
+     // ✅ 4. 파일 단건 삭제 (DB 레코드 삭제 + 실제 파일 삭제)
     // =========================================================
 
     /**
-     * DB is_deleted = true 처리 + D:\fileDownLoadServer\에서 실제 파일 삭제를 함께 처리합니다.
+     * DB 레코드 삭제 + D:\fileDownLoadServer\에서 실제 파일 삭제를 함께 처리합니다.
      */
     public void delete(Long fileId, FileTargetType targetType) {
 
         String savedFileName = switch (targetType) {
             case CLASS -> {
                 ClassAttachment a = classAttachmentRepository
-                        .findByIdAndIsDeletedFalse(fileId)
+                        .findById(fileId)
                         .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다. fileId: " + fileId));
-                a.softDelete();
+                classAttachmentRepository.delete(a);
                 yield a.getSavedFileName();
             }
             case MEMBER -> {
                 MemberAttachment a = memberAttachmentRepository
-                        .findByIdAndIsDeletedFalse(fileId)
+                        .findById(fileId)
                         .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다. fileId: " + fileId));
-                a.softDelete();
+                memberAttachmentRepository.delete(a);
                 yield a.getSavedFileName();
             }
             case FREELANCER -> {
                 FreelancerProfileAttachment a = freelancerAttachmentRepository
-                        .findByIdAndIsDeletedFalse(fileId)
+                        .findById(fileId)
                         .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다. fileId: " + fileId));
-                a.softDelete();
+                freelancerAttachmentRepository.delete(a);
                 yield a.getSavedFileName();
             }
         };
@@ -220,12 +236,18 @@ public class FileService {
      */
     @Transactional(readOnly = true)
     public Resource download(String savedFileName) {
-        Path filePath = Paths.get(uploadPath + savedFileName);
+        String cleanFileName = StringUtils.cleanPath(savedFileName);
+
+        if (cleanFileName.contains("..")) {
+            throw new SecurityException("잘못된 파일 경로입니다.");
+        }
+
+        Path filePath = Paths.get(uploadPath).resolve(cleanFileName).normalize();
         Resource resource = new FileSystemResource(filePath);
 
         if (!resource.exists()) {
             throw new IllegalArgumentException(
-                "파일을 찾을 수 없습니다. 이미 삭제되었거나 경로가 올바르지 않습니다: " + savedFileName
+                "파일을 찾을 수 없습니다. 이미 삭제되었거나 경로가 올바르지 않습니다: " + cleanFileName
             );
         }
         return resource;
