@@ -65,6 +65,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**").permitAll()
                         // 카테고리 목록 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
+                        // OFFER 클래스 목록 조회 — 로그인 없이 누구나 접근 가능
+                        .requestMatchers(HttpMethod.GET, "/api/classes/**").permitAll()
                         // 요청 클래스 목록/상세 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()
                         .requestMatchers("/api/member/**").authenticated()

@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { MOCK_CLASSES, ClassItem } from '../constants';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import apiClient from '../api/axios';
+import { ClassItem } from '../constants';
 
 interface ClassContextType {
   classes: ClassItem[];
@@ -10,8 +11,56 @@ interface ClassContextType {
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
 
+interface ClassApiResponse {
+  id: number;
+  title: string;
+  description?: string;
+  categoryName: string;
+  freelancerName: string;
+  freelancerId: number;
+  price: number;
+  isOnline: boolean;
+  startAt?: string;
+  endAt?: string;
+  maxCapacity?: number;
+  status?: string;
+  createdAt?: string;
+}
+
+function toClassItem(api: ClassApiResponse): ClassItem {
+  const isOnline = api.isOnline ?? (api as any).online ?? false;
+
+  return {
+    id: String(api.id),
+    title: api.title,
+    freelancer: api.freelancerName,
+    freelancerId: String(api.freelancerId),
+    price: api.price,
+    category: api.categoryName,
+    image: `https://picsum.photos/seed/class${api.id}/400/300`,
+    rating: 0,
+    reviews: 0,
+    isOffline: !isOnline,
+    location: isOnline ? undefined : '오프라인 장소',
+    createdAt: api.createdAt ? api.createdAt.slice(0, 10) : new Date().toISOString().split('T')[0],
+  };
+}
+
 export const ClassProvider = ({ children }: { children: ReactNode }) => {
-  const [classes, setClasses] = useState<ClassItem[]>(MOCK_CLASSES);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+
+  const fetchClasses = async () => {
+    try {
+      const response = await apiClient.get<ClassApiResponse[]>('/classes');
+      setClasses(response.data.map(toClassItem));
+    } catch (err) {
+      console.error('클래스 목록 조회 실패:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
 
   const addClass = (newClass: Omit<ClassItem, 'id' | 'rating' | 'reviews' | 'createdAt'>) => {
     const classToAdd: ClassItem = {
