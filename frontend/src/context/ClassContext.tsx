@@ -62,6 +62,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     endAt: api.endAt,
     maxCapacity: api.maxCapacity,
     curriculum: api.curriculum,
+    description: api.description,
     createdAt: api.createdAt ?? new Date().toISOString(),
     updatedAt: api.updatedAt,
   };

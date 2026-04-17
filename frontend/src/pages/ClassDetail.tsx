@@ -117,6 +117,7 @@ export default function ClassDetail() {
           isOffline: !apiClass.isOnline,
           location: apiClass.isOnline ? undefined : apiClass.location,
           curriculum: apiClass.curriculum,
+          description: apiClass.description,
           createdAt: apiClass.createdAt ?? new Date().toISOString(),
           updatedAt: apiClass.updatedAt,
         });
@@ -219,20 +220,31 @@ export default function ClassDetail() {
           // ignore JSON parse failure and fall back to line splitting
         }
       }
-      return trimmed
-        .split(/\r?\n/)
-        .map(line => line.trim())
-        .filter(Boolean)
-        .map((line, index) => {
-          const [titlePart, ...descParts] = line.split(/[:\-–—]/);
-          const title = titlePart?.trim();
-          const desc = descParts.join('-').trim();
-          return {
-            week: index + 1,
-            title: title || `단계 ${index + 1}`,
-            desc: desc || line,
-          };
-        });
+      // Split by double newlines to separate curriculum items
+      const items = trimmed.split(/\n\s*\n/).filter(Boolean);
+      if (items.length === 0 || items.length === 1) {
+        // Fallback: if no double newlines or only one block, treat every 2 lines as one week
+        const lines = trimmed.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const result = [];
+        for (let i = 0; i < lines.length; i += 2) {
+          result.push({
+            week: Math.floor(i / 2) + 1,
+            title: lines[i] || `단계 ${Math.floor(i / 2) + 1}`,
+            desc: lines[i + 1] || lines[i] || '',
+          });
+        }
+        return result;
+      }
+      return items.map((item, index) => {
+        const lines = item.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const title = lines[0] || `단계 ${index + 1}`;
+        const desc = lines.slice(1).join('\n');
+        return {
+          week: index + 1,
+          title,
+          desc: desc || title,
+        };
+      });
     }
     return [
       { week: 1, title: '기초 이해', desc: '도구의 사용법과 기초를 배웁니다.' },
