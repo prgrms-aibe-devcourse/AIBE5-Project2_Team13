@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import apiClient from '../api/axios';
+import { ClassItem } from '@/src/constants';
 import { 
   MessageCircle, CreditCard, ChevronLeft, Star, Share2, Heart, MapPin, 
   Clock, Users, BadgeCheck, ShieldCheck, CheckCircle2, X, AlertCircle, 
@@ -17,9 +19,8 @@ import { useFollow } from '../context/FollowContext';
 import { ReviewItem } from '@/src/constants';
 
 const TABS = [
-  { id: 'description', label: '서비스 설명' },
+  { id: 'description', label: '클래스 소개' },//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
   { id: 'curriculum', label: '커리큘럼' },
-  { id: 'pricing', label: '가격 정보' },
   { id: 'expert', label: '전문가 정보' },
   { id: 'location', label: '장소' },
   { id: 'faq', label: 'FAQ' },
@@ -32,6 +33,7 @@ export default function ClassDetail() {
   const { addReport } = useReports();
   const { classes } = useClasses();
   const { toggleFollow, isFollowing: checkFollowing } = useFollow();
+  const [detailItem, setDetailItem] = useState<ClassItem | null>(null);
   
   const [isPicked, setIsPicked] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -46,7 +48,6 @@ export default function ClassDetail() {
   const sectionRefs = {
     description: useRef<HTMLDivElement>(null),
     curriculum: useRef<HTMLDivElement>(null),
-    pricing: useRef<HTMLDivElement>(null),
     expert: useRef<HTMLDivElement>(null),
     location: useRef<HTMLDivElement>(null),
     faq: useRef<HTMLDivElement>(null),
@@ -59,23 +60,8 @@ export default function ClassDetail() {
 
   const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
 
-  const item = classes.find(c => c.id === id);
+  const itemFromContext = classes.find(c => c.id === id);
 
-  if (!item) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center">
-        <p className="text-gray-500 mb-4">클래스 정보를 찾을 수 없습니다.</p>
-        <button onClick={() => navigate('/browse')} className="text-coral font-bold">목록으로 돌아가기</button>
-      </div>
-    );
-  }
-
-  const currentEnrollment = enrollments.find(e => e.classId === item.id);
-  const status = currentEnrollment?.status;
-    
-  const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '미술·공예';
-
-  // Load reviews from localStorage
   useEffect(() => {
     const savedReviews = localStorage.getItem('all_reviews');
     if (savedReviews) {
@@ -83,7 +69,6 @@ export default function ClassDetail() {
     }
   }, []);
 
-  // Intersection Observer for scroll sync
   useEffect(() => {
     const observerOptions = {
       root: null,
@@ -107,6 +92,70 @@ export default function ClassDetail() {
 
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (itemFromContext) {
+      setDetailItem(itemFromContext);
+      return;
+    }
+
+    const fetchClass = async () => {
+      if (!id) return;
+      try {
+        const response = await apiClient.get(`/classes/${id}`);
+        const apiClass = response.data;
+        setDetailItem({
+          id: String(apiClass.id),
+          title: apiClass.title,
+          freelancer: apiClass.freelancerName,
+          freelancerId: String(apiClass.freelancerId),
+          price: apiClass.price,
+          category: apiClass.categoryName,
+          image: `https://picsum.photos/seed/class${apiClass.id}/400/300`,
+          rating: 0,
+          reviews: 0,
+          isOffline: !apiClass.isOnline,
+          location: apiClass.isOnline ? undefined : apiClass.location,
+          curriculum: apiClass.curriculum,
+          description: apiClass.description,
+          createdAt: apiClass.createdAt ?? new Date().toISOString(),
+          updatedAt: apiClass.updatedAt,
+        });
+      } catch (error) {
+        console.error('클래스 상세 조회 실패:', error);
+        setDetailItem(null);
+      }
+    };
+
+    fetchClass();
+  }, [id, itemFromContext]);
+
+  if (!detailItem) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center">
+        <p className="text-gray-500 mb-4">클래스 정보를 찾을 수 없습니다.</p>
+        <button onClick={() => navigate('/browse')} className="text-coral font-bold">목록으로 돌아가기</button>
+      </div>
+    );
+  }
+
+  const item = detailItem;
+  const currentEnrollment = enrollments.find(e => e.classId === item.id);
+  const status = currentEnrollment?.status;
+    
+  const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '미술·공예';
+
+  const formatSchedule = (start?: string, end?: string) => {
+    if (!start && !end) return '협의';
+    const startDate = start ? new Date(start).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+    const endDate = end ? new Date(end).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+    return `${startDate} ~ ${endDate}`;
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  };
 
   const scrollToSection = (id: string) => {
     const ref = sectionRefs[id as keyof typeof sectionRefs];
@@ -154,12 +203,56 @@ export default function ClassDetail() {
     { q: '일정 변경은 가능한가요?', a: '수업 시작 3일 전까지는 자유롭게 변경 가능합니다. 그 이후는 채팅으로 문의주세요.' },
   ];
 
-  const curriculum = (item as any).curriculum || [
-    { week: 1, title: '기초 이해', desc: '도구의 사용법과 기초를 배웁니다.' },
-    { week: 2, title: '심화 표현', desc: '다양한 기법을 익힙니다.' },
-    { week: 3, title: '실습 진행', desc: '직접 작품을 만들어봅니다.' },
-    { week: 4, title: '최종 완성', desc: '나만의 작품을 완성합니다.' },
-  ];
+  const rawCurriculum = (item as any).curriculum;
+  const curriculum = (() => {
+    if (Array.isArray(rawCurriculum)) {
+      return rawCurriculum;
+    }
+    if (typeof rawCurriculum === 'string') {
+      const trimmed = rawCurriculum.trim();
+      if (trimmed.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) {
+            return parsed;
+          }
+        } catch {
+          // ignore JSON parse failure and fall back to line splitting
+        }
+      }
+      // Split by double newlines to separate curriculum items
+      const items = trimmed.split(/\n\s*\n/).filter(Boolean);
+      if (items.length === 0 || items.length === 1) {
+        // Fallback: if no double newlines or only one block, treat every 2 lines as one week
+        const lines = trimmed.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const result = [];
+        for (let i = 0; i < lines.length; i += 2) {
+          result.push({
+            week: Math.floor(i / 2) + 1,
+            title: lines[i] || `단계 ${Math.floor(i / 2) + 1}`,
+            desc: lines[i + 1] || lines[i] || '',
+          });
+        }
+        return result;
+      }
+      return items.map((item, index) => {
+        const lines = item.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+        const title = lines[0] || `단계 ${index + 1}`;
+        const desc = lines.slice(1).join('\n');
+        return {
+          week: index + 1,
+          title,
+          desc: desc || title,
+        };
+      });
+    }
+    return [
+      { week: 1, title: '기초 이해', desc: '도구의 사용법과 기초를 배웁니다.' },
+      { week: 2, title: '심화 표현', desc: '다양한 기법을 익힙니다.' },
+      { week: 3, title: '실습 진행', desc: '직접 작품을 만들어봅니다.' },
+      { week: 4, title: '최종 완성', desc: '나만의 작품을 완성합니다.' },
+    ];
+  })();
 
   // Filter reviews for this class
   const classReviews = allReviews.filter(r => r.classId === id);
@@ -219,9 +312,9 @@ export default function ClassDetail() {
               </div>
             </div>
 
-            {/* Section: 서비스 설명 */}
+            {/* Section: 클래스 소개 */}
             <section id="description" ref={sectionRefs.description} className="scroll-mt-32">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">서비스 설명</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">클래스 소개</h2>
               <div className="prose prose-coral max-w-none text-gray-600 leading-relaxed space-y-4">
                 <p className="whitespace-pre-wrap">{(item as any).description || `${item.title} 클래스에 오신 것을 환영합니다! 포근한 분위기 속에서 즐겁게 새로운 취미를 시작해보세요.`}</p>
                 <div className="rounded-3xl overflow-hidden mt-8">
@@ -250,30 +343,6 @@ export default function ClassDetail() {
                     </div>
                   </div>
                 ))}
-              </div>
-            </section>
-
-            {/* Section: 가격 정보 */}
-            <section id="pricing" ref={sectionRefs.pricing} className="scroll-mt-32">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">가격 정보</h2>
-              <div className="bg-ivory/30 rounded-[32px] p-8 border border-coral/5">
-                <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xl font-bold text-gray-900">기본 패키지</h3>
-                  <span className="text-2xl font-bold text-coral">{item.price.toLocaleString()}원</span>
-                </div>
-                <ul className="space-y-4">
-                  {((item as any).features || [
-                    '맞춤형 오프라인 코칭 포함',
-                    '핵심 요약 가이드 제공',
-                    '수업 후 Q&A 지원',
-                    '기초 재료 대여 포함'
-                  ]).map((feature: string, i: number) => (
-                    <li key={i} className="flex items-center gap-3 text-gray-600">
-                      <CheckCircle2 size={18} className="text-coral shrink-0" />
-                      <span className="text-base">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             </section>
 
@@ -332,8 +401,8 @@ export default function ClassDetail() {
                   <MapPin size={24} />
                 </div>
                 <div>
-                  <h4 className="font-bold text-gray-900">{item.location || '오프라인 (장소 협의)'}</h4>
-                  <p className="text-base text-gray-500">자세한 참여 방법은 결제 후 안내됩니다.</p>
+                  <h4 className="font-bold text-gray-900">{item.isOffline === false ? '온라인' : (item.location || '오프라인 (장소 협의)')}</h4>
+                  <p className="text-base text-gray-500">{item.isOffline === false ? '화상 미팅을 통해 진행됩니다.' : '자세한 참여 방법은 결제 후 안내됩니다.'}</p>
                 </div>
               </div>
             </section>
@@ -435,17 +504,36 @@ export default function ClassDetail() {
                   </div>
                   
                   <div className="bg-ivory/50 rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
-                      <Clock size={14} className="text-gray-400" />
-                      <span>작업일: {(item as any).workDays || '협의'}</span>
+                    <div className="text-[15px] text-gray-500">
+                      <div className="flex items-center gap-3">
+                        <Clock size={14} className="text-gray-400" />
+                        <span>수업 일정:</span>
+                      </div>
+                      <div className="ml-7 mt-1 text-gray-700">
+                        {formatSchedule(item.startAt, item.endAt)}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 text-[15px] text-gray-500">
                       <Users size={14} className="text-gray-400" />
-                      <span>진행 방식: {item.isOffline ? '오프라인' : '온라인'}</span>
+                      <span>모집 인원: {item.maxCapacity ?? '-'}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
-                      <ShieldCheck size={14} className="text-gray-400" />
-                      <span>수정 횟수: {(item as any).editCount || '1회'}</span>
+                    <div className="flex items-center gap-3 text-[15px] text-gray-500 pb-3 border-b border-gray-200">
+                      <MapPin size={14} className="text-gray-400" />
+                      <span>수업 지역: {item.isOffline === false ? '온라인' : (item.location ?? '-')}</span>
+                    </div>
+                    <div className="pt-3">
+                      <div className="flex items-center gap-3 text-[15px] text-gray-500 mb-1">
+                        <ShieldCheck size={14} className="text-gray-400" />
+                        <span>등록일</span>
+                      </div>
+                      <div className="pl-7 text-[15px] text-gray-700">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '. ').replace(/\.$/, '') : '-'}
+                        {item.updatedAt && (
+                          <div className="text-gray-400 text-sm mt-0.5">
+                            (최근 수정: {new Date(item.updatedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '. ').replace(/\.$/, '')})
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -489,7 +577,7 @@ export default function ClassDetail() {
                 onClick={() => setIsReportModalOpen(true)}
                 className="w-full flex items-center justify-center gap-2 text-gray-400 hover:text-coral transition-colors text-xs font-medium"
               >
-                <AlertCircle size={14} /> 부적절한 서비스 신고하기
+                <AlertCircle size={14} /> 부적절한 클래스 신고하기
               </button>
             </div>
           </div>

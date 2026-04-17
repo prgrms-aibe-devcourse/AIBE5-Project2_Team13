@@ -316,7 +316,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   
   const pickedClasses = classes.slice(0, 2);
   const appliedClasses = classes.slice(2, 4);
-  const teachingClasses = classes.filter(c => c.freelancer === '포근프리랜서' || c.freelancer === '김화가'); // For demo
+  const currentUserName = myDetail?.name || user?.name || '';
+  const teachingClasses = classes.filter(c => c.freelancer === currentUserName);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });

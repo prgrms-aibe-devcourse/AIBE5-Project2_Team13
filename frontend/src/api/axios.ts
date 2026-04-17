@@ -17,6 +17,9 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use((config) => {
   // 로그인 방식에 따라 session/local storage 어디에 있든 읽습니다.
   const token = getAccessToken();
+  config.headers = {
+    ...config.headers,
+  };
 
   if (token) {
     // "Authorization: Bearer [토큰값]" 형태로 헤더에 추가
