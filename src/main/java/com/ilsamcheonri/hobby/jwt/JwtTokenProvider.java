@@ -23,8 +23,8 @@ public class JwtTokenProvider {
         this.key = Keys.hmacShaKeyFor(secretKey.getBytes());
     }
 
-    private final long accessTokenValidity = 1000 * 60 * 30;
-    private final long refreshTokenValidity = 1000L * 60 * 60 * 24 * 7;
+    private final long accessTokenValidity = 1000 * 60 * 60; // 1시간으로 변경
+    private final long refreshTokenValidity = 1000L * 60 * 60 * 24 * 7; // 7일
 
     public String createAccessToken(String email) {
         return createToken(email, accessTokenValidity);
@@ -49,6 +49,7 @@ public class JwtTokenProvider {
     public void validateToken(String token) {
         Jwts.parserBuilder()
                 .setSigningKey(key)
+                .setAllowedClockSkewSeconds(60) // 1분 허용 오차
                 .build()
                 .parseClaimsJws(token);
     }

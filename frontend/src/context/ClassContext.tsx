@@ -98,8 +98,14 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     setClasses(prev => prev.filter(c => c.id !== id));
   };
 
-  const updateClass = (id: string, updatedClass: Partial<ClassItem>) => {
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, ...updatedClass } : c));
+  const updateClass = async (id: string, updatedClass: Partial<ClassItem>) => {
+    try {
+      await apiClient.put(`/classes/${id}`, updatedClass);
+      setClasses(prev => prev.map(c => c.id === id ? { ...c, ...updatedClass } : c));
+    } catch (error) {
+      console.error('클래스 수정 실패:', error);
+      throw error;
+    }
   };
 
   return (

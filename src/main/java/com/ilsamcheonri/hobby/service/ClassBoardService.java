@@ -69,4 +69,55 @@ public class ClassBoardService {
 
         return classBoardRepository.save(offerClass).getId();
     }
+
+    @Transactional
+    public Long updateOfferClass(String email, Long id, ClassBoardCreateRequest request) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        ClassBoard classBoard = classBoardRepository
+                .findByIdAndBoardTypeAndIsDeletedFalse(id, "OFFER")
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
+
+        // 권한 검증: 작성자만 수정 가능
+        if (!classBoard.getFreelancer().getId().equals(member.getId())) {
+            throw new IllegalArgumentException("수정 권한이 없습니다.");
+        }
+
+        if (request.getEndAt() != null && request.getStartAt() != null && 
+            request.getEndAt().isBefore(request.getStartAt())) {
+            throw new IllegalArgumentException("종료 일시는 시작 일시보다 이후여야 합니다.");
+        }
+
+        // 필드 업데이트
+        if (request.getTitle() != null) {
+            classBoard.updateTitle(request.getTitle());
+        }
+        if (request.getDescription() != null) {
+            classBoard.updateDescription(request.getDescription());
+        }
+        if (request.getPrice() != null) {
+            classBoard.updatePrice(request.getPrice());
+        }
+        if (request.getIsOnline() != null) {
+            classBoard.updateIsOnline(request.getIsOnline());
+        }
+        if (request.getStartAt() != null) {
+            classBoard.updateStartAt(request.getStartAt());
+        }
+        if (request.getEndAt() != null) {
+            classBoard.updateEndAt(request.getEndAt());
+        }
+        if (request.getMaxCapacity() != null) {
+            classBoard.updateMaxCapacity(request.getMaxCapacity());
+        }
+        if (request.getCurriculum() != null) {
+            classBoard.updateCurriculum(request.getCurriculum());
+        }
+        if (request.getLocation() != null) {
+            classBoard.updateLocation(request.getLocation());
+        }
+
+        return classBoard.getId();
+    }
 }
