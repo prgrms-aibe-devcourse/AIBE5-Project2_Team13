@@ -69,6 +69,10 @@ public class Member {
         this.addr2 = addr2;
     }
 
+    public void updatePassword(String password) {
+        this.password = password;
+    }
+
     public void updateRoleCode(RoleCode roleCode) {
         this.roleCode = roleCode;
     }
