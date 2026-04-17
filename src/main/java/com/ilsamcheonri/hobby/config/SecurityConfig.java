@@ -69,6 +69,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/classes/**").permitAll()
                         // 요청 클래스 목록/상세 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()
+                        // 파일 다운로드 — 로그인 없이 접근 가능 (이미지 표시용)
+                        .requestMatchers(HttpMethod.GET, "/api/files/download/**").permitAll()
                         .requestMatchers("/api/member/**").authenticated()
                         .anyRequest().authenticated()
                 )
