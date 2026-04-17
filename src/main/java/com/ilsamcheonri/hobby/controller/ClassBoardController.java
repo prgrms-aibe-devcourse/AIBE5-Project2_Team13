@@ -45,4 +45,13 @@ public class ClassBoardController {
         return ResponseEntity.ok(classBoardService.updateOfferClass(email, id, request));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteClass(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email
+    ) {
+        classBoardService.deleteOfferClass(email, id);
+        return ResponseEntity.ok().build();
+    }
+
 }

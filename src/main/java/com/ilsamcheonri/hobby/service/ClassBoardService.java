@@ -134,4 +134,21 @@ public class ClassBoardService {
 
         return classBoard.getId();
     }
+
+    @Transactional
+    public void deleteOfferClass(String email, Long id) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        ClassBoard classBoard = classBoardRepository
+                .findByIdAndBoardTypeAndIsDeletedFalse(id, "OFFER")
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
+
+        // 권한 검증: 작성자만 삭제 가능
+        if (!classBoard.getFreelancer().getId().equals(member.getId())) {
+            throw new IllegalArgumentException("삭제 권한이 없습니다.");
+        }
+
+        classBoard.softDelete();
+    }
 }

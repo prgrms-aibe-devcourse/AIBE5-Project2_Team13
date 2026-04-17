@@ -18,7 +18,7 @@ interface CreateClassPayload {
 interface ClassContextType {
   classes: ClassItem[];
   addClass: (newClass: CreateClassPayload) => Promise<void>;
-  deleteClass: (id: string) => void;
+  deleteClass: (id: string) => Promise<void>;
   updateClass: (id: string, updatedClass: CreateClassPayload) => Promise<void>;
 }
 
@@ -94,8 +94,14 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const deleteClass = (id: string) => {
-    setClasses(prev => prev.filter(c => c.id !== id));
+  const deleteClass = async (id: string) => {
+    try {
+      await apiClient.delete(`/classes/${id}`);
+      setClasses(prev => prev.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('클래스 삭제 실패:', error);
+      throw error;
+    }
   };
 
   const updateClass = async (id: string, updatedClass: CreateClassPayload) => {
