@@ -2,9 +2,22 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import apiClient from '../api/axios';
 import { ClassItem } from '../constants';
 
+interface CreateClassPayload {
+  title: string;
+  description: string;
+  categoryId: number;
+  price: number;
+  isOnline: boolean;
+  startAt: string;
+  endAt: string;
+  maxCapacity: number;
+  curriculum?: string;
+  location?: string;
+}
+
 interface ClassContextType {
   classes: ClassItem[];
-  addClass: (newClass: Omit<ClassItem, 'id' | 'rating' | 'reviews' | 'createdAt'>) => void;
+  addClass: (newClass: CreateClassPayload) => Promise<void>;
   deleteClass: (id: string) => void;
   updateClass: (id: string, updatedClass: Partial<ClassItem>) => void;
 }
@@ -24,6 +37,8 @@ interface ClassApiResponse {
   endAt?: string;
   maxCapacity?: number;
   status?: string;
+  curriculum?: string;
+  location?: string;
   createdAt?: string;
 }
 
@@ -41,7 +56,8 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     rating: 0,
     reviews: 0,
     isOffline: !isOnline,
-    location: isOnline ? undefined : '오프라인 장소',
+    location: !isOnline ? api.location ?? '오프라인 장소' : undefined,
+    curriculum: api.curriculum,
     createdAt: api.createdAt ? api.createdAt.slice(0, 10) : new Date().toISOString().split('T')[0],
   };
 }
@@ -62,15 +78,14 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     fetchClasses();
   }, []);
 
-  const addClass = (newClass: Omit<ClassItem, 'id' | 'rating' | 'reviews' | 'createdAt'>) => {
-    const classToAdd: ClassItem = {
-      ...newClass,
-      id: Math.random().toString(36).substr(2, 9),
-      rating: 0,
-      reviews: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-    };
-    setClasses(prev => [classToAdd, ...prev]);
+  const addClass = async (newClass: CreateClassPayload) => {
+    try {
+      await apiClient.post('/classes', newClass);
+      await fetchClasses();
+    } catch (error) {
+      console.error('클래스 생성 실패:', error);
+      throw error;
+    }
   };
 
   const deleteClass = (id: string) => {

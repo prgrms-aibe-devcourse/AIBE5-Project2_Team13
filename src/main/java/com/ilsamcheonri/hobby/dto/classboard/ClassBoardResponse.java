@@ -24,6 +24,8 @@ public class ClassBoardResponse {
     private String endAt;
     private Integer maxCapacity;
     private String status;
+    private String curriculum;
+    private String location;
     private String createdAt;
 
     public static ClassBoardResponse from(ClassBoard classBoard) {
@@ -40,6 +42,8 @@ public class ClassBoardResponse {
                 .endAt(classBoard.getEndAt() != null ? classBoard.getEndAt().toString() : null)
                 .maxCapacity(classBoard.getMaxCapacity())
                 .status(classBoard.getStatus())
+                .curriculum(classBoard.getCurriculum())
+                .location(classBoard.getLocation())
                 .createdAt(classBoard.getCreatedAt() != null ? classBoard.getCreatedAt().toString() : null)
                 .build();
     }
