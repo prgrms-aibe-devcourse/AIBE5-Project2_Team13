@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save } from 'lucide-react';
-import { MOCK_CLASSES, UserRole, REGIONS, MOCK_USERS_ADMIN, AdminUserItem, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
+import { MOCK_CLASSES, UserRole, REGIONS, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -12,7 +12,7 @@ import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
-import { getMyDetail, updateMyDetail, updateMyPassword, type MemberDetail } from '@/src/api/member';
+import { getAdminMembers, getMyDetail, updateMemberRole, updateMyDetail, updateMyPassword, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
 import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
 import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
@@ -122,7 +122,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [passwordSaving, setPasswordSaving] = useState(false);
 
   // Admin States
-  const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>(MOCK_USERS_ADMIN);
+  const [adminUsers, setAdminUsers] = useState<AdminMemberListItem[]>([]);
+  const [adminUsersLoading, setAdminUsersLoading] = useState(false);
   const [adminReports, setAdminReports] = useState<ReportItem[]>(MOCK_REPORTS);
   const [pendingFreelancerProfiles, setPendingFreelancerProfiles] = useState<FreelancerApprovalListItemResponse[]>([]);
   const [pendingProfilesLoading, setPendingProfilesLoading] = useState(false);
@@ -268,6 +269,24 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
     let isMounted = true;
 
+    const loadAdminUsers = async () => {
+      setAdminUsersLoading(true);
+      try {
+        const members = await getAdminMembers();
+        if (isMounted) {
+          setAdminUsers(members);
+        }
+      } catch (error) {
+        if (isMounted) {
+          showToast('회원 목록을 불러오지 못했습니다.', 'error');
+        }
+      } finally {
+        if (isMounted) {
+          setAdminUsersLoading(false);
+        }
+      }
+    };
+
     const loadPendingFreelancerProfiles = async () => {
       setPendingProfilesLoading(true);
       try {
@@ -286,6 +305,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       }
     };
 
+    loadAdminUsers();
     loadPendingFreelancerProfiles();
 
     return () => {
@@ -1262,12 +1282,38 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   );
 
   // Admin Handlers
-  const handleUpdateUserRole = (userId: string, newRole: UserRole) => {
-    setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u));
-    alert('사용자 권한이 변경되었습니다.');
+  const handleUpdateUserRole = async (userId: number, newRole: UserRole) => {
+    try {
+      const updatedUser = await updateMemberRole(userId, newRole);
+      setAdminUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      alert('사용자 권한이 변경되었습니다.');
+    } catch (error) {
+      if (axios.isAxiosError(error)) {
+        showToast(error.response?.data?.message || '사용자 권한 변경 중 오류가 발생했습니다.', 'error');
+        return;
+      }
+      showToast('사용자 권한 변경 중 오류가 발생했습니다.', 'error');
+    }
   };
 
-  const handleDeleteUser = (userId: string) => {
+  const getAvailableAdminRoles = (targetUser: AdminMemberListItem): UserRole[] => {
+    const isSelf = targetUser.email === user?.email;
+    if (isSelf) {
+      return [targetUser.role as UserRole];
+    }
+
+    if (targetUser.role === 'ROLE_FREELANCER') {
+      return ['ROLE_FREELANCER', 'ROLE_USER'];
+    }
+
+    if (targetUser.role === 'ROLE_ADMIN') {
+      return ['ROLE_ADMIN', 'ROLE_USER'];
+    }
+
+    return ['ROLE_USER', 'ROLE_ADMIN'];
+  };
+
+  const handleDeleteUser = (userId: number) => {
     if (window.confirm('정말 이 사용자를 탈퇴 처리하시겠습니까?')) {
       setAdminUsers(prev => prev.map(u => u.id === userId ? { ...u, isDeleted: true, quitAt: new Date().toISOString().split('T')[0] } : u));
       alert('사용자가 탈퇴 처리되었습니다.');
@@ -1374,7 +1420,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
   const renderAdminUsers = () => {
     const filteredUsers = adminUsers
-      .filter(u => u.name.includes(userSearch) || u.id.includes(userSearch))
+      .filter(u => u.name.includes(userSearch) || String(u.id).includes(userSearch))
       .filter(u => userFilter === 'ALL' ? true : u.role === userFilter)
       .sort((a, b) => {
         if (userSort === 'joinedAt') return b.joinedAt.localeCompare(a.joinedAt);
@@ -1412,6 +1458,12 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           </div>
         </div>
 
+        {adminUsersLoading && (
+          <div className="rounded-2xl bg-ivory px-4 py-3 text-sm text-gray-500">
+            회원 목록을 불러오는 중입니다.
+          </div>
+        )}
+
         <div className="bg-white rounded-[32px] border border-coral/10 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
@@ -1437,11 +1489,14 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                       <select 
                         value={u.role}
                         onChange={(e) => handleUpdateUserRole(u.id, e.target.value as UserRole)}
-                        className="bg-transparent text-xs font-bold text-coral outline-none cursor-pointer"
+                        disabled={u.email === user?.email}
+                        className="bg-transparent text-xs font-bold text-coral outline-none cursor-pointer disabled:text-gray-400 disabled:cursor-not-allowed"
                       >
-                        <option value="ROLE_USER">USER</option>
-                        <option value="ROLE_FREELANCER">FREELANCER</option>
-                        <option value="ROLE_ADMIN">ADMIN</option>
+                        {getAvailableAdminRoles(u).map(role => (
+                          <option key={role} value={role}>
+                            {role === 'ROLE_USER' ? 'USER' : role === 'ROLE_FREELANCER' ? 'FREELANCER' : 'ADMIN'}
+                          </option>
+                        ))}
                       </select>
                     </td>
                     <td className="px-6 py-4">
