@@ -81,6 +81,7 @@ export default function AICounseling() {
             referrerPolicy="no-referrer"
           />
         </div>
+        
         <h1 className="text-3xl font-bold text-gray-900">포근이 상담소</h1>
         <p className="text-gray-sub">마음속 이야기를 들려주세요. 포근이가 함께할게요.</p>
         
