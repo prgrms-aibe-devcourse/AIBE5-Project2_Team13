@@ -6,6 +6,7 @@ import { cn } from '@/src/lib/utils';
 import { useAuth } from "@/src/context/AuthContext";
 import axios from 'axios';
 import { findEmail } from '@/src/api/auth';
+import DatePicker from '@/src/components/DatePicker';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -308,15 +309,14 @@ const handleSocialLogin = (provider: string) => {
 
                   <div className="space-y-1">
                     <label className="text-xs font-bold text-gray-500 ml-1">생년월일</label>
-                    <div className="relative">
-                      <CalendarDays className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                      <input
-                        type="date"
-                        value={findEmailForm.birth}
-                        onChange={(e) => setFindEmailForm({ ...findEmailForm, birth: e.target.value })}
-                        className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
-                      />
-                    </div>
+                    <DatePicker
+                      value={findEmailForm.birth}
+                      onChange={(value) => setFindEmailForm({ ...findEmailForm, birth: value })}
+                      placeholder="생년월일을 선택해주세요"
+                      disableFuture
+                      placement="top"
+                      panelClassName="min-h-[392px] w-[320px] max-w-full"
+                    />
                   </div>
 
                   {foundEmail && (

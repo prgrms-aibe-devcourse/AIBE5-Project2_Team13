@@ -18,6 +18,7 @@ import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelance
 import { useAuth } from '@/src/context/AuthContext';
 import { useCategories } from '../context/CategoryContext';
 import axios from 'axios';
+import { formatPhoneNumber, stripPhoneNumber } from '@/src/lib/phone';
 
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -181,7 +182,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         setSettingsForm({
           name: detail.name || user.name || '',
           email: detail.email || user.email || '',
-          phone: detail.phone || '',
+          phone: formatPhoneNumber(detail.phone || ''),
         });
         setSelectedCity(detail.addr || '');
         setSelectedDistrict(detail.addr2 || '');
@@ -340,7 +341,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
       const savedDetail = await updateMyDetail({
         name: settingsForm.name,
-        phone: settingsForm.phone,
+        phone: stripPhoneNumber(settingsForm.phone),
         addr: selectedCity,
         addr2: selectedDistrict,
       });
@@ -351,7 +352,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       setSettingsForm({
         name: savedDetail.name || '',
         email: savedDetail.email || user?.email || '',
-        phone: savedDetail.phone || '',
+        phone: formatPhoneNumber(savedDetail.phone || ''),
       });
       setSelectedCity(savedDetail.addr || '');
       setSelectedDistrict(savedDetail.addr2 || '');
@@ -1770,7 +1771,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           <input
             type="tel"
             value={settingsForm.phone}
-            onChange={(e) => setSettingsForm(prev => ({ ...prev, phone: e.target.value }))}
+            onChange={(e) => setSettingsForm(prev => ({ ...prev, phone: formatPhoneNumber(e.target.value) }))}
             className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
           />
         </div>

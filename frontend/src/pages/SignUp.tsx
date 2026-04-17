@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { REGIONS } from '@/src/constants';
 import axios from 'axios';
+import { formatPhoneNumber, stripPhoneNumber } from '@/src/lib/phone';
+import DatePicker from '@/src/components/DatePicker';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -37,7 +39,8 @@ export default function SignUp() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const nextValue = name === 'phone' ? formatPhoneNumber(value) : value;
+    setFormData(prev => ({ ...prev, [name]: nextValue }));
 
     // Real-time validation
     if (name === 'email') {
@@ -129,16 +132,21 @@ const fetchMe = async () => {
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 
-  const requestData = {
-    name: formData.name,
-    email: formData.email,
-    password: formData.password,
-    passwordConfirm: formData.passwordConfirm,
-    birth: formData.birth,
-    phone: formData.phone,
-    addr: formData.addr,
-    addr2: formData.district,
-  };
+  if (!formData.birth) {
+    alert('생년월일을 선택해주세요.');
+    return;
+  }
+
+    const requestData = {
+      name: formData.name,
+      email: formData.email,
+      password: formData.password,
+      passwordConfirm: formData.passwordConfirm,
+      birth: formData.birth,
+    phone: stripPhoneNumber(formData.phone),
+      addr: formData.addr,
+      addr2: formData.district,
+    };
 
   try {
     const response = await axios.post(
@@ -292,13 +300,13 @@ const handleSubmit = async (e: React.FormEvent) => {
 
             <div className="space-y-1">
               <label className="text-xs font-bold text-gray-500 ml-1">생년월일</label>
-              <input 
-                name="birth"
-                type="date" 
-                required
+              <DatePicker
                 value={formData.birth}
-                onChange={handleInputChange}
-                className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                onChange={(value) => setFormData(prev => ({ ...prev, birth: value }))}
+                placeholder="생년월일을 선택해주세요"
+                disableFuture
+                placement="top"
+                panelClassName="min-h-[392px] w-[320px] max-w-full"
               />
             </div>
 
@@ -471,4 +479,3 @@ const handleSubmit = async (e: React.FormEvent) => {
     </div>
   );
 }
-

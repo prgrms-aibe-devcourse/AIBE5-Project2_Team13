@@ -49,3 +49,9 @@
 .markdown-body p {
   @apply mb-4;
 }
+
+.rdp-chevron {
+  fill: transparent;
+  stroke: currentColor;
+  stroke-width: 2;
+}

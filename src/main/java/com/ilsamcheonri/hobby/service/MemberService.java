@@ -46,7 +46,7 @@ public class MemberService {
                 .password(encodedPassword)
                 .name(dto.getName())
                 .birth(dto.getBirth())
-                .phone(dto.getPhone())
+                .phone(normalizePhone(dto.getPhone()))
                 .addr(dto.getAddr())
                 .addr2(dto.getAddr2())
                 .roleCode(role)
@@ -78,7 +78,7 @@ public class MemberService {
     public FindEmailResponseDto findEmail(FindEmailRequestDto dto) {
         Member member = memberRepository.findByNameAndPhoneAndBirth(
                         dto.getName().trim(),
-                        dto.getPhone().trim(),
+                        normalizePhone(dto.getPhone()),
                         dto.getBirth()
                 )
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
@@ -128,7 +128,7 @@ public class MemberService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
 
         member.updateName(dto.getName().trim());
-        member.updatePhone(normalizeBlank(dto.getPhone()));
+        member.updatePhone(normalizePhone(dto.getPhone()));
         member.updateAddress(normalizeBlank(dto.getAddr()), normalizeBlank(dto.getAddr2()));
 
         return memberRepository.findDetailById(member.getId());
@@ -248,6 +248,15 @@ public class MemberService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizePhone(String value) {
+        String normalized = normalizeBlank(value);
+        if (normalized == null) {
+            return null;
+        }
+
+        return normalized.replaceAll("\\D", "");
     }
 
     private void validateRoleTransition(Member member, String currentRoleCode, String nextRoleCode) {
