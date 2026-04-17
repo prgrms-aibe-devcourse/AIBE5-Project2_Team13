@@ -519,7 +519,7 @@ export default function ClassDetail() {
                     </div>
                     <div className="flex items-center gap-3 text-[15px] text-gray-500 pb-3 border-b border-gray-200">
                       <MapPin size={14} className="text-gray-400" />
-                      <span>수업 지역: {item.location ?? '-'}</span>
+                      <span>수업 지역: {item.isOffline === false ? '온라인' : (item.location ?? '-')}</span>
                     </div>
                     <div className="pt-3">
                       <div className="flex items-center gap-3 text-[15px] text-gray-500 mb-1">
