@@ -58,7 +58,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     isOffline: !isOnline,
     location: !isOnline ? api.location ?? '오프라인 장소' : undefined,
     curriculum: api.curriculum,
-    createdAt: api.createdAt ? api.createdAt.slice(0, 10) : new Date().toISOString().split('T')[0],
+    createdAt: api.createdAt ?? new Date().toISOString(),
   };
 }
 

@@ -25,7 +25,7 @@ public class ClassBoardService {
     private final CategoryRepository categoryRepository;
 
     public List<ClassBoardResponse> getOfferClassList() {
-        return classBoardRepository.findByBoardTypeAndIsDeletedFalse("OFFER")
+        return classBoardRepository.findByBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc("OFFER")
                 .stream()
                 .map(ClassBoardResponse::from)
                 .collect(Collectors.toList());

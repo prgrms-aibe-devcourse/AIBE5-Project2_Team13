@@ -29,6 +29,8 @@ public interface ClassBoardRepository extends JpaRepository<ClassBoard, Long> {
      * boardType이 일치하고 삭제되지 않은 클래스 목록 조회
      * → SELECT * FROM CLASS_BOARD WHERE board_type = ? AND is_deleted = false
      */
+    List<ClassBoard> findByBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc(String boardType);
+
     List<ClassBoard> findByBoardTypeAndIsDeletedFalse(String boardType);
 
     /**
