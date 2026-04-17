@@ -32,7 +32,7 @@ export default function ClassFormPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isEditMode && existingClass) {
+    if (isEditMode && existingClass && categories.length > 0) {
       setTitle(existingClass.title);
       const matchedCategory = categories.find(cat => cat.name === existingClass.category);
       setCategory(matchedCategory ? String(matchedCategory.id) : '');
@@ -51,12 +51,10 @@ export default function ClassFormPage() {
         setEndDate(existingClass.endAt.split('T')[0]);
       }
       setCapacity(String(existingClass.maxCapacity || ''));
-    }
-
-    if (!category && categories.length) {
+    } else if (!isEditMode && !category && categories.length > 0) {
       setCategory(String(categories[0].id));
     }
-  }, [isEditMode, existingClass, categories, category]);
+  }, [isEditMode, existingClass, categories]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
