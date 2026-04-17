@@ -94,6 +94,7 @@ public class ClassBoard {
     }
 
     // 업데이트 메서드들
+    public void updateCategory(Category category) { this.category = category; }
     public void updateTitle(String title) { this.title = title; }
     public void updateDescription(String description) { this.description = description; }
     public void updatePrice(Integer price) { this.price = price; }

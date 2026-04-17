@@ -89,6 +89,13 @@ public class ClassBoardService {
             throw new IllegalArgumentException("종료 일시는 시작 일시보다 이후여야 합니다.");
         }
 
+        // 카테고리 업데이트
+        if (request.getCategoryId() != null) {
+            Category category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다."));
+            classBoard.updateCategory(category);
+        }
+
         // 필드 업데이트
         if (request.getTitle() != null) {
             classBoard.updateTitle(request.getTitle());
@@ -101,7 +108,17 @@ public class ClassBoardService {
         }
         if (request.getIsOnline() != null) {
             classBoard.updateIsOnline(request.getIsOnline());
+            // 온라인으로 변경 시 위치 정보 초기화 (선택 사항, 여기서는 사용자의 요구에 따라 오프라인일 때만 위치 정보 반영)
+            if (!request.getIsOnline() && request.getLocation() != null) {
+                classBoard.updateLocation(request.getLocation());
+            } else if (request.getIsOnline()) {
+                classBoard.updateLocation(null);
+            }
+        } else if (request.getLocation() != null) {
+            // isOnline이 null이더라도 location이 들어왔다면 업데이트 (기존 상태 유지하며 위치만 변경하는 경우 대비)
+            classBoard.updateLocation(request.getLocation());
         }
+
         if (request.getStartAt() != null) {
             classBoard.updateStartAt(request.getStartAt());
         }
@@ -113,9 +130,6 @@ public class ClassBoardService {
         }
         if (request.getCurriculum() != null) {
             classBoard.updateCurriculum(request.getCurriculum());
-        }
-        if (request.getLocation() != null) {
-            classBoard.updateLocation(request.getLocation());
         }
 
         return classBoard.getId();

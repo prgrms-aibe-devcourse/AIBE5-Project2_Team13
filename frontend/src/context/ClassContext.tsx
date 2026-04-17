@@ -19,7 +19,7 @@ interface ClassContextType {
   classes: ClassItem[];
   addClass: (newClass: CreateClassPayload) => Promise<void>;
   deleteClass: (id: string) => void;
-  updateClass: (id: string, updatedClass: Partial<ClassItem>) => void;
+  updateClass: (id: string, updatedClass: CreateClassPayload) => Promise<void>;
 }
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
@@ -98,10 +98,10 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     setClasses(prev => prev.filter(c => c.id !== id));
   };
 
-  const updateClass = async (id: string, updatedClass: Partial<ClassItem>) => {
+  const updateClass = async (id: string, updatedClass: CreateClassPayload) => {
     try {
       await apiClient.put(`/classes/${id}`, updatedClass);
-      setClasses(prev => prev.map(c => c.id === id ? { ...c, ...updatedClass } : c));
+      await fetchClasses(); // 목록 새로고침하여 변경사항 반영
     } catch (error) {
       console.error('클래스 수정 실패:', error);
       throw error;
