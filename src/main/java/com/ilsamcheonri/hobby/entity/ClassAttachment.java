@@ -44,7 +44,15 @@ public class ClassAttachment {
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 
-    public void deleteAttachment() {
+    public void softDelete() {
         this.isDeleted = true;
+    }
+
+    /** 파일 정보 수정 (기존 파일 삭제 후 새 파일로 교체 시 사용) */
+    public void update(String originalFileName, String savedFileName, String fileUrl, Long fileSize) {
+        this.originalFileName = originalFileName;
+        this.savedFileName    = savedFileName;
+        this.fileUrl          = fileUrl;
+        this.fileSize         = fileSize;
     }
 }

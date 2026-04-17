@@ -43,4 +43,15 @@ public class FreelancerProfileAttachment {
     @Builder.Default
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+
+    public void softDelete() {
+        this.isDeleted = true;
+    }
+
+    public void update(String originalFileName, String savedFileName, String fileUrl, Long fileSize) {
+        this.originalFileName = originalFileName;
+        this.savedFileName    = savedFileName;
+        this.fileUrl          = fileUrl;
+        this.fileSize         = fileSize;
+    }
 }
