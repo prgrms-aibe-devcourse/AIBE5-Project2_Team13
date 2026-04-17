@@ -32,7 +32,7 @@ export default function ClassFormPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isEditMode && existingClass) {
+    if (isEditMode && existingClass && categories.length > 0) {
       setTitle(existingClass.title);
       const matchedCategory = categories.find(cat => cat.name === existingClass.category);
       setCategory(matchedCategory ? String(matchedCategory.id) : '');
@@ -40,18 +40,21 @@ export default function ClassFormPage() {
       setMethod(existingClass.isOffline ? 'offline' : 'online');
       setLocation(existingClass.location || '');
       setImages([existingClass.image]);
-      // Fill other fields with mock data if they don't exist in ClassItem yet
-      setContent('기존 클래스 설명입니다.');
-      setStartDate('2024-05-01');
-      setEndDate('2024-05-31');
-      setCurriculum('1단계: 기초\n2단계: 실습\n3단계: 완성');
-      setCapacity('6');
-    }
-
-    if (!category && categories.length) {
+      // Fill fields with existing data from class_board
+      setContent((existingClass as any).description || '');
+      setCurriculum((existingClass as any).curriculum || '');
+      // Parse dates from ISO format
+      if (existingClass.startAt) {
+        setStartDate(existingClass.startAt.split('T')[0]);
+      }
+      if (existingClass.endAt) {
+        setEndDate(existingClass.endAt.split('T')[0]);
+      }
+      setCapacity(String(existingClass.maxCapacity || ''));
+    } else if (!isEditMode && !category && categories.length > 0) {
       setCategory(String(categories[0].id));
     }
-  }, [isEditMode, existingClass, categories, category]);
+  }, [isEditMode, existingClass, categories]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -82,15 +85,29 @@ export default function ClassFormPage() {
     }
 
     if (isEditMode && id) {
-      updateClass(id, {
-        title,
-        category: existingClass?.category || '',
-        price: Number(price),
-        isOffline: method === 'offline',
-        location: method === 'offline' ? location : undefined,
-      });
-      setToast('수정되었습니다.');
-      setTimeout(() => navigate('/profile'), 1500);
+      if (!isLoggedIn) {
+        setToast('로그인 후 클래스 수정이 가능합니다.');
+        setTimeout(() => navigate('/login'), 1500);
+        return;
+      }
+      try {
+        await updateClass(id, {
+          title,
+          categoryId: Number(category),
+          price: Number(price),
+          isOnline: method === 'online',
+          location: method === 'offline' ? location : undefined,
+          description: content,
+          curriculum: curriculum,
+          startAt: `${startDate}T00:00:00`,
+          endAt: `${endDate}T00:00:00`,
+          maxCapacity: Number(capacity),
+        });
+        setToast('수정되었습니다.');
+        setTimeout(() => navigate('/profile'), 1500);
+      } catch (error) {
+        setToast('수정 중 오류가 발생했습니다.');
+      }
       return;
     }
 

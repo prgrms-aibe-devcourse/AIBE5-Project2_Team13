@@ -92,4 +92,16 @@ public class ClassBoard {
     public void softDelete() {
         this.isDeleted = true;
     }
+
+    // 업데이트 메서드들
+    public void updateCategory(Category category) { this.category = category; }
+    public void updateTitle(String title) { this.title = title; }
+    public void updateDescription(String description) { this.description = description; }
+    public void updatePrice(Integer price) { this.price = price; }
+    public void updateIsOnline(Boolean isOnline) { this.isOnline = isOnline; }
+    public void updateStartAt(LocalDateTime startAt) { this.startAt = startAt; }
+    public void updateEndAt(LocalDateTime endAt) { this.endAt = endAt; }
+    public void updateMaxCapacity(Integer maxCapacity) { this.maxCapacity = maxCapacity; }
+    public void updateCurriculum(String curriculum) { this.curriculum = curriculum; }
+    public void updateLocation(String location) { this.location = location; }
 }
