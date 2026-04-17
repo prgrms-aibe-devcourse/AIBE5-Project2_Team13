@@ -4,7 +4,7 @@
 
 ## 🔗 Issue
 
-- Closes: #이슈번호
+- Closes #이슈번호
 
 ## ✅ 체크리스트
 
