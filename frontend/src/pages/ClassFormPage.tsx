@@ -2,14 +2,15 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, Send, Image as ImageIcon, X, Calendar, MapPin, Users as UsersIcon, CreditCard, Save, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CATEGORIES } from '@/src/constants';
 import { useClasses } from '../context/ClassContext';
+import { useCategories } from '../context/CategoryContext';
 import { cn } from '@/src/lib/utils';
 
 export default function ClassFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addClass, updateClass, classes } = useClasses();
+  const { categories } = useCategories();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isEditMode = !!id;
@@ -31,7 +32,8 @@ export default function ClassFormPage() {
   useEffect(() => {
     if (isEditMode && existingClass) {
       setTitle(existingClass.title);
-      setCategory(existingClass.category);
+      const matchedCategory = categories.find(cat => cat.name === existingClass.category);
+      setCategory(matchedCategory ? String(matchedCategory.id) : '');
       setPrice(existingClass.price.toString());
       setMethod(existingClass.isOffline ? 'offline' : 'online');
       setLocation(existingClass.location || '');
@@ -43,7 +45,11 @@ export default function ClassFormPage() {
       setCurriculum('1단계: 기초\n2단계: 실습\n3단계: 완성');
       setCapacity('6');
     }
-  }, [isEditMode, existingClass]);
+
+    if (!category && categories.length) {
+      setCategory(String(categories[0].id));
+    }
+  }, [isEditMode, existingClass, categories, category]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -64,27 +70,42 @@ export default function ClassFormPage() {
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const classData = {
+
+    if (isEditMode && id) {
+      updateClass(id, {
+        title,
+        category: existingClass?.category || '',
+        price: Number(price),
+        isOffline: method === 'offline',
+        location: method === 'offline' ? location : undefined,
+      });
+      setToast('수정되었습니다.');
+      setTimeout(() => navigate('/profile'), 1500);
+      return;
+    }
+
+    const createPayload = {
       title,
-      category,
-      freelancer: existingClass?.freelancer || '포근프리랜서',
+      description: content,
+      categoryId: Number(category),
       price: Number(price),
-      image: images[0] || 'https://picsum.photos/seed/pogeun-class/400/300',
-      isOffline: method === 'offline',
+      isOnline: method === 'online',
+      startAt: `${startDate}T00:00:00`,
+      endAt: `${endDate}T00:00:00`,
+      maxCapacity: Number(capacity),
+      curriculum,
       location: method === 'offline' ? location : undefined,
     };
 
-    if (isEditMode && id) {
-      updateClass(id, classData);
-      setToast('수정되었습니다.');
-      setTimeout(() => navigate('/profile'), 1500);
-    } else {
-      addClass(classData);
+    try {
+      await addClass(createPayload);
       setToast('클래스가 성공적으로 등록되었습니다!');
       setTimeout(() => navigate('/profile'), 1500);
+    } catch (error) {
+      console.error('클래스 등록 실패:', error);
+      setToast('클래스 등록 중 오류가 발생했습니다.');
     }
   };
 
@@ -140,7 +161,7 @@ export default function ClassFormPage() {
                 className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all appearance-none"
               >
                 <option value="">카테고리를 선택해주세요</option>
-                {CATEGORIES.map(cat => (
+                {categories.map(cat => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>

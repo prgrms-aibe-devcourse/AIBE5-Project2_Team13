@@ -10,6 +10,7 @@ export interface ClassItem {
   reviews: number;
   isOffline: boolean;
   location?: string;
+  curriculum?: string;
   createdAt: string;
 }
 
