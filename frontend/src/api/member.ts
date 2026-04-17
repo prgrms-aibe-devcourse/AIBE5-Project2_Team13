@@ -60,3 +60,12 @@ export const updateMemberRole = async (
   const res = await apiClient.put(`/member/admin/users/${memberId}/role`, { role });
   return res.data;
 };
+
+export const withdrawMyAccount = async (): Promise<void> => {
+  await apiClient.patch("/member/me/withdraw");
+};
+
+export const toggleMemberDeleted = async (memberId: number): Promise<AdminMemberListItem> => {
+  const res = await apiClient.patch(`/member/admin/users/${memberId}/withdraw`);
+  return res.data;
+};

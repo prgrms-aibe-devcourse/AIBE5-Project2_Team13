@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -67,6 +68,17 @@ public class MemberController {
         return ResponseEntity.ok(memberService.updateMyDetail(authentication.getName(), request));
     }
 
+    @PatchMapping("/me/withdraw")
+    public ResponseEntity<?> withdrawMyAccount(Authentication authentication) {
+        try {
+            memberService.withdrawMyAccount(authentication.getName());
+            return ResponseEntity.ok().build();
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
+    }
+
     @PutMapping("/me/password")
     public ResponseEntity<?> updateMyPassword(
             Authentication authentication,
@@ -89,6 +101,19 @@ public class MemberController {
     ) {
         try {
             return ResponseEntity.ok(memberService.updateMemberRole(authentication.getName(), memberId, request));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
+    }
+
+    @PatchMapping("/admin/users/{memberId}/withdraw")
+    public ResponseEntity<?> toggleMemberDeleted(
+            Authentication authentication,
+            @PathVariable Long memberId
+    ) {
+        try {
+            return ResponseEntity.ok(memberService.toggleMemberDeleted(authentication.getName(), memberId));
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode())
                     .body(Map.of("message", ex.getReason()));
