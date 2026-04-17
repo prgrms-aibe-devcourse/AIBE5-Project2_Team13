@@ -7,9 +7,11 @@ import com.ilsamcheonri.hobby.jwt.JwtTokenProvider;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
 import com.ilsamcheonri.hobby.repository.RoleCodeRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -73,6 +75,27 @@ public class MemberService {
     // 계정 설정 화면
     public MemberDetailDto getMyDetail(Long memberId) {
         return memberRepository.findDetailById(memberId);
+    }
+
+    @Transactional
+    public MemberDetailDto updateMyDetail(String email, MemberUpdateRequestDto dto) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+
+        member.updateName(dto.getName().trim());
+        member.updatePhone(normalizeBlank(dto.getPhone()));
+        member.updateAddress(normalizeBlank(dto.getAddr()), normalizeBlank(dto.getAddr2()));
+
+        return memberRepository.findDetailById(member.getId());
+    }
+
+    private String normalizeBlank(String value) {
+        if (value == null) {
+            return null;
+        }
+
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
 }

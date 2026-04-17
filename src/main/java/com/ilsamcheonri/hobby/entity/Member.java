@@ -60,6 +60,15 @@ public class Member {
         this.name = name;
     }
 
+    public void updatePhone(String phone) {
+        this.phone = phone;
+    }
+
+    public void updateAddress(String addr, String addr2) {
+        this.addr = addr;
+        this.addr2 = addr2;
+    }
+
     public void updateRoleCode(RoleCode roleCode) {
         this.roleCode = roleCode;
     }
