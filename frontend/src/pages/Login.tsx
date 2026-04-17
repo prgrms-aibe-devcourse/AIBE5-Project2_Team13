@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
-import { Mail, Lock, Shield} from 'lucide-react';
+import { Mail, Lock, Shield, User, Phone, CalendarDays, Copy } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
-import apiClient from '@/src/api/axios';
 import { useAuth } from "@/src/context/AuthContext";
 import axios from 'axios';
+import { findEmail } from '@/src/api/auth';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -15,6 +15,14 @@ export default function Login() {
     password: '',
   });
   const [toast, setToast] = useState<string | null>(null);
+  const [isFindEmailModalOpen, setIsFindEmailModalOpen] = useState(false);
+  const [findEmailForm, setFindEmailForm] = useState({
+    name: '',
+    phone: '',
+    birth: '',
+  });
+  const [foundEmail, setFoundEmail] = useState<string | null>(null);
+  const [isFindEmailLoading, setIsFindEmailLoading] = useState(false);
 
 const [isSocialLoading, setIsSocialLoading] = useState(false);
 
@@ -28,6 +36,17 @@ const handleSocialLogin = (provider: string) => {
   const showToast = (message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 3000);
+  };
+
+  const resetFindEmailModal = () => {
+    setIsFindEmailModalOpen(false);
+    setFindEmailForm({
+      name: '',
+      phone: '',
+      birth: '',
+    });
+    setFoundEmail(null);
+    setIsFindEmailLoading(false);
   };
 
   const { login } = useAuth();
@@ -50,6 +69,49 @@ const handleSocialLogin = (provider: string) => {
       }
 
       alert('로그인 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+    }
+  };
+
+  const handleFindEmail = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!findEmailForm.name.trim() || !findEmailForm.phone.trim() || !findEmailForm.birth) {
+      showToast('이름, 전화번호, 생년월일을 모두 입력해주세요.');
+      return;
+    }
+
+    setIsFindEmailLoading(true);
+    setFoundEmail(null);
+
+    try {
+      const response = await findEmail({
+        name: findEmailForm.name.trim(),
+        phone: findEmailForm.phone.trim(),
+        birth: findEmailForm.birth,
+      });
+
+      setFoundEmail(response.email);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        showToast(err.response.data.message);
+      } else {
+        showToast('이메일 찾기 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    } finally {
+      setIsFindEmailLoading(false);
+    }
+  };
+
+  const handleCopyEmail = async () => {
+    if (!foundEmail) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(foundEmail);
+      showToast('이메일이 복사되었습니다.');
+    } catch {
+      showToast('복사에 실패했습니다. 다시 시도해주세요.');
     }
   };
 
@@ -141,7 +203,7 @@ const handleSocialLogin = (provider: string) => {
             </div>
 
             <div className="flex justify-end gap-4 px-1">
-              <button type="button" onClick={() => alert('ID 찾기 페이지로 이동합니다.')} className="text-xs text-gray-400 hover:text-coral transition-colors">ID 찾기</button>
+              <button type="button" onClick={() => setIsFindEmailModalOpen(true)} className="text-xs text-gray-400 hover:text-coral transition-colors">ID 찾기</button>
               <div className="w-[1px] h-3 bg-gray-200 self-center"></div>
               <button type="button" onClick={() => alert('비밀번호 찾기 페이지로 이동합니다.')} className="text-xs text-gray-400 hover:text-coral transition-colors">비밀번호 찾기</button>
             </div>
@@ -188,6 +250,112 @@ const handleSocialLogin = (provider: string) => {
                   소셜 계정 정보를 가져오고 있습니다.<br />
                   잠시만 기다려주세요.
                 </p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isFindEmailModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-4"
+              onClick={resetFindEmailModal}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-md rounded-[32px] bg-white p-8 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold text-gray-900">아이디 찾기</h2>
+                  <p className="mt-2 text-sm text-gray-500">이름, 전화번호, 생년월일이 모두 일치하면 이메일을 알려드립니다.</p>
+                </div>
+
+                <form onSubmit={handleFindEmail} className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 ml-1">이름</label>
+                    <div className="relative">
+                      <User className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type="text"
+                        value={findEmailForm.name}
+                        onChange={(e) => setFindEmailForm({ ...findEmailForm, name: e.target.value })}
+                        placeholder="이름을 입력해주세요"
+                        className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 ml-1">전화번호</label>
+                    <div className="relative">
+                      <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type="text"
+                        value={findEmailForm.phone}
+                        onChange={(e) => setFindEmailForm({ ...findEmailForm, phone: e.target.value })}
+                        placeholder="전화번호를 입력해주세요"
+                        className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-gray-500 ml-1">생년월일</label>
+                    <div className="relative">
+                      <CalendarDays className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                      <input
+                        type="date"
+                        value={findEmailForm.birth}
+                        onChange={(e) => setFindEmailForm({ ...findEmailForm, birth: e.target.value })}
+                        className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {foundEmail && (
+                    <div className="rounded-3xl bg-coral/10 px-5 py-4">
+                      <p className="text-xs font-bold text-coral">찾은 이메일</p>
+                      <div className="mt-2 flex items-center justify-between gap-3">
+                        <p className="break-all text-sm font-semibold text-gray-900">{foundEmail}</p>
+                        <button
+                          type="button"
+                          onClick={handleCopyEmail}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-bold text-gray-700 shadow-sm transition-colors hover:text-coral"
+                        >
+                          <Copy size={14} />
+                          복사
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={resetFindEmailModal}
+                      className="flex-1 rounded-2xl border border-gray-200 py-3 text-sm font-bold text-gray-500 transition-colors hover:bg-gray-50"
+                    >
+                      닫기
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isFindEmailLoading}
+                      className={cn(
+                        "flex-1 rounded-2xl py-3 text-sm font-bold text-white transition-all",
+                        isFindEmailLoading ? "bg-coral/60" : "bg-coral hover:bg-coral/90"
+                      )}
+                    >
+                      {isFindEmailLoading ? '조회 중...' : '이메일 찾기'}
+                    </button>
+                  </div>
+                </form>
               </motion.div>
             </motion.div>
           )}

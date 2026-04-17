@@ -75,6 +75,23 @@ public class MemberService {
         return new LoginResponseDto(accessToken, refreshToken);
     }
 
+    public FindEmailResponseDto findEmail(FindEmailRequestDto dto) {
+        Member member = memberRepository.findByNameAndPhoneAndBirth(
+                        dto.getName().trim(),
+                        dto.getPhone().trim(),
+                        dto.getBirth()
+                )
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
+
+        if (member.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴한 계정입니다.");
+        }
+
+        return FindEmailResponseDto.builder()
+                .email(member.getEmail())
+                .build();
+    }
+
     // MyPage 첫 화면
     public MemberSummaryDto getMySummary(Long memberId) {
         return memberRepository.findSummaryById(memberId);
