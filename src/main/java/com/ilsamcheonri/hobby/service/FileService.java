@@ -31,7 +31,6 @@ import java.util.UUID;
  *   FREELANCER → FREELANCER_PROFILE_ATTACHMENT
  *
  * 다른 Service에서 FileService를 주입받아 사용할 수 있습니다.
- * 예) ClassBoardService에서 파일 업로드 시 fileService.upload() 호출
  */
 @Service
 @RequiredArgsConstructor
@@ -42,21 +41,25 @@ public class FileService {
     private final MemberAttachmentRepository            memberAttachmentRepository;
     private final FreelancerProfileAttachmentRepository freelancerAttachmentRepository;
 
-    // application.properties에서 설정 (기본값: D:\fileDownLoadServer\)
+    // ✅ [수정 - 문제 1, 3] 프록시 대신 실제 존재 여부 확인을 위한 Repository 추가
+    private final ClassBoardRepository        classBoardRepository;
+    private final MemberRepository            memberRepository;
+    private final FreelancerProfileRepository freelancerProfileRepository;
+
     @Value("${file.upload.path:D:\\fileDownLoadServer\\}")
     private String uploadPath;
 
     // =========================================================
-    // ✅ 1. 파일 업로드 (등록)
+    // ✅ 1. 파일 단건 업로드
     // =========================================================
 
     /**
      * 파일을 D:\fileDownLoadServer\에 저장하고 해당 첨부파일 테이블에 기록합니다.
      *
-     * @param file       업로드할 파일
-     * @param targetType CLASS / MEMBER / FREELANCER
-     * @param targetId   각 타입의 고유번호 (class_id, member_id, freelancer_profile_id)
-     * @return 저장된 파일 정보 (fileId, fileUrl 등)
+     * [수정 - 문제 1, 3]
+     * 기존: ClassBoard.builder().id(classId).build() 방식 (프록시 — 존재 확인 없음)
+     * 변경: Repository.findById()로 실제 존재 여부 확인 후 연결
+     *       존재하지 않는 ID 전달 시 IllegalArgumentException 발생
      */
     public FileUploadResponse upload(
             MultipartFile file,
@@ -64,25 +67,19 @@ public class FileService {
             Long targetId
     ) throws IOException {
 
-        // 1. UUID로 고유 파일명 생성 (중복 방지)
         String originalFileName = file.getOriginalFilename();
         String savedFileName    = UUID.randomUUID() + "_" + originalFileName;
         String fileUrl          = uploadPath + savedFileName;
         long   fileSize         = file.getSize();
 
-        // 2. 디렉토리가 없으면 생성 후 파일 저장
         Path savePath = Paths.get(fileUrl);
         Files.createDirectories(savePath.getParent());
         file.transferTo(savePath.toFile());
 
-        // 3. targetType에 따라 각 첨부파일 테이블에 저장
         Long savedId = switch (targetType) {
-            case CLASS      -> uploadClassAttachment(
-                    targetId, originalFileName, savedFileName, fileUrl, fileSize);
-            case MEMBER     -> uploadMemberAttachment(
-                    targetId, originalFileName, savedFileName, fileUrl, fileSize);
-            case FREELANCER -> uploadFreelancerAttachment(
-                    targetId, originalFileName, savedFileName, fileUrl, fileSize);
+            case CLASS      -> uploadClassAttachment(targetId, originalFileName, savedFileName, fileUrl, fileSize);
+            case MEMBER     -> uploadMemberAttachment(targetId, originalFileName, savedFileName, fileUrl, fileSize);
+            case FREELANCER -> uploadFreelancerAttachment(targetId, originalFileName, savedFileName, fileUrl, fileSize);
         };
 
         return FileUploadResponse.builder()
@@ -99,14 +96,7 @@ public class FileService {
 
     /**
      * 여러 파일을 한 번에 업로드합니다.
-     *
-     * 일부 파일 업로드 실패 시 해당 파일은 건너뛰고
-     * 나머지 파일은 계속 처리합니다.
-     *
-     * @param files      업로드할 파일 목록
-     * @param targetType CLASS / MEMBER / FREELANCER
-     * @param targetId   각 타입의 고유번호
-     * @return 업로드 성공한 파일들의 정보 목록
+     * 일부 실패 시 해당 파일은 건너뛰고 나머지를 계속 처리합니다.
      */
     public List<FileUploadResponse> uploadMultiple(
             List<MultipartFile> files,
@@ -116,12 +106,10 @@ public class FileService {
         List<FileUploadResponse> results = new ArrayList<>();
 
         for (MultipartFile file : files) {
-            if (file.isEmpty()) continue; // 빈 파일 건너뜀
-
+            if (file.isEmpty()) continue;
             try {
                 results.add(upload(file, targetType, targetId));
             } catch (IOException e) {
-                // 개별 파일 실패 시 로그만 남기고 나머지 계속 처리
                 System.err.println("[FileService] 파일 업로드 실패: "
                         + file.getOriginalFilename() + " / " + e.getMessage());
             }
@@ -130,17 +118,16 @@ public class FileService {
     }
 
     // =========================================================
-    // ✅ 3. 파일 수정 (기존 파일 소프트 삭제 → 새 파일 등록)
+    // ✅ 3. 파일 수정
     // =========================================================
 
     /**
-     * 기존 파일을 소프트 삭제하고 새 파일로 교체합니다.
+     * 기존 파일을 새 파일로 교체합니다.
      *
-     * @param fileId     교체할 기존 첨부파일 ID
-     * @param file       새로 업로드할 파일
-     * @param targetType CLASS / MEMBER / FREELANCER
-     * @param targetId   각 타입의 고유번호
-     * @return 새로 저장된 파일 정보
+     * [수정 - 문제 2]
+     * 기존: 기존 파일 먼저 삭제 → 새 파일 업로드 실패 시 둘 다 없어지는 문제
+     * 변경: 새 파일 먼저 업로드 성공 → 그 후 기존 파일 삭제
+     *       새 파일 업로드 실패 시 기존 파일은 그대로 유지됩니다.
      */
     public FileUploadResponse update(
             Long fileId,
@@ -149,126 +136,87 @@ public class FileService {
             Long targetId
     ) throws IOException {
 
-        // 1. 기존 파일 소프트 삭제
-        softDelete(fileId, targetType);
+        // 1. 새 파일 먼저 업로드 (실패 시 기존 파일 보존됨)
+        FileUploadResponse newFile = upload(file, targetType, targetId);
 
-        // 2. 새 파일 업로드
-        return upload(file, targetType, targetId);
+        // 2. 업로드 성공 후 기존 파일 삭제
+        try {
+            delete(fileId, targetType);
+        } catch (Exception e) {
+            // 기존 파일 삭제 실패해도 새 파일은 이미 저장됨 → 로그만 남김
+            System.err.println("[FileService] 기존 파일 삭제 실패 (새 파일은 저장됨): "
+                    + fileId + " / " + e.getMessage());
+        }
+        return newFile;
     }
 
     // =========================================================
-    // ✅ 3. 파일 삭제 (DB 소프트 삭제 + 실제 파일 삭제)
+    // ✅ 4. 파일 단건 삭제 (DB 소프트 삭제 + 실제 파일 삭제)
     // =========================================================
 
     /**
-     * 첨부파일을 삭제합니다.
-     *
-     * 처리 순서:
-     * 1. DB — is_deleted = true (소프트 삭제)
-     * 2. 실제 파일 — D:\fileDownLoadServer\에서 물리적으로 삭제
-     *
-     * 왜 두 가지를 같이 처리하나요?
-     * - DB만 삭제하면 D:\fileDownLoadServer\에 파일이 계속 쌓여 디스크 낭비
-     * - 실제 파일만 삭제하면 다운로드 API 호출 시 500 에러 발생
-     * - 두 가지를 동시에 처리해서 일관성을 보장합니다.
-     *
-     * @param fileId     삭제할 첨부파일 ID
-     * @param targetType CLASS / MEMBER / FREELANCER
+     * DB is_deleted = true 처리 + D:\fileDownLoadServer\에서 실제 파일 삭제를 함께 처리합니다.
      */
     public void delete(Long fileId, FileTargetType targetType) {
-        // 1. DB에서 savedFileName 조회 후 소프트 삭제
+
         String savedFileName = switch (targetType) {
             case CLASS -> {
-                ClassAttachment attachment = classAttachmentRepository
+                ClassAttachment a = classAttachmentRepository
                         .findByIdAndIsDeletedFalse(fileId)
-                        .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다."));
-                attachment.softDelete();
-                yield attachment.getSavedFileName();
+                        .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다. fileId: " + fileId));
+                a.softDelete();
+                yield a.getSavedFileName();
             }
             case MEMBER -> {
-                MemberAttachment attachment = memberAttachmentRepository
+                MemberAttachment a = memberAttachmentRepository
                         .findByIdAndIsDeletedFalse(fileId)
-                        .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다."));
-                attachment.softDelete();
-                yield attachment.getSavedFileName();
+                        .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다. fileId: " + fileId));
+                a.softDelete();
+                yield a.getSavedFileName();
             }
             case FREELANCER -> {
-                FreelancerProfileAttachment attachment = freelancerAttachmentRepository
+                FreelancerProfileAttachment a = freelancerAttachmentRepository
                         .findByIdAndIsDeletedFalse(fileId)
-                        .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다."));
-                attachment.softDelete();
-                yield attachment.getSavedFileName();
+                        .orElseThrow(() -> new IllegalArgumentException("파일을 찾을 수 없습니다. fileId: " + fileId));
+                a.softDelete();
+                yield a.getSavedFileName();
             }
         };
 
-        // 2. 실제 파일 삭제 (D:\fileDownLoadServer\)
-        // DB 트랜잭션이 실패해도 파일이 남아있을 수 있으므로
-        // 파일 삭제 실패는 에러를 던지지 않고 로그만 남깁니다.
         deletePhysicalFile(savedFileName);
     }
 
-    /**
-     * 하위 호환성 유지용 — 기존에 softDelete()를 호출하던 코드가 있다면
-     * 내부적으로 delete()를 호출합니다.
-     */
+    /** 하위 호환성 유지 — softDelete() 호출 시 delete()로 위임 */
     public void softDelete(Long fileId, FileTargetType targetType) {
         delete(fileId, targetType);
     }
 
     // =========================================================
-    // ✅ 6. 다중 파일 삭제
+    // ✅ 5. 다중 파일 삭제
     // =========================================================
 
     /**
      * 여러 파일을 한 번에 삭제합니다.
-     * 각 파일마다 delete()를 순차적으로 호출합니다.
-     *
-     * 일부 파일 삭제 실패 시 해당 파일은 건너뛰고
-     * 나머지 파일은 계속 처리합니다.
-     *
-     * @param fileIds    삭제할 파일 ID 목록
-     * @param targetType CLASS / MEMBER / FREELANCER
+     * 일부 실패 시 해당 파일은 건너뛰고 나머지를 계속 처리합니다.
      */
     public void deleteMultiple(List<Long> fileIds, FileTargetType targetType) {
         for (Long fileId : fileIds) {
             try {
                 delete(fileId, targetType);
             } catch (IllegalArgumentException e) {
-                // 개별 파일 실패 시 로그만 남기고 나머지 계속 처리
                 System.err.println("[FileService] 파일 삭제 실패: fileId="
                         + fileId + " / " + e.getMessage());
             }
         }
     }
 
-    /**
-     * 실제 파일을 디스크에서 삭제합니다.
-     * 파일이 없거나 삭제 실패 시 에러를 던지지 않고 조용히 처리합니다.
-     * (DB 소프트 삭제는 이미 완료된 상태이므로 파일 삭제 실패가 치명적이지 않음)
-     */
-    private void deletePhysicalFile(String savedFileName) {
-        try {
-            Path filePath = Paths.get(uploadPath + savedFileName);
-            Files.deleteIfExists(filePath);
-        } catch (IOException e) {
-            // 파일 삭제 실패 시 로그만 출력 (트랜잭션 롤백 방지)
-            System.err.println("[FileService] 실제 파일 삭제 실패: " + savedFileName + " / " + e.getMessage());
-        }
-    }
-
     // =========================================================
-    // ✅ 4. 파일 다운로드
+    // ✅ 6. 파일 다운로드
     // =========================================================
 
     /**
      * savedFileName으로 D:\fileDownLoadServer\에서 파일을 읽어 반환합니다.
-     *
-     * 파일이 존재하지 않는 경우 (직접 삭제되었거나 경로 오류):
-     * - 500 에러 대신 명확한 404 의미의 예외를 던집니다.
-     * - 프론트에서 이미지 로드 실패 시 기본 이미지로 대체하세요.
-     *
-     * @param savedFileName UUID가 붙은 저장 파일명
-     * @return 파일 Resource
+     * 파일이 없으면 500 대신 명확한 예외를 던집니다. → Controller에서 404 처리
      */
     @Transactional(readOnly = true)
     public Resource download(String savedFileName) {
@@ -276,7 +224,6 @@ public class FileService {
         Resource resource = new FileSystemResource(filePath);
 
         if (!resource.exists()) {
-            // 파일이 없을 때 500이 아닌 명확한 메시지로 예외 처리
             throw new IllegalArgumentException(
                 "파일을 찾을 수 없습니다. 이미 삭제되었거나 경로가 올바르지 않습니다: " + savedFileName
             );
@@ -288,46 +235,74 @@ public class FileService {
     // private 저장 메서드들
     // =========================================================
 
+    /** [수정 - 문제 1] findById()로 존재 확인 후 연결 */
     private Long uploadClassAttachment(
             Long classId, String originalFileName,
             String savedFileName, String fileUrl, Long fileSize
     ) {
-        ClassAttachment attachment = ClassAttachment.builder()
-                .classBoard(ClassBoard.builder().id(classId).build())
-                .originalFileName(originalFileName)
-                .savedFileName(savedFileName)
-                .fileUrl(fileUrl)
-                .fileSize(fileSize)
-                .build();
-        return classAttachmentRepository.save(attachment).getId();
+        ClassBoard classBoard = classBoardRepository.findById(classId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "존재하지 않는 클래스입니다. classId: " + classId));
+
+        return classAttachmentRepository.save(
+                ClassAttachment.builder()
+                        .classBoard(classBoard)
+                        .originalFileName(originalFileName)
+                        .savedFileName(savedFileName)
+                        .fileUrl(fileUrl)
+                        .fileSize(fileSize)
+                        .build()
+        ).getId();
     }
 
+    /** [수정 - 문제 1, 3] findById()로 존재 확인 후 연결 (null 필드 INSERT 에러 방지) */
     private Long uploadMemberAttachment(
             Long memberId, String originalFileName,
             String savedFileName, String fileUrl, Long fileSize
     ) {
-        MemberAttachment attachment = MemberAttachment.builder()
-                .member(Member.builder().id(memberId).build())
-                .originalFileName(originalFileName)
-                .savedFileName(savedFileName)
-                .fileUrl(fileUrl)
-                .fileSize(fileSize)
-                .build();
-        return memberAttachmentRepository.save(attachment).getId();
+        Member member = memberRepository.findById(memberId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "존재하지 않는 회원입니다. memberId: " + memberId));
+
+        return memberAttachmentRepository.save(
+                MemberAttachment.builder()
+                        .member(member)
+                        .originalFileName(originalFileName)
+                        .savedFileName(savedFileName)
+                        .fileUrl(fileUrl)
+                        .fileSize(fileSize)
+                        .build()
+        ).getId();
     }
 
+    /** [수정 - 문제 1, 3] findById()로 존재 확인 후 연결 (null 필드 INSERT 에러 방지) */
     private Long uploadFreelancerAttachment(
             Long freelancerProfileId, String originalFileName,
             String savedFileName, String fileUrl, Long fileSize
     ) {
-        FreelancerProfileAttachment attachment = FreelancerProfileAttachment.builder()
-                .freelancerProfile(
-                    FreelancerProfile.builder().id(freelancerProfileId).build())
-                .originalFileName(originalFileName)
-                .savedFileName(savedFileName)
-                .fileUrl(fileUrl)
-                .fileSize(fileSize)
-                .build();
-        return freelancerAttachmentRepository.save(attachment).getId();
+        FreelancerProfile profile = freelancerProfileRepository.findById(freelancerProfileId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "존재하지 않는 프리랜서 프로필입니다. freelancerProfileId: " + freelancerProfileId));
+
+        return freelancerAttachmentRepository.save(
+                FreelancerProfileAttachment.builder()
+                        .freelancerProfile(profile)
+                        .originalFileName(originalFileName)
+                        .savedFileName(savedFileName)
+                        .fileUrl(fileUrl)
+                        .fileSize(fileSize)
+                        .build()
+        ).getId();
+    }
+
+    /** 실제 파일을 디스크에서 삭제합니다. 실패 시 트랜잭션 롤백 방지를 위해 예외를 던지지 않습니다. */
+    private void deletePhysicalFile(String savedFileName) {
+        try {
+            Path filePath = Paths.get(uploadPath + savedFileName);
+            Files.deleteIfExists(filePath);
+        } catch (IOException e) {
+            System.err.println("[FileService] 실제 파일 삭제 실패: "
+                    + savedFileName + " / " + e.getMessage());
+        }
     }
 }
