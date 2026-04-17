@@ -143,6 +143,18 @@ export default function ClassDetail() {
     
   const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '미술·공예';
 
+  const formatSchedule = (start?: string, end?: string) => {
+    if (!start && !end) return '협의';
+    const startDate = start ? new Date(start).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+    const endDate = end ? new Date(end).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }) : '-';
+    return `${startDate} ~ ${endDate}`;
+  };
+
+  const formatDate = (date?: string) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  };
+
   const scrollToSection = (id: string) => {
     const ref = sectionRefs[id as keyof typeof sectionRefs];
     if (ref.current) {
@@ -479,17 +491,26 @@ export default function ClassDetail() {
                   </div>
                   
                   <div className="bg-ivory/50 rounded-2xl p-4 space-y-3">
-                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
-                      <Clock size={14} className="text-gray-400" />
-                      <span>작업일: {(item as any).workDays || '협의'}</span>
+                    <div className="text-[15px] text-gray-500">
+                      <div className="flex items-center gap-3">
+                        <Clock size={14} className="text-gray-400" />
+                        <span>수업 일정:</span>
+                      </div>
+                      <div className="ml-7 mt-1 text-gray-700">
+                        {formatSchedule(item.startAt, item.endAt)}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3 text-[15px] text-gray-500">
                       <Users size={14} className="text-gray-400" />
-                      <span>진행 방식: {item.isOffline ? '오프라인' : '온라인'}</span>
+                      <span>모집 인원: {item.maxCapacity ?? '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
+                      <MapPin size={14} className="text-gray-400" />
+                      <span>수업 지역: {item.location ?? '-'}</span>
                     </div>
                     <div className="flex items-center gap-3 text-[15px] text-gray-500">
                       <ShieldCheck size={14} className="text-gray-400" />
-                      <span>수정 횟수: {(item as any).editCount || '1회'}</span>
+                      <span>최근 업데이트: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('ko-KR') : new Date(item.createdAt).toLocaleDateString('ko-KR')}</span>
                     </div>
                   </div>
                 </div>

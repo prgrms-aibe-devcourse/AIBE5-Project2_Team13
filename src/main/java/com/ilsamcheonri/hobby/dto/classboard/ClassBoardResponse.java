@@ -27,6 +27,7 @@ public class ClassBoardResponse {
     private String curriculum;
     private String location;
     private String createdAt;
+    private String updatedAt;
 
     public static ClassBoardResponse from(ClassBoard classBoard) {
         return ClassBoardResponse.builder()
@@ -45,6 +46,7 @@ public class ClassBoardResponse {
                 .curriculum(classBoard.getCurriculum())
                 .location(classBoard.getLocation())
                 .createdAt(classBoard.getCreatedAt() != null ? classBoard.getCreatedAt().toString() : null)
+                .updatedAt(classBoard.getUpdatedAt() != null ? classBoard.getUpdatedAt().toString() : null)
                 .build();
     }
 }

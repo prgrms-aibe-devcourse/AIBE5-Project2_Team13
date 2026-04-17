@@ -10,8 +10,12 @@ export interface ClassItem {
   reviews: number;
   isOffline: boolean;
   location?: string;
+  startAt?: string;
+  endAt?: string;
+  maxCapacity?: number;
   curriculum?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface RequestItem {

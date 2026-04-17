@@ -40,6 +40,7 @@ interface ClassApiResponse {
   curriculum?: string;
   location?: string;
   createdAt?: string;
+  updatedAt?: string;
 }
 
 function toClassItem(api: ClassApiResponse): ClassItem {
@@ -57,8 +58,12 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     reviews: 0,
     isOffline: !isOnline,
     location: !isOnline ? api.location ?? '오프라인 장소' : undefined,
+    startAt: api.startAt,
+    endAt: api.endAt,
+    maxCapacity: api.maxCapacity,
     curriculum: api.curriculum,
     createdAt: api.createdAt ?? new Date().toISOString(),
+    updatedAt: api.updatedAt,
   };
 }
 
