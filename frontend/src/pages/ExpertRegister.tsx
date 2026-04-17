@@ -2,16 +2,91 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle2, Award, Users, ShieldCheck, ArrowRight, X } from 'lucide-react';
+import { useAuth } from '@/src/context/AuthContext';
+import { getFreelancerApplicationStatus } from '@/src/api/freelancerRegistration';
+import { useEffect } from 'react';
+import { getStoredFreelancerApplicationStatus, setStoredFreelancerApplicationStatus, clearStoredFreelancerApplicationStatus } from '@/src/lib/freelancerApplication';
 
 export default function ExpertRegister() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const userRole = localStorage.getItem('userRole');
-  const isFreelancerOrAdmin = userRole === 'ROLE_FREELANCER' || userRole === 'ROLE_ADMIN';
+  const { user, loading } = useAuth();
+  const isMember = user?.role === 'USER';
+  const [hasPendingFreelancerApplication, setHasPendingFreelancerApplication] = useState(false);
 
   const handleRegister = () => {
     setIsModalOpen(true);
   };
+
+  useEffect(() => {
+    if (!isMember) {
+      setHasPendingFreelancerApplication(false);
+      clearStoredFreelancerApplicationStatus();
+      return;
+    }
+
+    let isMounted = true;
+    setHasPendingFreelancerApplication(getStoredFreelancerApplicationStatus() === 'W');
+
+    getFreelancerApplicationStatus()
+      .then((status) => {
+        if (isMounted) {
+          if (status.approvalStatusCode) {
+            setStoredFreelancerApplicationStatus(status.approvalStatusCode);
+          } else {
+            clearStoredFreelancerApplicationStatus();
+          }
+          setHasPendingFreelancerApplication(status.approvalStatusCode === 'W');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setHasPendingFreelancerApplication(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isMember]);
+
+  if (loading) {
+    return null;
+  }
+
+  if (!isMember) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20">
+        <div className="bg-white rounded-[40px] p-10 border border-coral/10 shadow-sm text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">프리랜서 등록은 회원만 신청할 수 있습니다.</h1>
+          <p className="text-gray-500 mb-8">회원 계정으로 로그인한 뒤 프리랜서 등록을 진행해주세요.</p>
+          <button
+            onClick={() => navigate('/')}
+            className="px-6 py-3 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all"
+          >
+            홈으로 이동
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasPendingFreelancerApplication) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20">
+        <div className="bg-white rounded-[40px] p-10 border border-coral/10 shadow-sm text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">프리랜서 등록 심사 중입니다.</h1>
+          <p className="text-gray-500 mb-8">현재 신청이 승인 대기 상태라 추가 신청은 할 수 없습니다.</p>
+          <button
+            onClick={() => navigate('/profile')}
+            className="px-6 py-3 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all"
+          >
+            마이페이지로 이동
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const benefits = [
     { icon: <Award className="text-coral" />, title: '전문성 인증', desc: '포근의 검증 시스템을 통해 당신의 실력을 인증받으세요.' },
@@ -39,14 +114,12 @@ export default function ExpertRegister() {
             지금 바로 등록하고 새로운 수강생들을 만나보세요.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            {!isFreelancerOrAdmin && (
-              <button 
-                onClick={() => navigate('/expert-register/form')}
-                className="px-8 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20"
-              >
-                프리랜서 등록 신청하기
-              </button>
-            )}
+            <button 
+              onClick={() => navigate('/expert-register/form')}
+              className="px-8 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20"
+            >
+              프리랜서 등록 신청하기
+            </button>
             <button 
               onClick={handleRegister}
               className="px-8 py-4 bg-white text-gray-900 font-bold rounded-2xl border-2 border-coral/10 hover:border-coral transition-all"
@@ -95,14 +168,12 @@ export default function ExpertRegister() {
         <div className="relative z-10">
           <h2 className="text-3xl md:text-4xl font-bold mb-6">지금 바로 시작해보세요!</h2>
           <p className="text-white/80 mb-10 text-lg">간단한 정보 입력만으로 프리랜서 등록이 가능합니다.</p>
-          {!isFreelancerOrAdmin && (
-            <button 
-              onClick={() => navigate('/expert-register/form')}
-              className="inline-flex items-center gap-2 px-10 py-5 bg-white text-coral font-bold rounded-2xl hover:bg-ivory transition-all shadow-xl text-lg"
-            >
-              등록 폼 작성하기 <ArrowRight size={20} />
-            </button>
-          )}
+          <button 
+            onClick={() => navigate('/expert-register/form')}
+            className="inline-flex items-center gap-2 px-10 py-5 bg-white text-coral font-bold rounded-2xl hover:bg-ivory transition-all shadow-xl text-lg"
+          >
+            등록 폼 작성하기 <ArrowRight size={20} />
+          </button>
         </div>
       </section>
 

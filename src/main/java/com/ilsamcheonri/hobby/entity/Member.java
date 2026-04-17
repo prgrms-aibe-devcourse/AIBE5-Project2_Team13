@@ -55,4 +55,12 @@ public class Member {
     @Builder.Default
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+
+    public void updateName(String name) {
+        this.name = name;
+    }
+
+    public void updateRoleCode(RoleCode roleCode) {
+        this.roleCode = roleCode;
+    }
 }

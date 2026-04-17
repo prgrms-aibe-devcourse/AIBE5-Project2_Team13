@@ -11,6 +11,9 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/src/context/AuthContext';
+import { getFreelancerApplicationStatus } from '@/src/api/freelancerRegistration';
+import { useEffect } from 'react';
+import { clearStoredFreelancerApplicationStatus, getStoredFreelancerApplicationStatus, setStoredFreelancerApplicationStatus } from '@/src/lib/freelancerApplication';
 
 type Role = 'ADMIN' | 'FREELANCER' | 'USER';
 
@@ -22,11 +25,46 @@ export default function Header() {
 
 const { user, logout, loading } = useAuth();
 const isLoggedIn = !loading && !!user;
+  const [hasPendingFreelancerApplication, setHasPendingFreelancerApplication] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
 
   const role = (user?.role as Role) ?? 'USER';
+
+  useEffect(() => {
+    if (!isLoggedIn || role !== 'USER') {
+      setHasPendingFreelancerApplication(false);
+      if (role !== 'USER') {
+        clearStoredFreelancerApplicationStatus();
+      }
+      return;
+    }
+
+    let isMounted = true;
+    setHasPendingFreelancerApplication(getStoredFreelancerApplicationStatus() === 'W');
+
+    getFreelancerApplicationStatus()
+      .then((status) => {
+        if (isMounted) {
+          if (status.approvalStatusCode) {
+            setStoredFreelancerApplicationStatus(status.approvalStatusCode);
+          } else {
+            clearStoredFreelancerApplicationStatus();
+          }
+          setHasPendingFreelancerApplication(status.approvalStatusCode === 'W');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setHasPendingFreelancerApplication(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, role, location.pathname]);
 
   const navItems = [
     { name: 'AI 추천', path: '/ai-recommend' },
@@ -35,7 +73,7 @@ const isLoggedIn = !loading && !!user;
   ];
 
   const roleBasedNavItems =
-    role === 'USER'
+    isLoggedIn && role === 'USER' && !hasPendingFreelancerApplication
       ? [{ name: '프리랜서 등록', path: '/expert-register' }]
       : [];
 

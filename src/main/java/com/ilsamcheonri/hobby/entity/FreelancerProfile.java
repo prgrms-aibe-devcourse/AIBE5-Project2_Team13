@@ -36,6 +36,9 @@ public class FreelancerProfile {
     @Column(columnDefinition = "TEXT")
     private String bio;
 
+    @Column(columnDefinition = "Text")
+    private String career;
+
     @Column(length = 200)
     private String img;
 
@@ -67,5 +70,28 @@ public class FreelancerProfile {
     public void approveProfile(String approvalStatusName) {
         this.approvalStatusCode = "A";
         this.approvalStatusName = approvalStatusName;
+    }
+
+    public void rejectProfile(String approvalStatusName) {
+        this.approvalStatusCode = "R";
+        this.approvalStatusName = approvalStatusName;
+    }
+
+    public void resubmitProfile(Category specialty, String snsLink, String bio, String career, String bankAccount) {
+        this.specialty = specialty;
+        this.snsLink = snsLink;
+        this.bio = bio;
+        this.career = career;
+        this.bankAccount = bankAccount;
+        this.approvalStatusCode = "W";
+        this.approvalStatusName = "승인 대기";
+    }
+
+    public void updateProfile(Category specialty, String snsLink, String bio, String career, String bankAccount) {
+        this.specialty = specialty;
+        this.snsLink = snsLink;
+        this.bio = bio;
+        this.career = career;
+        this.bankAccount = bankAccount;
     }
 }
