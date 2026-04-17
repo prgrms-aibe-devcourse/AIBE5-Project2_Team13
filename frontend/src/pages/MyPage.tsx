@@ -12,7 +12,7 @@ import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
-import { getMyDetail, type MemberDetail } from '@/src/api/member';
+import { getMyDetail, updateMyDetail, type MemberDetail } from '@/src/api/member';
 import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
 import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
@@ -46,7 +46,7 @@ const toRoleLabel = (role: UserRole): string => {
 
 export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const navigate = useNavigate();
-  const { user, loading: authLoading, logout } = useAuth();
+  const { user, loading: authLoading, logout, refreshCurrentUser } = useAuth();
   const { enrollments, updateEnrollmentStatus } = useEnrollments();
   const { reports } = useReports();
   const { classes, deleteClass } = useClasses();
@@ -112,6 +112,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     email: '',
     phone: '',
   });
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   // Admin States
   const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>(MOCK_USERS_ADMIN);
@@ -302,8 +303,56 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     }
   };
 
-  const handleSaveChanges = () => {
-    showToast('회원 정보 수정 API가 아직 연결되지 않았습니다.', 'error');
+  const handleSaveChanges = async () => {
+    if (!settingsForm.name.trim()) {
+      showToast('이름을 입력해주세요.', 'error');
+      return;
+    }
+
+    try {
+      setSettingsSaving(true);
+
+      const savedDetail = await updateMyDetail({
+        name: settingsForm.name,
+        phone: settingsForm.phone,
+        addr: selectedCity,
+        addr2: selectedDistrict,
+      });
+
+      await refreshCurrentUser();
+
+      setMyDetail(savedDetail);
+      setSettingsForm({
+        name: savedDetail.name || '',
+        email: savedDetail.email || user?.email || '',
+        phone: savedDetail.phone || '',
+      });
+      setSelectedCity(savedDetail.addr || '');
+      setSelectedDistrict(savedDetail.addr2 || '');
+      setProfileImage(savedDetail.imgUrl || null);
+
+      if (userRole === 'ROLE_FREELANCER') {
+        const refreshedProfile = await getMyFreelancerProfile();
+        setFreelancerProfile({
+          profileId: refreshedProfile.profileId,
+          name: refreshedProfile.memberName || '',
+          specialtyCategoryId: refreshedProfile.specialtyCategoryId ?? '',
+          specialtyCategoryName: refreshedProfile.specialtyCategoryName || '',
+          introduction: refreshedProfile.bio || '',
+          career: refreshedProfile.career || '',
+          snsLink: refreshedProfile.snsLink || '',
+          bankAccount: refreshedProfile.bankAccount || '',
+          location: refreshedProfile.memberAddress || '',
+          portfolioImages: refreshedProfile.attachments.map((attachment) => attachment.fileUrl),
+        });
+      }
+
+      showToast('계정 정보가 저장되었습니다.');
+    } catch (error) {
+      showToast('계정 정보 저장 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setSettingsSaving(false);
+    }
   };
 
   const handleChangePassword = () => {
@@ -983,13 +1032,14 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     try {
       setFreelancerProfileSaving(true);
       const savedProfile = await upsertMyFreelancerProfile({
-        memberName: freelancerProfile.name,
         specialtyCategoryId: Number(freelancerProfile.specialtyCategoryId),
         snsLink: freelancerProfile.snsLink,
         bio: freelancerProfile.introduction,
         career: freelancerProfile.career,
         bankAccount: freelancerProfile.bankAccount,
       });
+
+      await refreshCurrentUser();
 
       setFreelancerProfile({
         profileId: savedProfile.profileId,
@@ -1043,10 +1093,11 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             <input 
               type="text"
               value={freelancerProfile.name}
-              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, name: e.target.value }))}
-              className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all font-bold"
-              placeholder="활동명을 입력해주세요."
+              disabled
+              className="w-full px-6 py-4 bg-gray-50 rounded-2xl border-2 border-transparent outline-none transition-all font-bold text-gray-500 cursor-not-allowed"
+              placeholder="계정 설정에서 수정할 수 있습니다."
             />
+            <p className="text-xs text-gray-400 ml-1">활동명은 계정 설정에서 수정할 수 있습니다.</p>
           </div>
           <div className="space-y-3">
             <label className="text-sm font-bold text-gray-700 ml-1">전문 분야</label>
@@ -1603,7 +1654,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
               ))}
             </select>
           </div>
-          <p className="text-xs text-gray-400 ml-1">활동 지역은 마이페이지에서 언제든 수정할 수 있습니다.</p>
+          <p className="text-xs text-gray-400 ml-1">활동 지역은 계정 설정에서 수정하면 프리랜서 프로필에도 바로 반영됩니다.</p>
         </div>
         
         <div className="pt-2">
@@ -1618,9 +1669,10 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         <div className="pt-4">
           <button 
             onClick={handleSaveChanges}
-            className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20"
+            disabled={settingsSaving}
+            className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 disabled:opacity-70"
           >
-            변경사항 저장하기
+            {settingsSaving ? '저장 중...' : '변경사항 저장하기'}
           </button>
         </div>
       </div>

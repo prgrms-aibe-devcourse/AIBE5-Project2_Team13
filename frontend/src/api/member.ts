@@ -9,7 +9,19 @@ export type MemberDetail = {
   addr2?: string | null;
 };
 
+export type MemberUpdateRequest = {
+  name: string;
+  phone?: string | null;
+  addr?: string | null;
+  addr2?: string | null;
+};
+
 export const getMyDetail = async (): Promise<MemberDetail> => {
   const res = await apiClient.get("/member/me/detail");
+  return res.data;
+};
+
+export const updateMyDetail = async (payload: MemberUpdateRequest): Promise<MemberDetail> => {
+  const res = await apiClient.put("/member/me/detail", payload);
   return res.data;
 };

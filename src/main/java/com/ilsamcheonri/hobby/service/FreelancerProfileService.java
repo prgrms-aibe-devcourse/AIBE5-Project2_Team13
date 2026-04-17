@@ -129,8 +129,6 @@ public class FreelancerProfileService {
         Category specialty = categoryRepository.findById(request.getSpecialtyCategoryId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "존재하지 않는 카테고리입니다."));
 
-        member.updateName(request.getMemberName().trim());
-
         FreelancerProfile profile = freelancerProfileRepository
                 .findByFreelancerIdAndIsDeletedFalse(member.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "프리랜서 프로필이 없습니다."));

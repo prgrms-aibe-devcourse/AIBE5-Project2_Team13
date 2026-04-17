@@ -1,15 +1,18 @@
 package com.ilsamcheonri.hobby.controller;
 
 import com.ilsamcheonri.hobby.dto.MemberDetailDto;
-import com.ilsamcheonri.hobby.dto.MemberInfoDto;
 import com.ilsamcheonri.hobby.dto.MemberSummaryDto;
+import com.ilsamcheonri.hobby.dto.MemberUpdateRequestDto;
 import com.ilsamcheonri.hobby.entity.Member;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
 import com.ilsamcheonri.hobby.service.MemberService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -41,5 +44,13 @@ public class MemberController {
                 .orElseThrow(() -> new RuntimeException("회원 없음"));
 
         return memberService.getMyDetail(member.getId());
+    }
+
+    @PutMapping("/me/detail")
+    public ResponseEntity<MemberDetailDto> updateMyDetail(
+            Authentication authentication,
+            @Valid @RequestBody MemberUpdateRequestDto request
+    ) {
+        return ResponseEntity.ok(memberService.updateMyDetail(authentication.getName(), request));
     }
 }

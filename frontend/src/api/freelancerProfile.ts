@@ -24,7 +24,6 @@ export type FreelancerProfileMeResponse = {
 };
 
 export type FreelancerProfileUpsertRequest = {
-  memberName: string;
   specialtyCategoryId: number;
   snsLink: string;
   bio?: string;
