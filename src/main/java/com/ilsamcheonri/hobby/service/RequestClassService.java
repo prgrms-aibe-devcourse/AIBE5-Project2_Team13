@@ -85,6 +85,8 @@ public class RequestClassService {
                 .startAt(request.getStartAt())
                 .endAt(request.getEndAt())
                 .maxCapacity(request.getMaxCapacity() != null ? request.getMaxCapacity() : 1) // null이면 1명 처리
+                .status("OPEN")
+                .curriculum("")
                 .build();
 
         // 5단계: DB에 저장 후 생성된 ID 반환
