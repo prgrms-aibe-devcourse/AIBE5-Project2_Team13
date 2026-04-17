@@ -1,7 +1,47 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { useAuth } from '@/src/context/AuthContext';
+import { getFreelancerApplicationStatus } from '@/src/api/freelancerRegistration';
+import { clearStoredFreelancerApplicationStatus, getStoredFreelancerApplicationStatus, setStoredFreelancerApplicationStatus } from '@/src/lib/freelancerApplication';
 
 export default function Footer() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  const [hasPendingFreelancerApplication, setHasPendingFreelancerApplication] = useState(false);
+  const isUser = !loading && user?.role === 'USER';
+
+  useEffect(() => {
+    if (!isUser) {
+      setHasPendingFreelancerApplication(false);
+      clearStoredFreelancerApplicationStatus();
+      return;
+    }
+
+    let isMounted = true;
+    setHasPendingFreelancerApplication(getStoredFreelancerApplicationStatus() === 'W');
+
+    getFreelancerApplicationStatus()
+      .then((status) => {
+        if (isMounted) {
+          if (status.approvalStatusCode) {
+            setStoredFreelancerApplicationStatus(status.approvalStatusCode);
+          } else {
+            clearStoredFreelancerApplicationStatus();
+          }
+          setHasPendingFreelancerApplication(status.approvalStatusCode === 'W');
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setHasPendingFreelancerApplication(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isUser, location.pathname]);
+
   return (
     <footer className="bg-white pt-20 pb-10 border-t border-gray-100">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -23,7 +63,7 @@ export default function Footer() {
             <h4 className="font-bold text-gray-900 mb-6">서비스</h4>
             <ul className="space-y-4 text-sm text-gray-500">
               <li><Link to="/browse" className="hover:text-coral transition-colors">클래스 찾기</Link></li>
-              <li><Link to="/expert-register" className="hover:text-coral transition-colors">전문가 등록</Link></li>
+              {isUser && !hasPendingFreelancerApplication && <li><Link to="/expert-register" className="hover:text-coral transition-colors">전문가 등록</Link></li>}
               <li><Link to="/reviews" className="hover:text-coral transition-colors">이용 리뷰</Link></li>
             </ul>
           </div>

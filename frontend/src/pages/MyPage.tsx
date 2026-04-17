@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save } from 'lucide-react';
-import { MOCK_CLASSES, MOCK_FREELANCER_APPROVALS, UserRole, REGIONS, MOCK_USERS_ADMIN, AdminUserItem, FreelancerApprovalRequest, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
+import { MOCK_CLASSES, UserRole, REGIONS, MOCK_USERS_ADMIN, AdminUserItem, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -13,7 +13,11 @@ import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
 import { getMyDetail, type MemberDetail } from '@/src/api/member';
+import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
+import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
+import { useCategories } from '../context/CategoryContext';
+import axios from 'axios';
 
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -46,8 +50,9 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const { enrollments, updateEnrollmentStatus } = useEnrollments();
   const { reports } = useReports();
   const { classes, deleteClass } = useClasses();
-  const { freelancers, updateFreelancer, approvals: adminApprovals, updateApprovalStatus } = useFreelancers();
+  const { freelancers } = useFreelancers();
   const { followingIds, toggleFollow } = useFollow();
+  const { categories } = useCategories();
 
   const [activeMenu, setActiveMenu] = useState<MenuType>(initialMenu || 'activity');
   const [activityTab, setActivityTab] = useState<'enrolled' | 'waiting' | 'finished'>('enrolled');
@@ -84,32 +89,20 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [dashboardDateRange, setDashboardDateRange] = useState({ start: '2024-01-01', end: '2024-06-30' });
   const [freelancerProfile, setFreelancerProfile] = useState({
-    id: 'f1',
+    profileId: null as number | null,
     name: '',
-    specialty: '',
+    specialtyCategoryId: '' as number | '',
+    specialtyCategoryName: '',
     introduction: '',
     career: '',
-    portfolio: '',
+    snsLink: '',
+    bankAccount: '',
     location: '',
     portfolioImages: [] as string[]
   });
-
-  // Load profile from context on mount or when freelancers change
-  useEffect(() => {
-    const profile = freelancers.find(f => f.id === 'f1');
-    if (profile) {
-      setFreelancerProfile({
-        id: profile.id,
-        name: profile.name,
-        specialty: profile.specialty,
-        introduction: profile.introduction,
-        career: profile.career,
-        portfolio: (profile as any).portfolio || '', // portfolio might not be in the base interface but we use it
-        location: profile.location,
-        portfolioImages: profile.portfolioImages
-      });
-    }
-  }, [freelancers]);
+  const [freelancerProfileLoading, setFreelancerProfileLoading] = useState(false);
+  const [freelancerProfileSaving, setFreelancerProfileSaving] = useState(false);
+  const [freelancerProfileMissing, setFreelancerProfileMissing] = useState(false);
 
   const [myDetail, setMyDetail] = useState<MemberDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(true);
@@ -123,11 +116,13 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   // Admin States
   const [adminUsers, setAdminUsers] = useState<AdminUserItem[]>(MOCK_USERS_ADMIN);
   const [adminReports, setAdminReports] = useState<ReportItem[]>(MOCK_REPORTS);
+  const [pendingFreelancerProfiles, setPendingFreelancerProfiles] = useState<FreelancerApprovalListItemResponse[]>([]);
+  const [pendingProfilesLoading, setPendingProfilesLoading] = useState(false);
   const [userSearch, setUserSearch] = useState('');
   const [userFilter, setUserFilter] = useState('ALL');
   const [userSort, setUserSort] = useState<'joinedAt' | 'role'>('joinedAt');
   const [isApprovalRejectModalOpen, setIsApprovalRejectModalOpen] = useState(false);
-  const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(null);
+  const [selectedApprovalId, setSelectedApprovalId] = useState<number | null>(null);
   const [approvalRejectReason, setApprovalRejectReason] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -206,6 +201,89 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       isMounted = false;
     };
   }, [authLoading, user]);
+
+  useEffect(() => {
+    if (authLoading || userRole !== 'ROLE_FREELANCER') {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadFreelancerProfile = async () => {
+      setFreelancerProfileLoading(true);
+      setFreelancerProfileMissing(false);
+      try {
+        const profile = await getMyFreelancerProfile();
+
+        if (!isMounted) {
+          return;
+        }
+
+        setFreelancerProfile({
+          profileId: profile.profileId,
+          name: profile.memberName || '',
+          specialtyCategoryId: profile.specialtyCategoryId ?? '',
+          specialtyCategoryName: profile.specialtyCategoryName || '',
+          introduction: profile.bio || '',
+          career: profile.career || '',
+          snsLink: profile.snsLink || '',
+          bankAccount: profile.bankAccount || '',
+          location: profile.memberAddress || '',
+          portfolioImages: profile.attachments.map((attachment) => attachment.fileUrl),
+        });
+      } catch (error) {
+        if (isMounted) {
+          if (axios.isAxiosError(error) && error.response?.status === 404) {
+            setFreelancerProfileMissing(true);
+          } else {
+            showToast('프리랜서 프로필을 불러오지 못했습니다.', 'error');
+          }
+        }
+      } finally {
+        if (isMounted) {
+          setFreelancerProfileLoading(false);
+        }
+      }
+    };
+
+    loadFreelancerProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authLoading, userRole]);
+
+  useEffect(() => {
+    if (authLoading || userRole !== 'ROLE_ADMIN') {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadPendingFreelancerProfiles = async () => {
+      setPendingProfilesLoading(true);
+      try {
+        const approvals = await getPendingFreelancerProfiles();
+        if (isMounted) {
+          setPendingFreelancerProfiles(approvals);
+        }
+      } catch (error) {
+        if (isMounted) {
+          showToast('프리랜서 승인 목록을 불러오지 못했습니다.', 'error');
+        }
+      } finally {
+        if (isMounted) {
+          setPendingProfilesLoading(false);
+        }
+      }
+    };
+
+    loadPendingFreelancerProfiles();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [authLoading, userRole]);
   
   const pickedClasses = classes.slice(0, 2);
   const appliedClasses = classes.slice(2, 4);
@@ -892,36 +970,46 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   );
 
   const handleSaveFreelancerProfile = async () => {
+    if (freelancerProfileMissing) {
+      showToast('프리랜서 등록에서 생성된 프로필만 수정할 수 있습니다.', 'error');
+      return;
+    }
+
+    if (freelancerProfile.specialtyCategoryId === '') {
+      showToast('전문 분야를 선택해주세요.', 'error');
+      return;
+    }
+
     try {
-      // Update global context
-      updateFreelancer(freelancerProfile.id, {
-        name: freelancerProfile.name,
-        specialty: freelancerProfile.specialty,
-        introduction: freelancerProfile.introduction,
+      setFreelancerProfileSaving(true);
+      const savedProfile = await upsertMyFreelancerProfile({
+        memberName: freelancerProfile.name,
+        specialtyCategoryId: Number(freelancerProfile.specialtyCategoryId),
+        snsLink: freelancerProfile.snsLink,
+        bio: freelancerProfile.introduction,
         career: freelancerProfile.career,
-        location: freelancerProfile.location,
-        portfolioImages: freelancerProfile.portfolioImages
+        bankAccount: freelancerProfile.bankAccount,
       });
 
-      // Simulation for MyBatis/API
-      const payload = {
-        id: freelancerProfile.id,
-        name: freelancerProfile.name,
-        specialty: freelancerProfile.specialty,
-        introduction: freelancerProfile.introduction,
-        career: freelancerProfile.career,
-        portfolio: freelancerProfile.portfolio,
-        location: freelancerProfile.location,
-        portfolioImages: JSON.stringify(freelancerProfile.portfolioImages)
-      };
+      setFreelancerProfile({
+        profileId: savedProfile.profileId,
+        name: savedProfile.memberName || '',
+        specialtyCategoryId: savedProfile.specialtyCategoryId ?? '',
+        specialtyCategoryName: savedProfile.specialtyCategoryName || '',
+        introduction: savedProfile.bio || '',
+        career: savedProfile.career || '',
+        snsLink: savedProfile.snsLink || '',
+        bankAccount: savedProfile.bankAccount || '',
+        location: savedProfile.memberAddress || '',
+        portfolioImages: savedProfile.attachments.map((attachment) => attachment.fileUrl),
+      });
 
-      console.log('Saving profile with payload:', payload);
-      
-      alert('프로필이 성공적으로 저장되었습니다.');
-      navigate(`/freelancer/${freelancerProfile.id}`);
+      showToast('프로필이 저장되었습니다.');
     } catch (error) {
       console.error('Error saving profile:', error);
-      alert('저장 중 오류가 발생했습니다.');
+      showToast('저장 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setFreelancerProfileSaving(false);
     }
   };
 
@@ -931,13 +1019,24 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         <h2 className="text-2xl font-bold text-gray-900">프리랜서 프로필 관리</h2>
         <button 
           onClick={handleSaveFreelancerProfile}
+          disabled={freelancerProfileSaving}
           className="px-8 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center gap-2"
         >
-          <Save size={20} /> 저장하기
+          <Save size={20} /> {freelancerProfileSaving ? '저장 중...' : '저장하기'}
         </button>
       </div>
 
       <div className="space-y-8 bg-white p-10 rounded-[40px] border border-coral/10 shadow-sm">
+        {freelancerProfileLoading && (
+          <div className="rounded-2xl bg-ivory px-4 py-3 text-sm text-gray-500">
+            프리랜서 프로필을 불러오는 중입니다.
+          </div>
+        )}
+        {freelancerProfileMissing && (
+          <div className="rounded-2xl bg-yellow-50 px-4 py-3 text-sm text-yellow-700">
+            아직 생성된 프리랜서 프로필이 없습니다. 프리랜서 등록 화면에서 먼저 프로필을 생성해야 합니다.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <div className="space-y-3">
             <label className="text-sm font-bold text-gray-700 ml-1">활동명</label>
@@ -951,13 +1050,26 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           </div>
           <div className="space-y-3">
             <label className="text-sm font-bold text-gray-700 ml-1">전문 분야</label>
-            <input 
-              type="text"
-              value={freelancerProfile.specialty}
-              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, specialty: e.target.value }))}
+            <select
+              value={freelancerProfile.specialtyCategoryId}
+              onChange={(e) => {
+                const selectedId = e.target.value === '' ? '' : Number(e.target.value);
+                const selectedCategory = categories.find(category => category.id === selectedId);
+                setFreelancerProfile(prev => ({
+                  ...prev,
+                  specialtyCategoryId: selectedId,
+                  specialtyCategoryName: selectedCategory?.name || '',
+                }));
+              }}
               className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all font-bold"
-              placeholder="예: 수채화, 드로잉"
-            />
+            >
+              <option value="">전문 분야를 선택해주세요.</option>
+              {categories.map(category => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -982,17 +1094,28 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         </div>
 
         <div className="space-y-3">
-          <label className="text-sm font-bold text-gray-700 ml-1">포트폴리오 링크</label>
+          <label className="text-sm font-bold text-gray-700 ml-1">SNS 링크</label>
           <div className="relative">
             <BookOpen className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
               type="url" 
-              value={freelancerProfile.portfolio}
-              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, portfolio: e.target.value }))}
+              value={freelancerProfile.snsLink}
+              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, snsLink: e.target.value }))}
               placeholder="https://..."
               className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
             />
           </div>
+        </div>
+
+        <div className="space-y-3">
+          <label className="text-sm font-bold text-gray-700 ml-1">정산 계좌</label>
+          <input
+            type="text"
+            value={freelancerProfile.bankAccount}
+            onChange={(e) => setFreelancerProfile(prev => ({ ...prev, bankAccount: e.target.value }))}
+            placeholder="은행명 / 계좌번호"
+            className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+          />
         </div>
 
         <div className="space-y-3">
@@ -1002,11 +1125,11 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             <input 
               type="text" 
               value={freelancerProfile.location}
-              onChange={(e) => setFreelancerProfile(prev => ({ ...prev, location: e.target.value }))}
+              disabled
               className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
             />
           </div>
-          <p className="text-xs text-gray-400 ml-1">마이페이지 계정 설정에서 설정한 지역이 기본으로 적용됩니다.</p>
+          <p className="text-xs text-gray-400 ml-1">계정 설정의 주소 정보가 표시됩니다.</p>
         </div>
 
         <div className="space-y-4">
@@ -1015,23 +1138,14 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             {freelancerProfile.portfolioImages.map((img, idx) => (
               <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group border border-coral/10">
                 <img src={img} alt="" className="w-full h-full object-cover" />
-                <button 
-                  onClick={() => {
-                    const newImages = [...freelancerProfile.portfolioImages];
-                    newImages.splice(idx, 1);
-                    setFreelancerProfile({ ...freelancerProfile, portfolioImages: newImages });
-                  }}
-                  className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  <X size={14} />
-                </button>
               </div>
             ))}
-            <button className="aspect-square rounded-2xl border-2 border-dashed border-coral/20 flex flex-col items-center justify-center text-coral/40 hover:text-coral hover:border-coral transition-all bg-ivory/50">
+            <button disabled className="aspect-square rounded-2xl border-2 border-dashed border-coral/20 flex flex-col items-center justify-center text-coral/40 bg-ivory/50 cursor-not-allowed">
               <Plus size={24} />
               <span className="text-[10px] font-bold mt-1">추가</span>
             </button>
           </div>
+          <p className="text-xs text-gray-400 ml-1">첨부파일 업로드는 다음 단계에서 구현 예정입니다.</p>
         </div>
       </div>
     </div>
@@ -1050,32 +1164,37 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     }
   };
 
-  const handleApproveFreelancer = (approvalId: string) => {
-    updateApprovalStatus(approvalId, 'APPROVED');
-    // Also update user role in adminUsers if found
-    const approval = adminApprovals.find(a => a.id === approvalId);
-    if (approval) {
-      setAdminUsers(prev => prev.map(u => u.email === approval.email ? { ...u, role: 'ROLE_FREELANCER' } : u));
+  const handleApproveFreelancer = async (profileId: number) => {
+    try {
+      await approveFreelancerProfile(profileId);
+      setPendingFreelancerProfiles(prev => prev.filter(profile => profile.profileId !== profileId));
+      showToast('프리랜서 승인이 완료되었습니다.');
+    } catch (error) {
+      showToast('프리랜서 승인 처리 중 오류가 발생했습니다.', 'error');
     }
-    alert('프리랜서 승인이 완료되었습니다.');
   };
 
-  const handleRejectFreelancerClick = (id: string) => {
+  const handleRejectFreelancerClick = (id: number) => {
     setSelectedApprovalId(id);
     setIsApprovalRejectModalOpen(true);
   };
 
-  const handleConfirmApprovalReject = () => {
+  const handleConfirmApprovalReject = async () => {
     if (!approvalRejectReason.trim()) {
       alert('거절 사유를 입력해주세요.');
       return;
     }
     if (selectedApprovalId) {
-      updateApprovalStatus(selectedApprovalId, 'REJECTED', approvalRejectReason);
-      setIsApprovalRejectModalOpen(false);
-      setApprovalRejectReason('');
-      setSelectedApprovalId(null);
-      alert('프리랜서 요청이 반려되었습니다.');
+      try {
+        await rejectFreelancerProfile(selectedApprovalId);
+        setPendingFreelancerProfiles(prev => prev.filter(profile => profile.profileId !== selectedApprovalId));
+        setIsApprovalRejectModalOpen(false);
+        setApprovalRejectReason('');
+        setSelectedApprovalId(null);
+        showToast('프리랜서 요청이 반려되었습니다.');
+      } catch (error) {
+        showToast('프리랜서 반려 처리 중 오류가 발생했습니다.', 'error');
+      }
     }
   };
 
@@ -1324,57 +1443,65 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const renderAdminApprovals = () => (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold text-gray-900">프리랜서 승인 관리</h2>
+      {pendingProfilesLoading && (
+        <div className="rounded-2xl bg-ivory px-4 py-3 text-sm text-gray-500">
+          승인 대기 목록을 불러오는 중입니다.
+        </div>
+      )}
+      {!pendingProfilesLoading && pendingFreelancerProfiles.length === 0 && (
+        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm text-gray-400">
+          승인 대기 중인 프리랜서 신청이 없습니다.
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-6">
-        {adminApprovals.map(approval => (
-          <div key={approval.id} className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
+        {pendingFreelancerProfiles.map(approval => (
+          <div key={approval.profileId} className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
               <div className="flex-1 space-y-4">
                 <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-bold text-gray-900">{approval.name}</h3>
-                  <span className="px-3 py-1 bg-ivory text-coral text-[10px] font-bold rounded-full">{approval.specialty}</span>
+                  <h3 className="text-xl font-bold text-gray-900">{approval.memberName}</h3>
+                  <span className="px-3 py-1 bg-ivory text-coral text-[10px] font-bold rounded-full">{approval.specialtyCategoryName}</span>
                   <span className={cn(
                     "px-3 py-1 text-[10px] font-bold rounded-full",
-                    approval.status === 'PENDING' ? "bg-yellow-100 text-yellow-600" :
-                    approval.status === 'APPROVED' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
+                    approval.approvalStatusCode === 'W' ? "bg-yellow-100 text-yellow-600" :
+                    approval.approvalStatusCode === 'A' ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"
                   )}>
-                    {approval.status === 'PENDING' ? '승인 대기' : approval.status === 'APPROVED' ? '승인 완료' : '반려됨'}
+                    {approval.approvalStatusName || approval.approvalStatusCode}
                   </span>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-gray-400 font-bold mb-1">이메일</p>
-                    <p className="text-gray-600">{approval.email}</p>
+                    <p className="text-gray-600">{approval.memberEmail}</p>
                   </div>
                   <div>
                     <p className="text-gray-400 font-bold mb-1">신청일</p>
-                    <p className="text-gray-600">{approval.appliedAt}</p>
+                    <p className="text-gray-600">{approval.appliedAt.slice(0, 10)}</p>
                   </div>
                   <div className="md:col-span-2">
                     <p className="text-gray-400 font-bold mb-1">경력 사항</p>
-                    <p className="text-gray-600 whitespace-pre-line">{approval.career}</p>
+                    <p className="text-gray-600 whitespace-pre-line">{approval.career || '-'}</p>
                   </div>
                   <div className="md:col-span-2">
-                    <p className="text-gray-400 font-bold mb-1">포트폴리오</p>
-                    <a href={approval.portfolio} target="_blank" rel="noreferrer" className="text-coral hover:underline">{approval.portfolio}</a>
+                    <p className="text-gray-400 font-bold mb-1">SNS 링크</p>
+                    {approval.snsLink ? (
+                      <a href={approval.snsLink} target="_blank" rel="noreferrer" className="text-coral hover:underline">{approval.snsLink}</a>
+                    ) : (
+                      <p className="text-gray-600">-</p>
+                    )}
                   </div>
-                  {approval.rejectReason && (
-                    <div className="md:col-span-2 p-4 bg-red-50 rounded-2xl">
-                      <p className="text-red-500 font-bold text-xs mb-1">반려 사유</p>
-                      <p className="text-red-600 text-sm">{approval.rejectReason}</p>
-                    </div>
-                  )}
                 </div>
               </div>
-              {approval.status === 'PENDING' && (
+              {approval.approvalStatusCode === 'W' && (
                 <div className="flex md:flex-col gap-3 w-full md:w-auto">
                   <button 
-                    onClick={() => handleApproveFreelancer(approval.id)}
+                    onClick={() => handleApproveFreelancer(approval.profileId)}
                     className="flex-1 md:w-32 py-3 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center justify-center gap-2"
                   >
                     <Check size={18} /> 수락
                   </button>
                   <button 
-                    onClick={() => handleRejectFreelancerClick(approval.id)}
+                    onClick={() => handleRejectFreelancerClick(approval.profileId)}
                     className="flex-1 md:w-32 py-3 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all flex items-center justify-center gap-2"
                   >
                     <Ban size={18} /> 거절
