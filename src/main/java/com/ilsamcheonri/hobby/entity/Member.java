@@ -73,6 +73,14 @@ public class Member {
         this.password = password;
     }
 
+    public void markDeleted() {
+        this.isDeleted = true;
+    }
+
+    public void restoreDeleted() {
+        this.isDeleted = false;
+    }
+
     public void updateRoleCode(RoleCode roleCode) {
         this.roleCode = roleCode;
     }

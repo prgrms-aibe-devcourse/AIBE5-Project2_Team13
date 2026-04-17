@@ -15,4 +15,6 @@ public interface FreelancerProfileAttachmentRepository extends JpaRepository<Fre
     List<FreelancerProfileAttachment> findByFreelancerProfileIdAndIsDeletedFalseOrderByIdAsc(Long profileId);
 
     Optional<FreelancerProfileAttachment> findByIdAndIsDeletedFalse(Long id);
+
+    void deleteByFreelancerProfileId(Long profileId);
 }
