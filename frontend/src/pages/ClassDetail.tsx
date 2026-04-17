@@ -118,6 +118,7 @@ export default function ClassDetail() {
           location: apiClass.isOnline ? undefined : apiClass.location,
           curriculum: apiClass.curriculum,
           createdAt: apiClass.createdAt ?? new Date().toISOString(),
+          updatedAt: apiClass.updatedAt,
         });
       } catch (error) {
         console.error('클래스 상세 조회 실패:', error);
@@ -504,13 +505,23 @@ export default function ClassDetail() {
                       <Users size={14} className="text-gray-400" />
                       <span>모집 인원: {item.maxCapacity ?? '-'}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
+                    <div className="flex items-center gap-3 text-[15px] text-gray-500 pb-3 border-b border-gray-200">
                       <MapPin size={14} className="text-gray-400" />
                       <span>수업 지역: {item.location ?? '-'}</span>
                     </div>
-                    <div className="flex items-center gap-3 text-[15px] text-gray-500">
-                      <ShieldCheck size={14} className="text-gray-400" />
-                      <span>최근 업데이트: {item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('ko-KR') : new Date(item.createdAt).toLocaleDateString('ko-KR')}</span>
+                    <div className="pt-3">
+                      <div className="flex items-center gap-3 text-[15px] text-gray-500 mb-1">
+                        <ShieldCheck size={14} className="text-gray-400" />
+                        <span>등록일</span>
+                      </div>
+                      <div className="pl-7 text-[15px] text-gray-700">
+                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '. ').replace(/\.$/, '') : '-'}
+                        {item.updatedAt && (
+                          <div className="text-gray-400 text-sm mt-0.5">
+                            (최근 수정: {new Date(item.updatedAt).toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\. /g, '. ').replace(/\.$/, '')})
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
