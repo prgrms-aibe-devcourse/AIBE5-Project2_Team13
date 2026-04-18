@@ -9,8 +9,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useRequests } from '../context/RequestContext';
 import { useReports } from '../context/ReportContext';
-import apiClient from '../api/axios';
 import { getAccessToken } from '../lib/auth';
+import { useWish } from '../context/WishContext';
 
 const TABS = [
   { id: 'request-info', label: '요청 내용' },
@@ -23,11 +23,11 @@ export default function RequestDetail() {
   const navigate     = useNavigate();
   const { requests } = useRequests();
   const { addReport } = useReports();
+  const { isWished, syncWishStatus, toggleWish } = useWish();
 
   const currentUserEmail = localStorage.getItem('userEmail') ?? sessionStorage.getItem('userEmail') ?? '';
 
   // ── 상태 ──────────────────────────────────────
-  const [isPicked,         setIsPicked]         = useState(false);
   const [wishLoading,      setWishLoading]      = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isSelfModalOpen,  setIsSelfModalOpen]  = useState(false);
@@ -57,10 +57,8 @@ export default function RequestDetail() {
     const token = getAccessToken();
     if (!token || !item) return;
 
-    apiClient.get(`/wishes/${item.id}`)
-      .then(res => setIsPicked(res.data.wished))
-      .catch(() => {});
-  }, [item?.id]);
+    syncWishStatus(item.id).catch(() => {});
+  }, [item?.id, syncWishStatus]);
 
   // ── Intersection Observer (탭 스크롤 동기화) ────
   useEffect(() => {
@@ -107,19 +105,15 @@ export default function RequestDetail() {
 
     setWishLoading(true);
     try {
-      if (isPicked) {
-        await apiClient.delete(`/wishes/${item.id}`);
-        setIsPicked(false);
-      } else {
-        await apiClient.post(`/wishes/${item.id}`);
-        setIsPicked(true);
-      }
+      await toggleWish(item.id);
     } catch {
       showToast('잠시 후 다시 시도해주세요.', 'error');
     } finally {
       setWishLoading(false);
     }
   };
+
+  const isPicked = isWished(item.id);
 
   const scrollToSection = (sectionId: string) => {
     const ref = sectionRefs[sectionId as keyof typeof sectionRefs];

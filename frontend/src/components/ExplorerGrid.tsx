@@ -3,6 +3,7 @@ import { Search, ChevronDown, Sparkles, Music, Palette, Drama, Languages, Trophy
 import { cn } from '@/src/lib/utils';
 import ExplorerItemCard from './ExplorerItemCard';
 import { useCategories } from '../context/CategoryContext';
+import { useWish } from '../context/WishContext';
 
 /**
  * 카테고리 이름 → 아이콘 매핑 함수
@@ -51,6 +52,7 @@ export default function ExplorerGrid<T>({
 
   // ✅ DB에서 가져온 실제 카테고리 목록 사용
   const { categories, loading: catLoading } = useCategories();
+  const { toggleWish } = useWish();
 
   // selectedCategory: 'all' 또는 DB의 카테고리 name 값 (예: "미술·공예")
   const [searchQuery, setSearchQuery]       = useState('');
@@ -213,6 +215,7 @@ export default function ExplorerGrid<T>({
               reviews={item.reviews}
               status={type === 'request' ? '요청 중' : undefined}
               isWished={wishedIds.has(item.id)}
+              onWishToggle={wishedIds.has(item.id) ? () => toggleWish(item.id) : undefined}
             />
           ))
         ) : (
