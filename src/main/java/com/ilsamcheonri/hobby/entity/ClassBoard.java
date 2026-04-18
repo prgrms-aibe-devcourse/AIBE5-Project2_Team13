@@ -92,4 +92,25 @@ public class ClassBoard {
     public void softDelete() {
         this.isDeleted = true;
     }
+
+    /**
+     * 요청 클래스 수정 비즈니스 메서드
+     *
+     * 제목(title)과 카테고리(category)는 수정 불가 — 파라미터에서 제외
+     * 수정 가능 항목: 상세설명, 가격, 온/오프라인, 시작/종료일시, 최대인원
+     *
+     * JPA 더티 체킹(Dirty Checking):
+     * @Transactional 안에서 이 메서드를 호출하면 필드가 변경됐음을 JPA가 감지하고
+     * 트랜잭션 종료 시점에 자동으로 UPDATE 쿼리를 실행합니다. (save() 호출 불필요)
+     */
+    public void updateRequestClass(String description, Integer price, boolean isOnline,
+                                   java.time.LocalDateTime startAt, java.time.LocalDateTime endAt,
+                                   Integer maxCapacity) {
+        this.description = description;
+        this.price       = price;
+        this.isOnline    = isOnline;
+        this.startAt     = startAt;
+        this.endAt       = endAt;
+        this.maxCapacity = maxCapacity;
+    }
 }

@@ -38,4 +38,10 @@ public interface ClassBoardRepository extends JpaRepository<ClassBoard, Long> {
      * → SELECT * FROM CLASS_BOARD WHERE id = ? AND board_type = ? AND is_deleted = false
      */
     Optional<ClassBoard> findByIdAndBoardTypeAndIsDeletedFalse(Long id, String boardType);
+
+    /**
+     * 특정 회원이 작성한 REQUEST 타입 클래스 목록 조회 (마이페이지용)
+     * → SELECT * FROM CLASS_BOARD WHERE freelancer_id = ? AND board_type = ? AND is_deleted = false
+     */
+    List<ClassBoard> findByFreelancerIdAndBoardTypeAndIsDeletedFalse(Long freelancerId, String boardType);
 }

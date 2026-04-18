@@ -193,6 +193,7 @@ export default function ExplorerGrid<T>({
               type={type}
               location={item.location}
               timeSlot={item.timeSlot}
+              lessonType={item.lessonType}
               rating={item.rating}
               reviews={item.reviews}
               status={type === 'request' ? '요청 중' : undefined}

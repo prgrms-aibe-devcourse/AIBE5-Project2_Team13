@@ -39,13 +39,29 @@ export interface RequestClassCreateBody {
   maxCapacity: number;
 }
 
+/**
+ * 백엔드 PATCH /api/request-classes/{id} 요청 타입
+ * RequestClassUpdateRequest.java 필드와 1:1 대응
+ * 제목(title)과 카테고리(categoryId)는 수정 불가 — 필드 제외
+ */
+export interface RequestClassUpdateBody {
+  description: string;
+  price: number;
+  isOnline: boolean;
+  startAt: string;
+  endAt: string;
+  maxCapacity: number;
+}
+
 interface RequestContextType {
   requests: RequestItem[];
   loading: boolean;
   error: string | null;
   fetchRequests: () => void;
   createRequest: (body: RequestClassCreateBody) => Promise<boolean>;
-  // 목록 화면에서 찜 여부 표시용 — 찜한 classId Set
+  updateRequest: (id: string, body: RequestClassUpdateBody) => Promise<boolean>;
+  deleteRequest: (id: string) => Promise<boolean>;
+  fetchMyRequests: () => Promise<RequestItem[]>;
   wishedIds: Set<string>;
   fetchWishedIds: () => void;
 }
@@ -133,7 +149,6 @@ export function RequestProvider({ children }: { children: ReactNode }) {
   const createRequest = async (body: RequestClassCreateBody): Promise<boolean> => {
     try {
       await apiClient.post('/request-classes', body);
-      // 생성 성공 후 목록을 다시 불러와서 화면을 최신 상태로 갱신
       await fetchRequests();
       return true;
     } catch (err) {
@@ -142,8 +157,53 @@ export function RequestProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // ─────────────────────────────────────
+  // 요청 클래스 수정 (제목·카테고리 제외)
+  // ─────────────────────────────────────
+  const updateRequest = async (id: string, body: RequestClassUpdateBody): Promise<boolean> => {
+    try {
+      await apiClient.patch(`/request-classes/${id}`, body);
+      await fetchRequests();
+      return true;
+    } catch (err) {
+      console.error('요청 클래스 수정 실패:', err);
+      return false;
+    }
+  };
+
+  // ─────────────────────────────────────
+  // 요청 클래스 삭제 (소프트 삭제)
+  // ─────────────────────────────────────
+  const deleteRequest = async (id: string): Promise<boolean> => {
+    try {
+      await apiClient.delete(`/request-classes/${id}`);
+      await fetchRequests();
+      return true;
+    } catch (err) {
+      console.error('요청 클래스 삭제 실패:', err);
+      return false;
+    }
+  };
+
+  // ─────────────────────────────────────
+  // 내가 작성한 요청 클래스 목록 조회 (마이페이지용)
+  // ─────────────────────────────────────
+  const fetchMyRequests = async (): Promise<RequestItem[]> => {
+    try {
+      const response = await apiClient.get<RequestClassApiResponse[]>('/request-classes/my');
+      return response.data.map(toRequestItem);
+    } catch (err) {
+      console.error('내 요청 클래스 조회 실패:', err);
+      return [];
+    }
+  };
+
   return (
-    <RequestContext.Provider value={{ requests, loading, error, fetchRequests, createRequest, wishedIds, fetchWishedIds }}>
+    <RequestContext.Provider value={{
+      requests, loading, error,
+      fetchRequests, createRequest, updateRequest, deleteRequest, fetchMyRequests,
+      wishedIds, fetchWishedIds
+    }}>
       {children}
     </RequestContext.Provider>
   );

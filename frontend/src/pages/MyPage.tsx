@@ -21,6 +21,7 @@ import axios from 'axios';
 import { formatPhoneNumber, stripPhoneNumber } from '@/src/lib/phone';
 
 import { useNavigate, Link } from 'react-router-dom';
+import MyRequestManage from './MyRequestManage';
 
 const REVENUE_DATA = [
   { month: '1월', revenue: 1200000, students: 45 },
@@ -31,7 +32,7 @@ const REVENUE_DATA = [
   { month: '6월', revenue: 3200000, students: 108 },
 ];
 
-type MenuType = 'activity' | 'reviews' | 'freelancer_dashboard' | 'freelancer_classes' | 'freelancer_students' | 'freelancer_profile' | 'admin_home' | 'admin_users' | 'admin_reports' | 'admin_approvals' | 'admin' | 'settings' | 'pick' | 'following';
+type MenuType = 'activity' | 'my_requests' | 'reviews' | 'freelancer_dashboard' | 'freelancer_classes' | 'freelancer_students' | 'freelancer_profile' | 'admin_home' | 'admin_users' | 'admin_reports' | 'admin_approvals' | 'admin' | 'settings' | 'pick' | 'following';
 
 const toRoleCode = (role?: string): UserRole => {
   if (role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'A') return 'ROLE_ADMIN';
@@ -1841,6 +1842,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
   const learningItems = [
     { id: 'activity', label: '수강 관리', icon: Heart },
+    { id: 'my_requests', label: '클래스 요청 관리', icon: BookOpen },
     { id: 'reviews', label: '나의 리뷰', icon: MessageSquare },
     { id: 'pick', label: 'Pick', icon: Star },
     { id: 'following', label: '팔로잉', icon: Users },
@@ -2012,6 +2014,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                 </div>
               )}
               {activeMenu === 'activity' && renderActivity()}
+              {activeMenu === 'my_requests' && <MyRequestManage />}
               {activeMenu === 'reviews' && renderReviews()}
               {activeMenu === 'pick' && renderPick()}
               {activeMenu === 'following' && renderFollowing()}

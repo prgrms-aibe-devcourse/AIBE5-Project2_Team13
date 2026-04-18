@@ -1,6 +1,7 @@
 package com.ilsamcheonri.hobby.controller;
 
 import com.ilsamcheonri.hobby.dto.requestclass.RequestClassCreateRequest;
+import com.ilsamcheonri.hobby.dto.requestclass.RequestClassUpdateRequest;
 import com.ilsamcheonri.hobby.dto.requestclass.RequestClassResponse;
 import com.ilsamcheonri.hobby.service.RequestClassService;
 import jakarta.validation.Valid;
@@ -100,14 +101,52 @@ public class RequestClassController {
      * 요청 클래스를 삭제합니다. (소프트 삭제 = is_deleted = true)
      * 본인이 작성한 글만 삭제할 수 있습니다.
      *
-     * 응답: 204 No Content (삭제 성공 시 반환할 Body가 없음)
+     * 응답: 204 No Content
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteRequestClass(
             @PathVariable Long id,
             @AuthenticationPrincipal String email) {
         requestClassService.deleteRequestClass(id, email);
-        // 204 No Content: 성공했지만 반환할 데이터가 없을 때의 표준 HTTP 상태코드
         return ResponseEntity.noContent().build();
+    }
+
+    // =========================================================
+    // ✅ GET /api/request-classes/my → 내가 작성한 요청 클래스 목록 (마이페이지)
+    // =========================================================
+
+    /**
+     * 현재 로그인한 사용자가 작성한 요청 클래스 목록을 반환합니다.
+     * 마이페이지 > 클래스 요청 관리 화면에서 사용합니다.
+     *
+     * 응답: 200 OK + 본인 요청 클래스 목록
+     */
+    @GetMapping("/my")
+    public ResponseEntity<List<RequestClassResponse>> getMyRequestClassList(
+            @AuthenticationPrincipal String email) {
+        return ResponseEntity.ok(requestClassService.getMyRequestClassList(email));
+    }
+
+    // =========================================================
+    // ✅ PATCH /api/request-classes/{id} → 요청 클래스 수정
+    // =========================================================
+
+    /**
+     * 요청 클래스를 수정합니다.
+     * 제목(title)과 카테고리(categoryId)는 수정할 수 없습니다.
+     * 본인이 작성한 글만 수정할 수 있습니다.
+     *
+     * PUT 대신 PATCH를 사용하는 이유:
+     * - PUT은 전체 데이터를 교체, PATCH는 일부 데이터만 수정
+     * - 제목/카테고리를 제외한 일부 필드만 수정하므로 PATCH가 적합합니다.
+     *
+     * 응답: 200 OK + 수정된 요청 클래스 정보
+     */
+    @PatchMapping("/{id}")
+    public ResponseEntity<RequestClassResponse> updateRequestClass(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email,
+            @Valid @RequestBody RequestClassUpdateRequest request) {
+        return ResponseEntity.ok(requestClassService.updateRequestClass(id, email, request));
     }
 }

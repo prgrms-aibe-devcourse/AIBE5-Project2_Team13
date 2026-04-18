@@ -1,6 +1,7 @@
 package com.ilsamcheonri.hobby.service;
 
 import com.ilsamcheonri.hobby.dto.requestclass.RequestClassCreateRequest;
+import com.ilsamcheonri.hobby.dto.requestclass.RequestClassUpdateRequest;
 import com.ilsamcheonri.hobby.dto.requestclass.RequestClassResponse;
 import com.ilsamcheonri.hobby.entity.Category;
 import com.ilsamcheonri.hobby.entity.ClassBoard;
@@ -139,9 +140,81 @@ public class RequestClassService {
     }
 
     // =========================================================
-    // ✅ 4. 요청 클래스 삭제 (소프트 삭제)
+    // ✅ 5. 본인이 작성한 요청 클래스 목록 조회 (마이페이지용)
     // =========================================================
 
+    /**
+     * 현재 로그인한 사용자가 작성한 요청 클래스 목록을 반환합니다.
+     * 마이페이지 > 클래스 요청 관리 화면에서 사용합니다.
+     *
+     * @param email 현재 로그인한 사용자 이메일
+     * @return 본인이 작성한 요청 클래스 목록
+     */
+    public List<RequestClassResponse> getMyRequestClassList(String email) {
+
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        return classBoardRepository
+                .findByFreelancerIdAndBoardTypeAndIsDeletedFalse(member.getId(), "REQUEST")
+                .stream()
+                .map(RequestClassResponse::from)
+                .collect(Collectors.toList());
+    }
+
+    // =========================================================
+    // ✅ 6. 요청 클래스 수정
+    // =========================================================
+
+    /**
+     * 요청 클래스를 수정합니다.
+     *
+     * 수정 불가 항목: 제목(title), 카테고리(category)
+     * 수정 가능 항목: 상세설명, 가격, 온/오프라인, 시작/종료일시, 최대인원
+     *
+     * 수정 불가 이유:
+     * - 프리랜서들이 요청 클래스를 보고 문의를 준비 중일 수 있습니다.
+     * - 제목/카테고리가 바뀌면 기존에 보던 클래스를 다시 찾기 어려워집니다.
+     *
+     * @param id      수정할 요청 클래스 ID
+     * @param email   현재 로그인한 사용자 이메일 (본인 확인용)
+     * @param request 수정할 내용 (제목·카테고리 제외)
+     * @return 수정된 요청 클래스 응답 DTO
+     */
+    @Transactional
+    public RequestClassResponse updateRequestClass(Long id, String email, RequestClassUpdateRequest request) {
+
+        // 1단계: 수정 대상 게시글 조회
+        ClassBoard requestClass = classBoardRepository
+                .findByIdAndBoardTypeAndIsDeletedFalse(id, "REQUEST")
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 요청 클래스입니다."));
+
+        // 2단계: 본인이 작성한 글인지 확인
+        if (!requestClass.getFreelancer().getEmail().equals(email)) {
+            throw new IllegalArgumentException("본인이 작성한 요청 클래스만 수정할 수 있습니다.");
+        }
+
+        // 3단계: 종료 일시가 시작 일시보다 이전이면 예외 처리
+        if (request.getEndAt().isBefore(request.getStartAt())) {
+            throw new IllegalArgumentException("종료 일시는 시작 일시보다 이후여야 합니다.");
+        }
+
+        // 4단계: 수정 적용 (JPA 더티 체킹으로 자동 UPDATE)
+        requestClass.updateRequestClass(
+                request.getDescription(),
+                request.getPrice() != null ? request.getPrice() : 0,
+                request.getIsOnline(),
+                request.getStartAt(),
+                request.getEndAt(),
+                request.getMaxCapacity() != null ? request.getMaxCapacity() : 1
+        );
+
+        return RequestClassResponse.from(requestClass);
+    }
+
+    // =========================================================
+    // ✅ 4. 요청 클래스 삭제 (소프트 삭제)
+    // =========================================================
     /**
      * 요청 클래스를 삭제합니다. (실제 DB 삭제가 아닌 is_deleted = true 처리)
      *
