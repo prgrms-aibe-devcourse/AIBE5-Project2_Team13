@@ -87,20 +87,31 @@ public class MemberService {
     }
 
     public FindEmailResponseDto findEmail(FindEmailRequestDto dto) {
-        Member member = memberRepository.findByNameAndPhoneAndBirth(
-                        dto.getName().trim(),
-                        normalizePhone(dto.getPhone()),
-                        dto.getBirth()
-                )
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
-
-        if (member.isDeleted()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴한 계정입니다.");
-        }
+        Member member = findActiveMemberForIdentity(dto.getName(), null, dto.getPhone(), dto.getBirth(), false);
 
         return FindEmailResponseDto.builder()
                 .email(member.getEmail())
                 .build();
+    }
+
+    public void verifyResetPasswordIdentity(PasswordResetVerifyRequestDto dto) {
+        findActiveMemberForIdentity(dto.getName(), dto.getEmail(), dto.getPhone(), dto.getBirth(), true);
+    }
+
+    @Transactional
+    public void resetPassword(PasswordResetRequestDto dto) {
+        Member member = findActiveMemberForIdentity(dto.getName(), dto.getEmail(), dto.getPhone(), dto.getBirth(), true);
+
+        String nextPassword = dto.getNewPassword().trim();
+        if (nextPassword.length() < 8) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "새 비밀번호는 8자 이상이어야 합니다.");
+        }
+
+        if (passwordEncoder.matches(nextPassword, member.getPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "현재 비밀번호와 다른 비밀번호를 입력해주세요.");
+        }
+
+        member.updatePassword(passwordEncoder.encode(nextPassword));
     }
 
     // MyPage 첫 화면
@@ -299,6 +310,36 @@ public class MemberService {
         }
 
         return normalized.replaceAll("\\D", "");
+    }
+
+    private Member findActiveMemberForIdentity(String name, String email, String phone, java.time.LocalDate birth, boolean emailRequired) {
+        String normalizedName = name == null ? "" : name.trim();
+        String normalizedPhone = normalizePhone(phone);
+
+        Member member;
+        if (emailRequired) {
+            String normalizedEmail = email == null ? "" : email.trim().toLowerCase();
+            member = memberRepository.findByEmailAndNameAndPhoneAndBirth(
+                            normalizedEmail,
+                            normalizedName,
+                            normalizedPhone,
+                            birth
+                    )
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
+        } else {
+            member = memberRepository.findByNameAndPhoneAndBirth(
+                            normalizedName,
+                            normalizedPhone,
+                            birth
+                    )
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "일치하는 회원 정보를 찾을 수 없습니다."));
+        }
+
+        if (member.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴한 계정입니다.");
+        }
+
+        return member;
     }
 
     private FileUploadResponse uploadMemberProfileImage(MultipartFile file, Long memberId) {
