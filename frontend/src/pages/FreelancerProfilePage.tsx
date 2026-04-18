@@ -1,61 +1,107 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { 
   Star, 
   MapPin, 
   Users, 
   MessageSquare, 
   Heart, 
-  Edit2, 
+  ChevronLeft,
   ChevronRight, 
   Image as ImageIcon, 
   Briefcase, 
   LayoutGrid,
-  X,
-  Plus,
-  Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { 
-  MOCK_FREELANCER_PROFILES, 
   MOCK_CLASSES, 
   MOCK_REVIEWS, 
-  FreelancerProfile,
-  ClassItem,
-  ReviewItem,
-  REGIONS,
   CATEGORIES
 } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
-import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
+import { getFreelancerProfileByFreelancerId, type FreelancerProfileDetailResponse } from '@/src/api/freelancerProfile';
+import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
+import axios from 'axios';
 
 type TabType = 'portfolio' | 'classes' | 'reviews';
 
 export default function FreelancerProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { freelancers } = useFreelancers();
   const { toggleFollow, isFollowing: checkFollowing } = useFollow();
-  
-  // Get profile from context
-  const profile = freelancers.find(p => p.id === id) || freelancers[0];
+  const [profile, setProfile] = useState<FreelancerProfileDetailResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
   
   const [activeTab, setActiveTab] = useState<TabType>('portfolio');
-  
-  // Check if it's the user's own profile
-  const currentUserRole = localStorage.getItem('userRole');
-  const isOwnProfile = profile?.id === 'f1' && currentUserRole === 'ROLE_FREELANCER';
+  const [portfolioStartIndex, setPortfolioStartIndex] = useState(0);
 
-  if (!profile) return <div className="p-20 text-center">프로필을 찾을 수 없습니다.</div>;
+  useEffect(() => {
+    if (!id || Number.isNaN(Number(id))) {
+      setNotFound(true);
+      setLoading(false);
+      return;
+    }
 
-  const freelancerClasses = MOCK_CLASSES.filter(c => c.freelancer === profile.name);
-  const freelancerReviews = MOCK_REVIEWS; // In real app, filter by freelancer
+    let isMounted = true;
+
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        setNotFound(false);
+        // /freelancer/:id 는 이제 profileId가 아니라 freelancerId 기준 공개 API를 조회합니다.
+        const detail = await getFreelancerProfileByFreelancerId(Number(id));
+        if (isMounted) {
+          setProfile(detail);
+        }
+      } catch (error) {
+        if (!isMounted) {
+          return;
+        }
+
+        if (axios.isAxiosError(error) && error.response?.status === 404) {
+          setNotFound(true);
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
+
+  useEffect(() => {
+    // 포트폴리오 탭 전환 또는 다른 프리랜서로 이동하면 슬라이드 위치를 처음으로 되돌립니다.
+    setPortfolioStartIndex(0);
+  }, [profile?.freelancerId, activeTab]);
+
+  if (loading) {
+    return <div className="p-20 text-center text-gray-500">프리랜서 프로필을 불러오는 중입니다.</div>;
+  }
+
+  if (notFound || !profile) {
+    return <div className="p-20 text-center">프로필을 찾을 수 없습니다.</div>;
+  }
+
+  const freelancerClasses = MOCK_CLASSES.filter(c => c.freelancerId === String(profile.freelancerId) || c.freelancer === profile.memberName);
+  const freelancerReviews = MOCK_REVIEWS;
+  // 공개 응답의 첨부 목록을 캐러셀용 이미지 URL 배열로 평탄화합니다.
+  const portfolioImages = profile.attachments.map((attachment) => attachment.fileUrl);
+  const visiblePortfolioImages = portfolioImages.slice(portfolioStartIndex, portfolioStartIndex + 4);
+  const canMovePortfolioLeft = portfolioImages.length > 4 && portfolioStartIndex > 0;
+  const canMovePortfolioRight = portfolioImages.length > 4 && portfolioStartIndex + 4 < portfolioImages.length;
 
   const handleFollow = () => {
     if (profile) {
-      toggleFollow(profile.id);
+      // 팔로잉 기준도 이제 목업 id가 아니라 실제 freelancerId 문자열을 사용합니다.
+      toggleFollow(String(profile.freelancerId));
     }
   };
 
@@ -73,44 +119,36 @@ export default function FreelancerProfilePage() {
             >
               <div className="w-full h-full rounded-[48px] overflow-hidden border-4 border-ivory shadow-xl">
                 <img 
-                  src={profile.avatar} 
-                  alt={profile.name} 
+                  src={profile.memberImageUrl || DEFAULT_PROFILE_IMAGE_URL} 
+                  alt={profile.memberName} 
                   className="w-full h-full object-cover"
                 />
               </div>
-              {isOwnProfile && (
-                <button 
-                  onClick={() => navigate('/mypage/profile-edit')}
-                  className="absolute bottom-4 right-4 p-4 bg-coral text-white rounded-2xl shadow-lg hover:scale-110 transition-transform"
-                >
-                  <Edit2 size={20} />
-                </button>
-              )}
             </motion.div>
 
             {/* Profile Info */}
             <div className="flex-1 text-center md:text-left space-y-6">
               <div className="space-y-2">
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
-                  <h1 className="text-4xl font-bold text-gray-900">{profile.name}</h1>
+                  <h1 className="text-4xl font-bold text-gray-900">{profile.memberName}</h1>
                   <span className="px-4 py-1.5 bg-coral/10 text-coral text-sm font-bold rounded-full">
-                    {profile.specialty}
+                    {profile.specialtyCategoryName || '전문 분야 미정'}
                   </span>
                 </div>
                 <div className="flex items-center justify-center md:justify-start gap-4 text-gray-500 font-medium">
                   <div className="flex items-center gap-1">
                     <MapPin size={18} className="text-coral" />
-                    <span>{profile.location}</span>
+                    <span>{profile.memberAddress || '활동 지역 미설정'}</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Users size={18} className="text-coral" />
-                    <span>팔로워 {profile.followerCount}</span>
+                    <span>팔로워 0</span>
                   </div>
                 </div>
               </div>
 
               <p className="text-lg text-gray-600 max-w-2xl leading-relaxed">
-                {profile.introduction}
+                {profile.bio || '등록된 소개가 없습니다.'}
               </p>
 
               <div className="flex flex-wrap items-center justify-center md:justify-start gap-8 py-4">
@@ -118,30 +156,28 @@ export default function FreelancerProfilePage() {
                   <p className="text-sm text-gray-400 font-bold mb-1 uppercase tracking-wider">평균 평점</p>
                   <div className="flex items-center gap-2">
                     <Star className="text-yellow-400 fill-yellow-400" size={24} />
-                    <span className="text-3xl font-bold text-gray-900">{profile.rating}</span>
+                    <span className="text-3xl font-bold text-gray-900">0</span>
                   </div>
                 </div>
                 <div className="text-center md:text-left">
                   <p className="text-sm text-gray-400 font-bold mb-1 uppercase tracking-wider">총 리뷰</p>
-                  <p className="text-3xl font-bold text-gray-900">{profile.reviewCount}개</p>
+                  <p className="text-3xl font-bold text-gray-900">{freelancerReviews.length}개</p>
                 </div>
               </div>
 
               <div className="flex gap-4 justify-center md:justify-start pt-4">
-                {!isOwnProfile && (
-                  <button 
-                    onClick={handleFollow}
-                    className={cn(
-                      "flex-1 md:flex-none px-12 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg",
-                      checkFollowing(profile.id) 
-                        ? "bg-ivory text-coral border-2 border-coral shadow-coral/10" 
-                        : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
-                    )}
-                  >
-                    <Heart size={20} className={cn(checkFollowing(profile.id) && "fill-coral")} />
-                    {checkFollowing(profile.id) ? '팔로잉' : '팔로우'}
-                  </button>
-                )}
+                <button 
+                  onClick={handleFollow}
+                  className={cn(
+                    "flex-1 md:flex-none px-12 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg",
+                    checkFollowing(String(profile.freelancerId)) 
+                      ? "bg-ivory text-coral border-2 border-coral shadow-coral/10" 
+                      : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
+                  )}
+                >
+                  <Heart size={20} className={cn(checkFollowing(String(profile.freelancerId)) && "fill-coral")} />
+                  {checkFollowing(String(profile.freelancerId)) ? '팔로잉' : '팔로우'}
+                </button>
                 <button className="flex-1 md:flex-none px-12 py-4 bg-white border-2 border-coral/20 text-coral font-bold rounded-2xl hover:bg-ivory transition-all flex items-center justify-center gap-2">
                   <MessageSquare size={20} />
                   1:1 문의
@@ -197,24 +233,49 @@ export default function FreelancerProfilePage() {
                     경력 및 이력
                   </h3>
                   <p className="text-gray-600 leading-relaxed whitespace-pre-line text-lg">
-                    {profile.career}
+                    {profile.career || '등록된 경력이 없습니다.'}
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                  {profile.portfolioImages.map((img, idx) => (
-                    <motion.div 
-                      key={idx}
-                      whileHover={{ y: -10 }}
-                      className="aspect-square rounded-[32px] overflow-hidden border border-coral/10 shadow-sm group relative"
-                    >
-                      <img src={img} alt={`Portfolio ${idx}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                        <span className="text-white font-bold">자세히 보기</span>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
+                {portfolioImages.length > 0 ? (
+                  <div className="relative">
+                    {canMovePortfolioLeft && (
+                      <button
+                        type="button"
+                        onClick={() => setPortfolioStartIndex((prev) => Math.max(0, prev - 1))}
+                        className="absolute left-0 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white border border-coral/15 shadow-lg text-coral flex items-center justify-center hover:bg-coral hover:text-white transition-all"
+                      >
+                        <ChevronLeft size={22} />
+                      </button>
+                    )}
+
+                    {canMovePortfolioRight && (
+                      <button
+                        type="button"
+                        onClick={() => setPortfolioStartIndex((prev) => Math.min(prev + 1, Math.max(0, portfolioImages.length - 4)))}
+                        className="absolute right-0 top-1/2 translate-x-1/2 -translate-y-1/2 z-10 w-12 h-12 rounded-full bg-white border border-coral/15 shadow-lg text-coral flex items-center justify-center hover:bg-coral hover:text-white transition-all"
+                      >
+                        <ChevronRight size={22} />
+                      </button>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                      {visiblePortfolioImages.map((img, idx) => (
+                        <motion.div 
+                          key={`${img}-${portfolioStartIndex + idx}`}
+                          whileHover={{ y: -10 }}
+                          className="aspect-square rounded-[32px] overflow-hidden border border-coral/10 shadow-sm group relative"
+                        >
+                          <img src={img} alt={`Portfolio ${portfolioStartIndex + idx + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-[32px] bg-white border border-coral/10 px-8 py-16 text-center text-gray-400 font-medium">
+                    등록된 포트폴리오 이미지가 없습니다.
+                  </div>
+                )}
               </div>
             )}
 

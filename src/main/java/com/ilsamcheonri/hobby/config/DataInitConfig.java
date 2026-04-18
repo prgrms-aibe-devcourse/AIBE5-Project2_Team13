@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 import java.util.List;
 
@@ -28,7 +29,8 @@ public class DataInitConfig {
 
     @Bean
     CommandLineRunner init(RoleCodeRepository roleCodeRepo,
-                           CategoryRepository categoryRepo) {
+                           CategoryRepository categoryRepo,
+                           JdbcTemplate jdbcTemplate) {
         return args -> {
 
             // ──────────────────────────────────────────
@@ -74,6 +76,8 @@ public class DataInitConfig {
                 categoryRepo.saveAll(categories);
                 System.out.println("✅ [DataInitConfig] 카테고리 대분류 9개 초기 데이터 삽입 완료");
             }
+
+            alignFreelancerProfileSchema(jdbcTemplate);
         };
     }
 
@@ -92,5 +96,44 @@ public class DataInitConfig {
                 .isVisible(true)    // 화면에 노출
                 .isDeleted(false)
                 .build();
+    }
+
+    private void alignFreelancerProfileSchema(JdbcTemplate jdbcTemplate) {
+        try {
+            // 운영/로컬 DB마다 테이블 대소문자 차이가 있을 수 있어 information_schema로 실제 이름을 먼저 찾습니다.
+            String tableName = jdbcTemplate.query(
+                    """
+                    SELECT table_name
+                    FROM information_schema.tables
+                    WHERE table_schema = DATABASE()
+                      AND LOWER(table_name) = 'freelancer_profile'
+                    LIMIT 1
+                    """,
+                    rs -> rs.next() ? rs.getString("table_name") : null
+            );
+
+            if (tableName == null) {
+                return;
+            }
+
+            // 기존 로컬 DB가 sns_link NOT NULL 제약을 갖고 있으면 선택 입력 전환과 충돌하므로 서버 시작 시 한 번 맞춰줍니다.
+            String isNullable = jdbcTemplate.query(
+                    """
+                    SELECT is_nullable
+                    FROM information_schema.columns
+                    WHERE table_schema = DATABASE()
+                      AND LOWER(table_name) = 'freelancer_profile'
+                      AND LOWER(column_name) = 'sns_link'
+                    LIMIT 1
+                    """,
+                    rs -> rs.next() ? rs.getString("is_nullable") : null
+            );
+
+            if ("NO".equalsIgnoreCase(isNullable)) {
+                jdbcTemplate.execute("ALTER TABLE `" + tableName + "` MODIFY COLUMN sns_link VARCHAR(255) NULL");
+            }
+        } catch (Exception exception) {
+            System.out.println("⚠️ [DataInitConfig] sns_link nullable 스키마 보정 생략: " + exception.getMessage());
+        }
     }
 }
