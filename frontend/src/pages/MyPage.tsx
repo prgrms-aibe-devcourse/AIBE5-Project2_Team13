@@ -12,13 +12,14 @@ import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
-import { getAdminMembers, getMyDetail, toggleMemberDeleted, updateMemberRole, updateMyDetail, updateMyPassword, withdrawMyAccount, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
+import { getAdminMembers, getMyDetail, setMyProfileImageToDefault, toggleMemberDeleted, updateMemberRole, updateMyDetail, updateMyPassword, updateMyProfileImage, withdrawMyAccount, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
 import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
 import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
 import { useCategories } from '../context/CategoryContext';
 import axios from 'axios';
 import { formatPhoneNumber, stripPhoneNumber } from '@/src/lib/phone';
+import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 
 import { useNavigate, Link } from 'react-router-dom';
 
@@ -137,12 +138,14 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
   const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [pendingProfileImageFile, setPendingProfileImageFile] = useState<File | null>(null);
+  const [isPendingDefaultProfileImage, setIsPendingDefaultProfileImage] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   
   const userRole = toRoleCode(user?.role || localStorage.getItem('userRole') || undefined);
   const userRoleLabel = toRoleLabel(userRole);
   const displayName = myDetail?.name || user?.name || '포근사용자';
-  const profileImageSrc = profileImage || myDetail?.imgUrl || "https://picsum.photos/seed/pogeun-expert/100/100";
+  const profileImageSrc = profileImage || myDetail?.imgUrl || DEFAULT_PROFILE_IMAGE_URL;
   
   // Set default menu based on role
   useEffect(() => {
@@ -187,6 +190,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         setSelectedCity(detail.addr || '');
         setSelectedDistrict(detail.addr2 || '');
         setProfileImage(detail.imgUrl || null);
+        setPendingProfileImageFile(null);
+        setIsPendingDefaultProfileImage(false);
       } catch (error) {
         if (!isMounted) {
           return;
@@ -262,6 +267,14 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       isMounted = false;
     };
   }, [authLoading, userRole]);
+
+  useEffect(() => {
+    return () => {
+      if (profileImage?.startsWith('blob:')) {
+        URL.revokeObjectURL(profileImage);
+      }
+    };
+  }, [profileImage]);
 
   useEffect(() => {
     if (authLoading || userRole !== 'ROLE_ADMIN') {
@@ -346,17 +359,25 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         addr2: selectedDistrict,
       });
 
+      const finalDetail = pendingProfileImageFile
+        ? await updateMyProfileImage(pendingProfileImageFile)
+        : isPendingDefaultProfileImage
+          ? await setMyProfileImageToDefault()
+          : savedDetail;
+
       await refreshCurrentUser();
 
-      setMyDetail(savedDetail);
+      setMyDetail(finalDetail);
       setSettingsForm({
-        name: savedDetail.name || '',
-        email: savedDetail.email || user?.email || '',
-        phone: formatPhoneNumber(savedDetail.phone || ''),
+        name: finalDetail.name || '',
+        email: finalDetail.email || user?.email || '',
+        phone: formatPhoneNumber(finalDetail.phone || ''),
       });
-      setSelectedCity(savedDetail.addr || '');
-      setSelectedDistrict(savedDetail.addr2 || '');
-      setProfileImage(savedDetail.imgUrl || null);
+      setSelectedCity(finalDetail.addr || '');
+      setSelectedDistrict(finalDetail.addr2 || '');
+      setProfileImage(finalDetail.imgUrl || null);
+      setPendingProfileImageFile(null);
+      setIsPendingDefaultProfileImage(false);
 
       if (userRole === 'ROLE_FREELANCER') {
         const refreshedProfile = await getMyFreelancerProfile();
@@ -462,14 +483,27 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
   const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfileImage(reader.result as string);
-        showToast('프로필 이미지 미리보기만 적용되었습니다. 저장 API가 필요합니다.', 'error');
-      };
-      reader.readAsDataURL(file);
+    if (!file) {
+      return;
     }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPendingProfileImageFile(file);
+    setIsPendingDefaultProfileImage(false);
+    setProfileImage(previewUrl);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleSetDefaultProfileImage = () => {
+    if (profileImage?.startsWith('blob:')) {
+      URL.revokeObjectURL(profileImage);
+    }
+    setPendingProfileImageFile(null);
+    setIsPendingDefaultProfileImage(true);
+    setProfileImage(DEFAULT_PROFILE_IMAGE_URL);
   };
 
   const handleCancelApplication = (id: string) => {
@@ -1745,6 +1779,13 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           </button>
         </div>
         <p className="text-sm font-medium text-gray-500">프로필 사진 변경</p>
+        <button
+          type="button"
+          onClick={handleSetDefaultProfileImage}
+          className="text-sm font-bold text-coral hover:underline"
+        >
+          기본 이미지로 설정
+        </button>
       </div>
 
       <div className="space-y-6">

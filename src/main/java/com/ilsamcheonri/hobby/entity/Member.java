@@ -73,6 +73,10 @@ public class Member {
         this.password = password;
     }
 
+    public void updateImgUrl(String imgUrl) {
+        this.imgUrl = imgUrl;
+    }
+
     public void markDeleted() {
         this.isDeleted = true;
     }

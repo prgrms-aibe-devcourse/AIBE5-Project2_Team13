@@ -44,6 +44,24 @@ export const updateMyDetail = async (payload: MemberUpdateRequest): Promise<Memb
   return res.data;
 };
 
+export const updateMyProfileImage = async (file: File): Promise<MemberDetail> => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await apiClient.put("/member/me/profile-image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return res.data;
+};
+
+export const setMyProfileImageToDefault = async (): Promise<MemberDetail> => {
+  const res = await apiClient.put("/member/me/profile-image/default");
+  return res.data;
+};
+
 export const updateMyPassword = async (payload: MemberPasswordUpdateRequest): Promise<void> => {
   await apiClient.put("/member/me/password", payload);
 };

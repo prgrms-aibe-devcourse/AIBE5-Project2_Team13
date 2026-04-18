@@ -1,0 +1,6 @@
+<svg width="240" height="240" viewBox="0 0 240 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="240" height="240" rx="120" fill="#FFF4EF"/>
+  <circle cx="120" cy="92" r="38" fill="#FFB29F"/>
+  <path d="M60 192C60 156.654 88.6538 128 124 128H116C151.346 128 180 156.654 180 192V204H60V192Z" fill="#FF8E7A"/>
+  <text x="120" y="222" text-anchor="middle" fill="#FFFFFF" font-size="18" font-family="Pretendard, sans-serif" font-weight="700">프로필 이미지</text>
+</svg>

@@ -320,7 +320,7 @@ public class FileService {
     /** 실제 파일을 디스크에서 삭제합니다. 실패 시 트랜잭션 롤백 방지를 위해 예외를 던지지 않습니다. */
     private void deletePhysicalFile(String savedFileName) {
         try {
-            Path filePath = Paths.get(uploadPath + savedFileName);
+            Path filePath = Paths.get(uploadPath).resolve(savedFileName).normalize();
             Files.deleteIfExists(filePath);
         } catch (IOException e) {
             System.err.println("[FileService] 실제 파일 삭제 실패: "

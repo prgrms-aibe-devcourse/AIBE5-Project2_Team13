@@ -11,4 +11,6 @@ public interface MemberAttachmentRepository extends JpaRepository<MemberAttachme
     List<MemberAttachment> findByMemberIdAndIsDeletedFalse(Long memberId);
 
     Optional<MemberAttachment> findByIdAndIsDeletedFalse(Long id);
+
+    Optional<MemberAttachment> findFirstByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(Long memberId);
 }

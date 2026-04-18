@@ -1,12 +1,16 @@
 package com.ilsamcheonri.hobby.service;
 
 import com.ilsamcheonri.hobby.dto.*;
+import com.ilsamcheonri.hobby.dto.file.FileUploadResponse;
 import com.ilsamcheonri.hobby.entity.Member;
+import com.ilsamcheonri.hobby.entity.MemberAttachment;
 import com.ilsamcheonri.hobby.entity.RoleCode;
 import com.ilsamcheonri.hobby.entity.FreelancerProfile;
+import com.ilsamcheonri.hobby.enums.FileTargetType;
 import com.ilsamcheonri.hobby.jwt.JwtTokenProvider;
 import com.ilsamcheonri.hobby.repository.FreelancerProfileAttachmentRepository;
 import com.ilsamcheonri.hobby.repository.FreelancerProfileRepository;
+import com.ilsamcheonri.hobby.repository.MemberAttachmentRepository;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
 import com.ilsamcheonri.hobby.repository.RoleCodeRepository;
 import lombok.RequiredArgsConstructor;
@@ -14,20 +18,27 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
+
+import java.io.IOException;
 
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class MemberService {
 
+    private static final String DEFAULT_PROFILE_IMAGE_URL = "/default-profile-image.svg";
+
     private final JwtTokenProvider jwtTokenProvider;
 
     private final MemberRepository memberRepository;
+    private final MemberAttachmentRepository memberAttachmentRepository;
     private final RoleCodeRepository roleCodeRepository;
     private final FreelancerProfileRepository freelancerProfileRepository;
     private final FreelancerProfileAttachmentRepository freelancerProfileAttachmentRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FileService fileService;
 
     @Transactional
     public Long signUp(MemberSignUpRequestDto dto) {
@@ -157,6 +168,37 @@ public class MemberService {
     }
 
     @Transactional
+    public MemberDetailDto updateMyProfileImage(String email, MultipartFile file) throws IOException {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+
+        if (file == null || file.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "업로드할 파일을 선택해주세요.");
+        }
+
+        FileUploadResponse uploadResponse = memberAttachmentRepository
+                .findFirstByMemberIdAndIsDeletedFalseOrderByCreatedAtAsc(member.getId())
+                .map(existing -> updateMemberProfileImage(existing, file, member.getId()))
+                .orElseGet(() -> uploadMemberProfileImage(file, member.getId()));
+
+        member.updateImgUrl(uploadResponse.getFileUrl());
+
+        return memberRepository.findDetailById(member.getId());
+    }
+
+    @Transactional
+    public MemberDetailDto setMyProfileImageToDefault(String email) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
+
+        memberAttachmentRepository.findByMemberIdAndIsDeletedFalse(member.getId())
+                .forEach(attachment -> fileService.delete(attachment.getId(), FileTargetType.MEMBER));
+
+        member.updateImgUrl(DEFAULT_PROFILE_IMAGE_URL);
+        return memberRepository.findDetailById(member.getId());
+    }
+
+    @Transactional
     public AdminMemberListItemDto updateMemberRole(String adminEmail, Long memberId, MemberRoleUpdateRequestDto dto) {
         validateAdmin(adminEmail);
 
@@ -257,6 +299,22 @@ public class MemberService {
         }
 
         return normalized.replaceAll("\\D", "");
+    }
+
+    private FileUploadResponse uploadMemberProfileImage(MultipartFile file, Long memberId) {
+        try {
+            return fileService.upload(file, FileTargetType.MEMBER, memberId);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "프로필 이미지 업로드 중 오류가 발생했습니다.");
+        }
+    }
+
+    private FileUploadResponse updateMemberProfileImage(MemberAttachment existing, MultipartFile file, Long memberId) {
+        try {
+            return fileService.update(existing.getId(), file, FileTargetType.MEMBER, memberId);
+        } catch (IOException ex) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "프로필 이미지 업로드 중 오류가 발생했습니다.");
+        }
     }
 
     private void validateRoleTransition(Member member, String currentRoleCode, String nextRoleCode) {

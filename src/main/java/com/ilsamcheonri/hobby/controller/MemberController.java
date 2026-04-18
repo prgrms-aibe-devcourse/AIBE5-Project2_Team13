@@ -18,10 +18,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.Map;
 import java.util.List;
 
@@ -66,6 +69,32 @@ public class MemberController {
             @Valid @RequestBody MemberUpdateRequestDto request
     ) {
         return ResponseEntity.ok(memberService.updateMyDetail(authentication.getName(), request));
+    }
+
+    @PutMapping("/me/profile-image")
+    public ResponseEntity<?> updateMyProfileImage(
+            Authentication authentication,
+            @RequestParam("file") MultipartFile file
+    ) {
+        try {
+            return ResponseEntity.ok(memberService.updateMyProfileImage(authentication.getName(), file));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        } catch (IOException ex) {
+            return ResponseEntity.internalServerError()
+                    .body(Map.of("message", "프로필 이미지 업로드 중 오류가 발생했습니다."));
+        }
+    }
+
+    @PutMapping("/me/profile-image/default")
+    public ResponseEntity<?> setMyProfileImageToDefault(Authentication authentication) {
+        try {
+            return ResponseEntity.ok(memberService.setMyProfileImageToDefault(authentication.getName()));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
     }
 
     @PatchMapping("/me/withdraw")
