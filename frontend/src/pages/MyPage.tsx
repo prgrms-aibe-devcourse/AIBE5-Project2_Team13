@@ -1062,12 +1062,17 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     setIsDeleteConfirmModalOpen(true);
   };
 
-  const handleConfirmDeleteClass = () => {
+  const handleConfirmDeleteClass = async () => {
     if (selectedClassId) {
-      deleteClass(selectedClassId);
-      showToast('삭제되었습니다.');
-      setIsDeleteConfirmModalOpen(false);
-      setSelectedClassId(null);
+      try {
+        await deleteClass(selectedClassId);
+        showToast('삭제되었습니다.');
+      } catch (error) {
+        showToast('삭제 중 오류가 발생했습니다.', 'error');
+      } finally {
+        setIsDeleteConfirmModalOpen(false);
+        setSelectedClassId(null);
+      }
     }
   };
 
@@ -1107,7 +1112,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                 className="p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-xl transition-all"
                 title="삭제"
               >
-                <X size={18} />
+                <Trash2 size={18} />
               </button>
             </div>
           </div>
