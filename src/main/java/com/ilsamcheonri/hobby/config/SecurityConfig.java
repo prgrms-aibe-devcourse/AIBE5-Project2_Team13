@@ -67,6 +67,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         // OFFER 클래스 목록 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/classes/**").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/classes/**").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/classes/**").authenticated()
                         // 요청 클래스 목록/상세 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()
                         // 파일 다운로드 — 로그인 없이 접근 가능 (이미지 표시용)
@@ -83,4 +85,9 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+
+    // JWT 만료 시간 허용 오차 (클럭 스큐) 설정
+    // JWT 라이브러리에서 기본적으로 제공하는 AllowedClockSkew를 통해 처리할 수 있지만,
+    // Spring Security 설정을 통해 전역적으로 적용하는 방법이 더 일관적입니다.
+    // 여기서는 SecurityConfig에서 별도로 설정하지 않고, Jwts.parserBuilder()에서 처리하도록 합니다.
 }

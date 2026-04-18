@@ -18,8 +18,8 @@ interface CreateClassPayload {
 interface ClassContextType {
   classes: ClassItem[];
   addClass: (newClass: CreateClassPayload) => Promise<void>;
-  deleteClass: (id: string) => void;
-  updateClass: (id: string, updatedClass: Partial<ClassItem>) => void;
+  deleteClass: (id: string) => Promise<void>;
+  updateClass: (id: string, updatedClass: CreateClassPayload) => Promise<void>;
 }
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
@@ -94,12 +94,24 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const deleteClass = (id: string) => {
-    setClasses(prev => prev.filter(c => c.id !== id));
+  const deleteClass = async (id: string) => {
+    try {
+      await apiClient.delete(`/classes/${id}`);
+      setClasses(prev => prev.filter(c => c.id !== id));
+    } catch (error) {
+      console.error('클래스 삭제 실패:', error);
+      throw error;
+    }
   };
 
-  const updateClass = (id: string, updatedClass: Partial<ClassItem>) => {
-    setClasses(prev => prev.map(c => c.id === id ? { ...c, ...updatedClass } : c));
+  const updateClass = async (id: string, updatedClass: CreateClassPayload) => {
+    try {
+      await apiClient.put(`/classes/${id}`, updatedClass);
+      await fetchClasses(); // 목록 새로고침하여 변경사항 반영
+    } catch (error) {
+      console.error('클래스 수정 실패:', error);
+      throw error;
+    }
   };
 
   return (
