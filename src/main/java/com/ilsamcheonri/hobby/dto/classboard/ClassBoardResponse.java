@@ -19,7 +19,7 @@ public class ClassBoardResponse {
     private String freelancerName;
     private Long freelancerId;
     private Integer price;
-    private boolean isOnline;
+    private Boolean isOnline;
     private String startAt;
     private String endAt;
     private Integer maxCapacity;

@@ -42,8 +42,10 @@ public class RequestClassResponse {
     /** 희망 가격 */
     private Integer price;
 
-    /** 온라인 여부 */
-    private boolean isOnline;
+    /** 온라인 여부 — Boolean(대문자)을 사용해야 Jackson이 "isOnline"으로 직렬화합니다.
+     *  boolean(소문자) + isXxx 필드명 조합 시 getter가 isOnline()이 되어
+     *  Jackson이 "online"으로 직렬화하는 버그가 있습니다. */
+    private Boolean isOnline;
 
     /** 희망 시작 일시 */
     private LocalDateTime startAt;

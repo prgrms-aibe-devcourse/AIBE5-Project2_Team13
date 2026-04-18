@@ -17,6 +17,7 @@ interface ExplorerItemCardProps {
   type?: 'class' | 'request';
   location?: string;
   timeSlot?: string;
+  lessonType?: string; // 온라인 / 오프라인
   rating?: number;
   reviews?: number;
   status?: string;
@@ -69,6 +70,7 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
   type = 'class',
   location,
   timeSlot,
+  lessonType,
   rating,
   reviews,
   status,
@@ -136,8 +138,15 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
           {/* 요청 클래스는 별점 대신 온/오프라인 표시 */}
           {type === 'request' ? (
             <div className="flex items-center gap-1 mb-4">
-              <span className="text-xs font-medium text-gray-400">
-                {timeSlot ?? '온/오프라인 협의'}
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-lg
+                ${lessonType === '온라인'
+                  ? 'bg-blue-50 text-blue-500'
+                  : lessonType === '오프라인'
+                    ? 'bg-orange-50 text-orange-500'
+                    : 'text-gray-400 font-medium'
+                }`}
+              >
+                {lessonType ?? '온/오프라인 협의'}
               </span>
             </div>
           ) : (

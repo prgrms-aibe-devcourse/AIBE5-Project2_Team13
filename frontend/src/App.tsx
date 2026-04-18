@@ -12,6 +12,7 @@ import RequestDetail from './pages/RequestDetail';
 import MyPage from './pages/MyPage';
 import Chat from './pages/Chat';
 import RequestWrite from './pages/RequestWrite';
+import RequestEdit from './pages/RequestEdit';
 import SignUp from './pages/SignUp';
 import Login from './pages/Login';
 import FAQPage from './pages/FAQPage';
@@ -48,6 +49,7 @@ export default function App() {
                             <Route path="/browse" element={<BrowseClasses />} />
                             <Route path="/requests" element={<RequestBoard />} />
                             <Route path="/requests/write" element={<RequestWrite />} />
+                            <Route path="/requests/edit/:id" element={<RequestEdit />} />
                             <Route path="/expert-register" element={<ExpertRegister />} />
                             <Route path="/expert-register/form" element={<ExpertRegistrationForm />} />
                             <Route path="/class/create" element={<ClassFormPage />} />
