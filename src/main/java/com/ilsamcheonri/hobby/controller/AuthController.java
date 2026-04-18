@@ -5,6 +5,8 @@ import com.ilsamcheonri.hobby.dto.LoginResponseDto;
 import com.ilsamcheonri.hobby.dto.MemberSignUpRequestDto;
 import com.ilsamcheonri.hobby.dto.FindEmailRequestDto;
 import com.ilsamcheonri.hobby.dto.FindEmailResponseDto;
+import com.ilsamcheonri.hobby.dto.PasswordResetRequestDto;
+import com.ilsamcheonri.hobby.dto.PasswordResetVerifyRequestDto;
 import com.ilsamcheonri.hobby.service.MemberService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +47,28 @@ public class AuthController {
         try {
             FindEmailResponseDto response = memberService.findEmail(dto);
             return ResponseEntity.ok(response);
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
+    }
+
+    @PostMapping("/reset-password")
+    public ResponseEntity<?> resetPassword(@Valid @RequestBody PasswordResetRequestDto dto) {
+        try {
+            memberService.resetPassword(dto);
+            return ResponseEntity.ok(Map.of("message", "비밀번호가 재설정되었습니다."));
+        } catch (ResponseStatusException ex) {
+            return ResponseEntity.status(ex.getStatusCode())
+                    .body(Map.of("message", ex.getReason()));
+        }
+    }
+
+    @PostMapping("/reset-password/verify")
+    public ResponseEntity<?> verifyResetPasswordIdentity(@Valid @RequestBody PasswordResetVerifyRequestDto dto) {
+        try {
+            memberService.verifyResetPasswordIdentity(dto);
+            return ResponseEntity.ok(Map.of("message", "본인 확인이 완료되었습니다."));
         } catch (ResponseStatusException ex) {
             return ResponseEntity.status(ex.getStatusCode())
                     .body(Map.of("message", ex.getReason()));

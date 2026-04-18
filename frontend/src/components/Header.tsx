@@ -11,6 +11,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/src/context/AuthContext';
+import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 import { getFreelancerApplicationStatus } from '@/src/api/freelancerRegistration';
 import { useEffect } from 'react';
 import { clearStoredFreelancerApplicationStatus, getStoredFreelancerApplicationStatus, setStoredFreelancerApplicationStatus } from '@/src/lib/freelancerApplication';
@@ -220,7 +221,7 @@ const isLoggedIn = !loading && !!user;
                 <Link to="/profile" className="flex items-center gap-2">
                   <div className="w-10 h-10 rounded-full bg-coral/10 overflow-hidden">
                     <img
-                      src={user.imgUrl || 'https://picsum.photos/100'}
+                      src={user.imgUrl || DEFAULT_PROFILE_IMAGE_URL}
                       className="w-full h-full object-cover"
                     />
                   </div>

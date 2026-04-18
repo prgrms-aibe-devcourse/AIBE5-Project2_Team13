@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { useAuth } from "@/src/context/AuthContext";
 import axios from 'axios';
-import { findEmail } from '@/src/api/auth';
+import { findEmail, resetPassword, verifyResetPasswordIdentity } from '@/src/api/auth';
 import DatePicker from '@/src/components/DatePicker';
+import { formatPhoneNumber } from '@/src/lib/phone';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,6 +25,17 @@ export default function Login() {
   });
   const [foundEmail, setFoundEmail] = useState<string | null>(null);
   const [isFindEmailLoading, setIsFindEmailLoading] = useState(false);
+  const [isFindPasswordModalOpen, setIsFindPasswordModalOpen] = useState(false);
+  const [findPasswordForm, setFindPasswordForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    birth: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [isFindPasswordLoading, setIsFindPasswordLoading] = useState(false);
+  const [isFindPasswordVerified, setIsFindPasswordVerified] = useState(false);
 
 const [isSocialLoading, setIsSocialLoading] = useState(false);
 
@@ -48,6 +60,20 @@ const handleSocialLogin = (provider: string) => {
     });
     setFoundEmail(null);
     setIsFindEmailLoading(false);
+  };
+
+  const resetFindPasswordModal = () => {
+    setIsFindPasswordModalOpen(false);
+    setFindPasswordForm({
+      name: '',
+      email: '',
+      phone: '',
+      birth: '',
+      newPassword: '',
+      confirmPassword: '',
+    });
+    setIsFindPasswordLoading(false);
+    setIsFindPasswordVerified(false);
   };
 
   const { login } = useAuth();
@@ -113,6 +139,87 @@ const handleSocialLogin = (provider: string) => {
       showToast('이메일이 복사되었습니다.');
     } catch {
       showToast('복사에 실패했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  const handleVerifyResetPasswordIdentity = async () => {
+    if (
+      !findPasswordForm.name.trim() ||
+      !findPasswordForm.email.trim() ||
+      !findPasswordForm.phone.trim() ||
+      !findPasswordForm.birth
+    ) {
+      showToast('이름, 이메일, 전화번호, 생년월일을 모두 입력해주세요.');
+      return;
+    }
+
+    try {
+      setIsFindPasswordLoading(true);
+      const response = await verifyResetPasswordIdentity({
+        name: findPasswordForm.name.trim(),
+        email: findPasswordForm.email.trim().toLowerCase(),
+        phone: findPasswordForm.phone.trim(),
+        birth: findPasswordForm.birth,
+      });
+      showToast(response.message);
+      setIsFindPasswordVerified(true);
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        showToast(err.response.data.message);
+      } else {
+        showToast('본인 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    } finally {
+      setIsFindPasswordLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!isFindPasswordVerified) {
+      showToast('먼저 본인 확인을 완료해주세요.');
+      return;
+    }
+
+    if (!findPasswordForm.newPassword.trim() || !findPasswordForm.confirmPassword.trim()) {
+      showToast('새 비밀번호 항목을 모두 입력해주세요.');
+      return;
+    }
+
+    if (findPasswordForm.newPassword.trim().length < 8) {
+      showToast('새 비밀번호는 8자 이상이어야 합니다.');
+      return;
+    }
+
+    if (findPasswordForm.newPassword !== findPasswordForm.confirmPassword) {
+      showToast('새 비밀번호 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    if (!window.confirm('입력한 정보로 비밀번호를 재설정하시겠습니까?')) {
+      return;
+    }
+
+    try {
+      setIsFindPasswordLoading(true);
+      const response = await resetPassword({
+        name: findPasswordForm.name.trim(),
+        email: findPasswordForm.email.trim().toLowerCase(),
+        phone: findPasswordForm.phone.trim(),
+        birth: findPasswordForm.birth,
+        newPassword: findPasswordForm.newPassword.trim(),
+      });
+      alert(response.message);
+      resetFindPasswordModal();
+    } catch (err) {
+      if (axios.isAxiosError(err) && err.response?.data?.message) {
+        showToast(err.response.data.message);
+      } else {
+        showToast('비밀번호 재설정 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      }
+    } finally {
+      setIsFindPasswordLoading(false);
     }
   };
 
@@ -206,7 +313,7 @@ const handleSocialLogin = (provider: string) => {
             <div className="flex justify-end gap-4 px-1">
               <button type="button" onClick={() => setIsFindEmailModalOpen(true)} className="text-xs text-gray-400 hover:text-coral transition-colors">ID 찾기</button>
               <div className="w-[1px] h-3 bg-gray-200 self-center"></div>
-              <button type="button" onClick={() => alert('비밀번호 찾기 페이지로 이동합니다.')} className="text-xs text-gray-400 hover:text-coral transition-colors">비밀번호 찾기</button>
+              <button type="button" onClick={() => setIsFindPasswordModalOpen(true)} className="text-xs text-gray-400 hover:text-coral transition-colors">비밀번호 찾기</button>
             </div>
 
             <button 
@@ -300,7 +407,7 @@ const handleSocialLogin = (provider: string) => {
                       <input
                         type="text"
                         value={findEmailForm.phone}
-                        onChange={(e) => setFindEmailForm({ ...findEmailForm, phone: e.target.value })}
+                        onChange={(e) => setFindEmailForm({ ...findEmailForm, phone: formatPhoneNumber(e.target.value) })}
                         placeholder="전화번호를 입력해주세요"
                         className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
                       />
@@ -353,6 +460,182 @@ const handleSocialLogin = (provider: string) => {
                       )}
                     >
                       {isFindEmailLoading ? '조회 중...' : '이메일 찾기'}
+                    </button>
+                  </div>
+                </form>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {isFindPasswordModalOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 px-4"
+              onClick={resetFindPasswordModal}
+            >
+              <motion.div
+                initial={{ opacity: 0, y: 16, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 16, scale: 0.98 }}
+                transition={{ duration: 0.2 }}
+                className="w-full max-w-md rounded-[32px] bg-white p-8 shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="mb-6 text-center">
+                  <h2 className="text-2xl font-bold text-gray-900">
+                    {isFindPasswordVerified ? '새 비밀번호 설정' : '비밀번호 찾기'}
+                  </h2>
+                  <p className="mt-2 text-sm text-gray-500">
+                    {isFindPasswordVerified
+                      ? '새 비밀번호를 입력하고 재설정을 완료해주세요.'
+                      : '모든 정보가 일치하면 새 비밀번호를 설정할 수 있습니다.'}
+                  </p>
+                </div>
+
+                <form onSubmit={handleResetPassword} className="space-y-4">
+                  <AnimatePresence mode="wait" initial={false}>
+                    {!isFindPasswordVerified ? (
+                      <motion.div
+                        key="verify-step"
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -12 }}
+                        transition={{ duration: 0.18 }}
+                        className="space-y-4"
+                      >
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 ml-1">이메일</label>
+                          <div className="relative">
+                            <Mail className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                              type="email"
+                              value={findPasswordForm.email}
+                              onChange={(e) => {
+                                setFindPasswordForm({ ...findPasswordForm, email: e.target.value });
+                                setIsFindPasswordVerified(false);
+                              }}
+                              placeholder="example@email.com"
+                              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 ml-1">이름</label>
+                          <div className="relative">
+                            <User className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                              type="text"
+                              value={findPasswordForm.name}
+                              onChange={(e) => {
+                                setFindPasswordForm({ ...findPasswordForm, name: e.target.value });
+                                setIsFindPasswordVerified(false);
+                              }}
+                              placeholder="이름을 입력해주세요"
+                              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 ml-1">전화번호</label>
+                          <div className="relative">
+                            <Phone className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                              type="text"
+                              value={findPasswordForm.phone}
+                              onChange={(e) => {
+                                setFindPasswordForm({ ...findPasswordForm, phone: formatPhoneNumber(e.target.value) });
+                                setIsFindPasswordVerified(false);
+                              }}
+                              placeholder="전화번호를 입력해주세요"
+                              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 ml-1">생년월일</label>
+                          <DatePicker
+                            value={findPasswordForm.birth}
+                            onChange={(value) => {
+                              setFindPasswordForm({ ...findPasswordForm, birth: value });
+                              setIsFindPasswordVerified(false);
+                            }}
+                            placeholder="생년월일을 선택해주세요"
+                            disableFuture
+                            placement="top"
+                            panelClassName="min-h-[392px] w-[320px] max-w-full"
+                          />
+                        </div>
+
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="password-step"
+                        initial={{ opacity: 0, x: 12 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -12 }}
+                        transition={{ duration: 0.18 }}
+                        className="space-y-4"
+                      >
+                        <div className="rounded-2xl bg-coral/10 px-4 py-3 text-sm font-medium text-coral">
+                          본인 확인이 완료되었습니다. 새 비밀번호를 입력해주세요.
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 ml-1">새 비밀번호</label>
+                          <div className="relative">
+                            <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                              type="password"
+                              value={findPasswordForm.newPassword}
+                              onChange={(e) => setFindPasswordForm({ ...findPasswordForm, newPassword: e.target.value })}
+                              placeholder="8자리 이상 입력"
+                              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold text-gray-500 ml-1">새 비밀번호 확인</label>
+                          <div className="relative">
+                            <Lock className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                              type="password"
+                              value={findPasswordForm.confirmPassword}
+                              onChange={(e) => setFindPasswordForm({ ...findPasswordForm, confirmPassword: e.target.value })}
+                              placeholder="새 비밀번호를 다시 입력해주세요"
+                              className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                            />
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={resetFindPasswordModal}
+                      className="flex-1 rounded-2xl border border-gray-200 py-3 text-sm font-bold text-gray-500 transition-colors hover:bg-gray-50"
+                    >
+                      닫기
+                    </button>
+                    <button
+                      type={isFindPasswordVerified ? "submit" : "button"}
+                      onClick={!isFindPasswordVerified ? handleVerifyResetPasswordIdentity : undefined}
+                      disabled={isFindPasswordLoading}
+                      className={cn(
+                        "flex-1 rounded-2xl py-3 text-sm font-bold text-white transition-all",
+                        isFindPasswordLoading ? "bg-coral/60" : "bg-coral hover:bg-coral/90"
+                      )}
+                    >
+                      {isFindPasswordLoading ? '처리 중...' : isFindPasswordVerified ? '찾기' : '정보 확인'}
                     </button>
                   </div>
                 </form>
