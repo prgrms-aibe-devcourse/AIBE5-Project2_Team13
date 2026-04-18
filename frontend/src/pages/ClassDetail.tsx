@@ -11,12 +11,13 @@ import {
 import { CATEGORIES } from '@/src/constants';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
-import { useRequests } from '../context/RequestContext';
 import { useEnrollments } from '../context/EnrollmentContext';
 import { useReports } from '../context/ReportContext';
 import { useClasses } from '../context/ClassContext';
 import { useFollow } from '../context/FollowContext';
 import { ReviewItem } from '@/src/constants';
+import { getAccessToken } from '../lib/auth';
+import { useWish } from '../context/WishContext';
 
 const TABS = [
   { id: 'description', label: '클래스 소개' },//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
@@ -33,9 +34,10 @@ export default function ClassDetail() {
   const { addReport } = useReports();
   const { classes } = useClasses();
   const { toggleFollow, isFollowing: checkFollowing } = useFollow();
+  const { isWished, syncWishStatus, toggleWish } = useWish();
   const [detailItem, setDetailItem] = useState<ClassItem | null>(null);
   
-  const [isPicked, setIsPicked] = useState(false);
+  const [wishLoading, setWishLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
@@ -130,6 +132,13 @@ export default function ClassDetail() {
     fetchClass();
   }, [id, itemFromContext]);
 
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token || !id) return;
+
+    syncWishStatus(id).catch(() => {});
+  }, [id, syncWishStatus]);
+
   if (!detailItem) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -204,6 +213,30 @@ export default function ClassDetail() {
   ];
 
   const rawCurriculum = (item as any).curriculum;
+  const requireLogin = (): boolean => {
+    if (!getAccessToken()) {
+      alert('로그인이 필요한 서비스입니다.');
+      navigate('/login');
+      return false;
+    }
+    return true;
+  };
+
+  const handleWishToggle = async () => {
+    if (!requireLogin()) return;
+    if (wishLoading) return;
+
+    setWishLoading(true);
+    try {
+      await toggleWish(item.id);
+    } catch {
+      showToast('잠시 후 다시 시도해주세요.', 'error');
+    } finally {
+      setWishLoading(false);
+    }
+  };
+
+  const isPicked = isWished(item.id);
   const curriculum = (() => {
     if (Array.isArray(rawCurriculum)) {
       return rawCurriculum;
@@ -554,9 +587,10 @@ export default function ClassDetail() {
                       문의하기
                     </button>
                     <button 
-                      onClick={() => setIsPicked(!isPicked)}
+                      onClick={handleWishToggle}
+                      disabled={wishLoading}
                       className={cn(
-                        "col-span-1 py-3 border rounded-xl transition-all flex items-center justify-center",
+                        "col-span-1 py-3 border rounded-xl transition-all flex items-center justify-center disabled:opacity-60",
                         isPicked ? "bg-coral/5 border-coral text-coral" : "bg-white border-gray-200 text-gray-400 hover:bg-gray-50"
                       )}
                     >

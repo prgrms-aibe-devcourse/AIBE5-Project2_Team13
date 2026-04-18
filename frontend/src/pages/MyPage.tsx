@@ -10,6 +10,8 @@ import { useReports } from '../context/ReportContext';
 import { useClasses } from '../context/ClassContext';
 import { useFreelancers } from '../context/FreelancerContext';
 import { useFollow } from '../context/FollowContext';
+import { useRequests } from '../context/RequestContext';
+import { useWish } from '../context/WishContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
 import { getAdminMembers, getMyDetail, setMyProfileImageToDefault, toggleMemberDeleted, updateMemberRole, updateMyDetail, updateMyPassword, updateMyProfileImage, withdrawMyAccount, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
@@ -56,6 +58,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const { freelancers } = useFreelancers();
   const { followingIds, toggleFollow } = useFollow();
   const { categories } = useCategories();
+  const { requests, fetchRequests } = useRequests();
+  const { wishedIds, fetchWishedIds, toggleWish } = useWish();
 
   const [activeMenu, setActiveMenu] = useState<MenuType>(initialMenu || 'activity');
   const [activityTab, setActivityTab] = useState<'enrolled' | 'waiting' | 'finished'>('enrolled');
@@ -328,10 +332,18 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     };
   }, [authLoading, userRole]);
   
-  const pickedClasses = classes.slice(0, 2);
   const appliedClasses = classes.slice(2, 4);
   const currentUserName = myDetail?.name || user?.name || '';
   const teachingClasses = classes.filter(c => c.freelancer === currentUserName);
+  const pickedClasses = classes.filter(item => wishedIds.has(item.id));
+  const pickedRequests = requests.filter(item => wishedIds.has(item.id));
+
+  useEffect(() => {
+    if (activeMenu !== 'pick') return;
+
+    fetchRequests();
+    fetchWishedIds();
+  }, [activeMenu, fetchRequests, fetchWishedIds]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -721,39 +733,67 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     <div className="space-y-12">
       <div>
         <h3 className="text-xl font-bold text-gray-900 mb-6">Pick 클래스</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {pickedClasses.map(item => (
-            <ExplorerItemCard
-              key={item.id}
-              id={item.id}
-              image={item.image}
-              title={item.title}
-              value={item.price}
-              valueLabel="수강료"
-              personName={item.freelancer}
-              personLabel="프리랜서"
-              category={item.category}
-              categoryName="Pick"
-            />
-          ))}
-        </div>
+        {pickedClasses.length === 0 ? (
+          <div className="bg-white rounded-[32px] p-8 border border-coral/10 text-gray-400 shadow-sm">
+            아직 Pick한 일반 클래스가 없습니다.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {pickedClasses.map(item => (
+              <ExplorerItemCard
+                key={item.id}
+                id={item.id}
+                image={item.image}
+                title={item.title}
+                value={item.price}
+                valueLabel="수강료"
+                personName={item.freelancer}
+                personLabel="프리랜서"
+                personId={item.freelancerId}
+                category={item.category}
+                categoryName={item.category}
+                type="class"
+                location={item.location}
+                lessonType={item.isOffline ? '오프라인' : '온라인'}
+                rating={item.rating}
+                reviews={item.reviews}
+                isWished
+                compact
+                onWishToggle={() => toggleWish(item.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <div>
         <h3 className="text-xl font-bold text-gray-900 mb-6">관심 요청글</h3>
-        <div className="space-y-4">
-          {[
-            { id: 'req1', title: '주말 오전에 수채화 배우고 싶어요', budget: '50,000원', date: '2024.04.01' },
-            { id: 'req2', title: '강아지 산책 대행 구합니다', budget: '20,000원', date: '2024.03.28' }
-          ].map(req => (
-            <div key={req.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex justify-between items-center shadow-sm">
-              <div>
-                <h4 className="font-bold text-gray-900 mb-1">{req.title}</h4>
-                <p className="text-sm text-gray-500">희망 예산: {req.budget} | 등록일: {req.date}</p>
-              </div>
-              <ChevronRight className="text-gray-300" />
-            </div>
-          ))}
-        </div>
+        {pickedRequests.length === 0 ? (
+          <div className="bg-white rounded-[32px] p-8 border border-coral/10 text-gray-400 shadow-sm">
+            아직 Pick한 요청 클래스가 없습니다.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {pickedRequests.map(item => (
+              <ExplorerItemCard
+                key={item.id}
+                id={item.id}
+                image={item.image}
+                title={item.title}
+                value={item.reward}
+                valueLabel="희망 금액"
+                personName={item.author}
+                personLabel="요청자"
+                category={item.category}
+                categoryName={item.category}
+                type="request"
+                lessonType={item.lessonType}
+                isWished
+                compact
+                onWishToggle={() => toggleWish(item.id)}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

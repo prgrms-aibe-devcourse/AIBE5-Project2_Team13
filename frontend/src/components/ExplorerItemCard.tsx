@@ -2,6 +2,7 @@ import React from 'react';
 import { Star, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal, Heart } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
+import { cn } from '@/src/lib/utils';
 
 interface ExplorerItemCardProps {
   id: string;
@@ -22,6 +23,8 @@ interface ExplorerItemCardProps {
   reviews?: number;
   status?: string;
   isWished?: boolean; // 찜 여부 — 목록에서 하트 표시용
+  compact?: boolean;
+  onWishToggle?: () => void | Promise<void>;
 }
 
 // ─────────────────────────────────────────────────
@@ -75,16 +78,21 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
   reviews,
   status,
   isWished = false,
+  compact = false,
+  onWishToggle,
 }) => {
   return (
     <motion.div
       whileHover={{ y: -8 }}
-      className="bg-white rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 group"
+      className={cn(
+        "bg-white rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 group",
+        compact && "rounded-[24px]"
+      )}
     >
       <Link to={type === 'class' ? `/class/${id}` : `/request/${id}`}>
 
         {/* ── 이미지 / 배경 영역 ── */}
-        <div className="relative aspect-[4/3] overflow-hidden">
+        <div className={cn("relative aspect-[4/3] overflow-hidden", compact && "aspect-[4/2.8]")}>
 
           {type === 'request' ? (
             // 요청 클래스: 이미지 대신 카테고리 색상 배경 + 아이콘
@@ -110,11 +118,17 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
 
           {/* 카테고리 + 상태 뱃지 */}
           <div className="absolute top-4 left-4 flex gap-2">
-            <div className="px-3 py-1 bg-black/50 backdrop-blur-sm rounded-lg text-[13px] font-bold text-white shadow-sm">
+            <div className={cn(
+              "px-3 py-1 bg-black/50 backdrop-blur-sm rounded-lg text-[13px] font-bold text-white shadow-sm",
+              compact && "px-2.5 py-1 text-[12px]"
+            )}>
               {categoryName}
             </div>
             {status && (
-              <div className="px-3 py-1 bg-coral text-white rounded-lg text-[13px] font-bold shadow-sm">
+              <div className={cn(
+                "px-3 py-1 bg-coral text-white rounded-lg text-[13px] font-bold shadow-sm",
+                compact && "px-2.5 py-1 text-[12px]"
+              )}>
                 {status}
               </div>
             )}
@@ -122,47 +136,62 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
 
           {/* 찜 하트 아이콘 — 찜한 클래스에만 표시 */}
           {isWished && (
-            <div className="absolute top-4 right-4">
-              <Heart size={22} className="fill-coral text-coral drop-shadow" />
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onWishToggle?.();
+              }}
+              className={cn(
+                "absolute top-4 right-4 z-10 rounded-full bg-white/90 p-2 text-coral shadow-sm transition hover:bg-white",
+                !onWishToggle && "cursor-default"
+              )}
+            >
+              <Heart size={compact ? 18 : 22} className="fill-coral text-coral drop-shadow" />
+            </button>
           )}
         </div>
 
         {/* ── 카드 하단 텍스트 영역 ── */}
-        <div className="p-6">
-          <p className="text-xs text-gray-400 mb-1 font-medium">{personName}</p>
-          <h3 className="font-bold text-gray-900 text-[18px] mb-2 line-clamp-2 group-hover:text-coral transition-colors leading-snug h-[2.8em]">
+        <div className={cn("p-6", compact && "p-4")}>
+          <p className={cn("text-xs text-gray-400 mb-1 font-medium", compact && "text-[11px]")}>{personName}</p>
+          <h3 className={cn(
+            "font-bold text-gray-900 text-[18px] mb-2 line-clamp-2 group-hover:text-coral transition-colors leading-snug h-[2.8em]",
+            compact && "text-[16px] mb-1.5 h-[2.6em]"
+          )}>
             {title}
           </h3>
 
           {/* 요청 클래스는 별점 대신 온/오프라인 표시 */}
           {type === 'request' ? (
-            <div className="flex items-center gap-1 mb-4">
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-lg
-                ${lessonType === '온라인'
+            <div className={cn("flex items-center gap-1 mb-4", compact && "mb-3")}>
+              <span className={cn(
+                "text-xs font-bold px-2 py-0.5 rounded-lg",
+                lessonType === '온라인'
                   ? 'bg-blue-50 text-blue-500'
                   : lessonType === '오프라인'
                     ? 'bg-orange-50 text-orange-500'
-                    : 'text-gray-400 font-medium'
-                }`}
-              >
+                    : 'text-gray-400 font-medium',
+                compact && "text-[11px]"
+              )}>
                 {lessonType ?? '온/오프라인 협의'}
               </span>
             </div>
           ) : (
-            <div className="flex items-center gap-1 mb-4">
-              <Star size={14} className="fill-yellow-400 text-yellow-400" />
-              <span className="text-sm font-bold text-gray-900">{rating || 0}</span>
-              <span className="text-[13px] text-gray-400">({reviews || 0})</span>
+            <div className={cn("flex items-center gap-1 mb-4", compact && "mb-3")}>
+              <Star size={compact ? 12 : 14} className="fill-yellow-400 text-yellow-400" />
+              <span className={cn("text-sm font-bold text-gray-900", compact && "text-[13px]")}>{rating || 0}</span>
+              <span className={cn("text-[13px] text-gray-400", compact && "text-[11px]")}>({reviews || 0})</span>
             </div>
           )}
 
-          <div className="pt-4 border-t border-gray-50 flex justify-between items-center">
-            <span className="text-lg font-bold text-gray-900">
+          <div className={cn("pt-4 border-t border-gray-50 flex justify-between items-center", compact && "pt-3")}>
+            <span className={cn("text-lg font-bold text-gray-900", compact && "text-base")}>
               {value.toLocaleString()}원
             </span>
             {location && (
-              <span className="text-[10px] text-gray-400 font-medium">
+              <span className={cn("text-[10px] text-gray-400 font-medium", compact && "text-[9px]")}>
                 {location}
               </span>
             )}

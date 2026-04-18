@@ -2,20 +2,14 @@ import React from 'react';
 import { RequestItem } from '@/src/constants';
 import ExplorerGrid from '@/src/components/ExplorerGrid';
 import { Plus } from 'lucide-react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { useRequests } from '../context/RequestContext';
+import { useWish } from '../context/WishContext';
 
 export default function RequestBoard() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { requests, loading, error, wishedIds, fetchRequests, fetchWishedIds } = useRequests();
-
-  // 이 페이지에 진입할 때마다 목록과 찜 상태를 새로 가져옵니다.
-  // useLocation()의 key는 같은 경로라도 메뉴를 다시 클릭하면 변경됩니다.
-  React.useEffect(() => {
-    fetchRequests();
-    fetchWishedIds();
-  }, [location.key]);
+  const { requests, loading, error } = useRequests();
+  const { wishedIds } = useWish();
 
   const filterFn = (item: RequestItem, query: string, category: string) => {
     const matchesCategory = category === 'all' || item.category === category;
