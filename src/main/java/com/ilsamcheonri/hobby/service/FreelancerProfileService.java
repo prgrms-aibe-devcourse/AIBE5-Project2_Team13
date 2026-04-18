@@ -4,6 +4,7 @@ import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileAttachmentD
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileApplyRequest;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerApprovalListItemResponse;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerApplicationStatusResponse;
+import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileDetailResponse;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileMeResponse;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileUpsertRequest;
 import com.ilsamcheonri.hobby.entity.Category;
@@ -51,9 +52,10 @@ public class FreelancerProfileService {
 
         FreelancerProfile profile;
         if (existingProfile != null) {
+            // 반려된 기존 프로필은 재신청으로 재사용하고, 링크가 비어도 null 저장이 가능하도록 정규화합니다.
             existingProfile.resubmitProfile(
                     specialty,
-                    request.getSnsLink().trim(),
+                    normalizeOptionalText(request.getSnsLink()),
                     normalizeBlank(request.getBio()),
                     normalizeBlank(request.getCareer()),
                     normalizeBlank(request.getBankAccount())
@@ -64,7 +66,7 @@ public class FreelancerProfileService {
                     FreelancerProfile.builder()
                             .freelancer(member)
                             .specialty(specialty)
-                            .snsLink(request.getSnsLink().trim())
+                            .snsLink(normalizeOptionalText(request.getSnsLink()))
                             .bio(normalizeBlank(request.getBio()))
                             .career(normalizeBlank(request.getCareer()))
                             .bankAccount(normalizeBlank(request.getBankAccount()))
@@ -106,6 +108,7 @@ public class FreelancerProfileService {
                 .toList();
 
         return FreelancerProfileMeResponse.builder()
+                .freelancerId(member.getId())
                 .profileId(profile.getId())
                 .memberName(member.getName())
                 .memberEmail(member.getEmail())
@@ -117,6 +120,36 @@ public class FreelancerProfileService {
                 .bio(profile.getBio())
                 .career(profile.getCareer())
                 .bankAccount(profile.getBankAccount())
+                .approvalStatusCode(profile.getApprovalStatusCode())
+                .approvalStatusName(profile.getApprovalStatusName())
+                .attachments(attachments)
+                .build();
+    }
+
+    public FreelancerProfileDetailResponse getPublicProfile(Long freelancerId) {
+        // 공개 상세 페이지는 freelancerId 기준으로 승인된 프로필만 노출합니다.
+        FreelancerProfile profile = freelancerProfileRepository
+                .findByFreelancerIdAndApprovalStatusCodeAndIsDeletedFalse(freelancerId, "A")
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "프리랜서 프로필을 찾을 수 없습니다."));
+
+        Member member = profile.getFreelancer();
+        List<FreelancerProfileAttachmentDto> attachments = freelancerProfileAttachmentRepository
+                .findByFreelancerProfileIdAndIsDeletedFalseOrderByIdAsc(profile.getId())
+                .stream()
+                .map(FreelancerProfileAttachmentDto::from)
+                .toList();
+
+        return FreelancerProfileDetailResponse.builder()
+                .freelancerId(member.getId())
+                .profileId(profile.getId())
+                .memberName(member.getName())
+                .memberImageUrl(member.getImgUrl())
+                .memberAddress(formatAddress(member.getAddr(), member.getAddr2()))
+                .specialtyCategoryId(profile.getSpecialty().getId())
+                .specialtyCategoryName(profile.getSpecialty().getName())
+                .snsLink(profile.getSnsLink())
+                .bio(profile.getBio())
+                .career(profile.getCareer())
                 .approvalStatusCode(profile.getApprovalStatusCode())
                 .approvalStatusName(profile.getApprovalStatusName())
                 .attachments(attachments)
@@ -135,7 +168,8 @@ public class FreelancerProfileService {
 
         profile.updateProfile(
                 specialty,
-                request.getSnsLink().trim(),
+                // 포트폴리오 링크는 비우면 null로 저장해 선택 입력 상태를 유지합니다.
+                normalizeOptionalText(request.getSnsLink()),
                 normalizeBlank(request.getBio()),
                 normalizeBlank(request.getCareer()),
                 normalizeBlank(request.getBankAccount())
@@ -240,5 +274,9 @@ public class FreelancerProfileService {
 
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeOptionalText(String value) {
+        return normalizeBlank(value);
     }
 }

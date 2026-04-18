@@ -7,20 +7,17 @@ import java.util.List;
 
 @Getter
 @Builder
-public class FreelancerProfileMeResponse {
-    // 프로필 확인 버튼이 /freelancer/{freelancerId}로 이동할 수 있도록 회원 PK를 같이 내려줍니다.
+public class FreelancerProfileDetailResponse {
     private Long freelancerId;
     private Long profileId;
     private String memberName;
-    private String memberEmail;
-    private String memberPhone;
+    private String memberImageUrl;
     private String memberAddress;
     private Long specialtyCategoryId;
     private String specialtyCategoryName;
     private String snsLink;
     private String bio;
     private String career;
-    private String bankAccount;
     private String approvalStatusCode;
     private String approvalStatusName;
     private List<FreelancerProfileAttachmentDto> attachments;

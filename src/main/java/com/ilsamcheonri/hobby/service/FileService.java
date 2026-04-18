@@ -37,6 +37,9 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class FileService {
+    // 프리랜서 포트폴리오는 기획상 최대 10장까지 허용합니다.
+    private static final int MAX_FREELANCER_PORTFOLIO_IMAGES = 10;
+    private static final String DOWNLOAD_URL_PREFIX = "/api/files/download/";
 
     private final ClassAttachmentRepository             classAttachmentRepository;
     private final MemberAttachmentRepository            memberAttachmentRepository;
@@ -54,8 +57,6 @@ public class FileService {
     // ✅ 1. 파일 단건 업로드
     // =========================================================
 
-    private static final String DOWNLOAD_URL_PREFIX = "/api/files/download/";
-
     /**
       * 파일을 D:\fileDownLoadServer\에 저장하고 해당 첨부파일 테이블에 기록합니다.
      *
@@ -69,6 +70,8 @@ public class FileService {
             FileTargetType targetType,
             Long targetId
     ) throws IOException {
+        // 단건 업로드도 포트폴리오 총 개수 제한을 우회할 수 없도록 진입 시점에 검사합니다.
+        validateFreelancerPortfolioLimit(targetType, targetId, 1);
 
         // 1. 경로 조작 방지를 위한 파일명 정제
         String originalFileName = StringUtils.cleanPath(file.getOriginalFilename());
@@ -119,6 +122,13 @@ public class FileService {
             FileTargetType targetType,
             Long targetId
     ) throws IOException {
+        // 다건 업로드는 실제로 비어있지 않은 파일 수만 세서 제한을 적용합니다.
+        long uploadableFileCount = files.stream()
+                .filter(file -> !file.isEmpty())
+                .count();
+
+        validateFreelancerPortfolioLimit(targetType, targetId, uploadableFileCount);
+
         List<FileUploadResponse> results = new ArrayList<>();
 
         for (MultipartFile file : files) {
@@ -315,6 +325,22 @@ public class FileService {
                         .fileSize(fileSize)
                         .build()
         ).getId();
+    }
+
+    private void validateFreelancerPortfolioLimit(
+            FileTargetType targetType,
+            Long targetId,
+            long additionalFileCount
+    ) {
+        // 프론트 제한만으로는 우회 가능하므로 프리랜서 포트폴리오는 백엔드에서도 10장 제한을 강제합니다.
+        if (targetType != FileTargetType.FREELANCER || additionalFileCount <= 0) {
+            return;
+        }
+
+        long currentCount = freelancerAttachmentRepository.countByFreelancerProfileIdAndIsDeletedFalse(targetId);
+        if (currentCount + additionalFileCount > MAX_FREELANCER_PORTFOLIO_IMAGES) {
+            throw new IllegalArgumentException("포트폴리오 이미지는 최대 10장까지 등록할 수 있습니다.");
+        }
     }
 
     /** 실제 파일을 디스크에서 삭제합니다. 실패 시 트랜잭션 롤백 방지를 위해 예외를 던지지 않습니다. */

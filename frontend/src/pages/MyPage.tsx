@@ -13,7 +13,7 @@ import { useFollow } from '../context/FollowContext';
 import ReviewModal from '../components/ReviewModal';
 import { ReviewItem } from '@/src/constants';
 import { getAdminMembers, getMyDetail, setMyProfileImageToDefault, toggleMemberDeleted, updateMemberRole, updateMyDetail, updateMyPassword, updateMyProfileImage, withdrawMyAccount, type AdminMemberListItem, type MemberDetail } from '@/src/api/member';
-import { getMyFreelancerProfile, upsertMyFreelancerProfile } from '@/src/api/freelancerProfile';
+import { deleteFreelancerPortfolioImages, getMyFreelancerProfile, uploadFreelancerPortfolioImages, upsertMyFreelancerProfile, type FreelancerProfileMeResponse } from '@/src/api/freelancerProfile';
 import { approveFreelancerProfile, getPendingFreelancerProfiles, rejectFreelancerProfile, type FreelancerApprovalListItemResponse } from '@/src/api/freelancerRegistration';
 import { useAuth } from '@/src/context/AuthContext';
 import { useCategories } from '../context/CategoryContext';
@@ -46,6 +46,35 @@ const toRoleLabel = (role: UserRole): string => {
   if (role === 'ROLE_FREELANCER') return '프리랜서';
   return '회원';
 };
+
+type PortfolioImageItem = {
+  id: number | null;
+  originalFileName: string;
+  fileUrl: string;
+  // 새로 추가한 이미지인 경우에만 로컬 File을 들고 있고, 기존 서버 첨부는 id/fileUrl만 유지합니다.
+  localFile?: File;
+};
+
+const MAX_PORTFOLIO_IMAGES = 10;
+
+const mapFreelancerProfileState = (profile: FreelancerProfileMeResponse) => ({
+  freelancerId: profile.freelancerId,
+  profileId: profile.profileId,
+  name: profile.memberName || '',
+  specialtyCategoryId: profile.specialtyCategoryId ?? '',
+  specialtyCategoryName: profile.specialtyCategoryName || '',
+  introduction: profile.bio || '',
+  career: profile.career || '',
+  snsLink: profile.snsLink || '',
+  bankAccount: profile.bankAccount || '',
+  location: profile.memberAddress || '',
+  portfolioImages: profile.attachments.map((attachment) => ({
+    // 서버에서 내려온 첨부는 저장 완료 상태이므로 attachment id를 그대로 유지합니다.
+    id: attachment.id,
+    originalFileName: attachment.originalFileName,
+    fileUrl: attachment.fileUrl,
+  })),
+});
 
 export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const navigate = useNavigate();
@@ -93,6 +122,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [selectedDistrict, setSelectedDistrict] = useState('');
   const [dashboardDateRange, setDashboardDateRange] = useState({ start: '2024-01-01', end: '2024-06-30' });
   const [freelancerProfile, setFreelancerProfile] = useState({
+    freelancerId: null as number | null,
     profileId: null as number | null,
     name: '',
     specialtyCategoryId: '' as number | '',
@@ -102,11 +132,12 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     snsLink: '',
     bankAccount: '',
     location: '',
-    portfolioImages: [] as string[]
+    portfolioImages: [] as PortfolioImageItem[]
   });
   const [freelancerProfileLoading, setFreelancerProfileLoading] = useState(false);
   const [freelancerProfileSaving, setFreelancerProfileSaving] = useState(false);
   const [freelancerProfileMissing, setFreelancerProfileMissing] = useState(false);
+  const [deletedPortfolioImageIds, setDeletedPortfolioImageIds] = useState<number[]>([]);
 
   const [myDetail, setMyDetail] = useState<MemberDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(true);
@@ -142,6 +173,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [pendingProfileImageFile, setPendingProfileImageFile] = useState<File | null>(null);
   const [isPendingDefaultProfileImage, setIsPendingDefaultProfileImage] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const portfolioInputRef = React.useRef<HTMLInputElement>(null);
+  const portfolioImagesRef = React.useRef<PortfolioImageItem[]>([]);
   
   const userRole = toRoleCode(user?.role || localStorage.getItem('userRole') || undefined);
   const userRoleLabel = toRoleLabel(userRole);
@@ -235,18 +268,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           return;
         }
 
-        setFreelancerProfile({
-          profileId: profile.profileId,
-          name: profile.memberName || '',
-          specialtyCategoryId: profile.specialtyCategoryId ?? '',
-          specialtyCategoryName: profile.specialtyCategoryName || '',
-          introduction: profile.bio || '',
-          career: profile.career || '',
-          snsLink: profile.snsLink || '',
-          bankAccount: profile.bankAccount || '',
-          location: profile.memberAddress || '',
-          portfolioImages: profile.attachments.map((attachment) => attachment.fileUrl),
-        });
+        setFreelancerProfile(mapFreelancerProfileState(profile));
+        setDeletedPortfolioImageIds([]);
       } catch (error) {
         if (isMounted) {
           if (axios.isAxiosError(error) && error.response?.status === 404) {
@@ -276,6 +299,16 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       }
     };
   }, [profileImage]);
+
+  useEffect(() => {
+    portfolioImagesRef.current = freelancerProfile.portfolioImages;
+  }, [freelancerProfile.portfolioImages]);
+
+  useEffect(() => {
+    return () => {
+      revokePortfolioObjectUrls(portfolioImagesRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (authLoading || userRole !== 'ROLE_ADMIN') {
@@ -338,6 +371,15 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const revokePortfolioObjectUrls = (images: PortfolioImageItem[]) => {
+    images.forEach((image) => {
+      if (image.localFile && image.fileUrl.startsWith('blob:')) {
+        // 서버 URL은 건드리지 않고, 로컬에서 생성한 미리보기 blob URL만 정리합니다.
+        URL.revokeObjectURL(image.fileUrl);
+      }
+    });
+  };
+
   const handleLogout = () => {
     if (window.confirm('로그아웃 하시겠습니까?')) {
       logout();
@@ -383,18 +425,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
       if (userRole === 'ROLE_FREELANCER') {
         const refreshedProfile = await getMyFreelancerProfile();
-        setFreelancerProfile({
-          profileId: refreshedProfile.profileId,
-          name: refreshedProfile.memberName || '',
-          specialtyCategoryId: refreshedProfile.specialtyCategoryId ?? '',
-          specialtyCategoryName: refreshedProfile.specialtyCategoryName || '',
-          introduction: refreshedProfile.bio || '',
-          career: refreshedProfile.career || '',
-          snsLink: refreshedProfile.snsLink || '',
-          bankAccount: refreshedProfile.bankAccount || '',
-          location: refreshedProfile.memberAddress || '',
-          portfolioImages: refreshedProfile.attachments.map((attachment) => attachment.fileUrl),
-        });
+        setFreelancerProfile(mapFreelancerProfileState(refreshedProfile));
+        setDeletedPortfolioImageIds([]);
       }
 
       showToast('계정 정보가 저장되었습니다.');
@@ -1171,26 +1203,32 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
       setFreelancerProfileSaving(true);
       const savedProfile = await upsertMyFreelancerProfile({
         specialtyCategoryId: Number(freelancerProfile.specialtyCategoryId),
-        snsLink: freelancerProfile.snsLink,
+        snsLink: freelancerProfile.snsLink.trim() || undefined,
         bio: freelancerProfile.introduction,
         career: freelancerProfile.career,
         bankAccount: freelancerProfile.bankAccount,
       });
 
+      // 기존 첨부 삭제와 신규 업로드를 저장 시점에 몰아서 처리해 화면 미리보기와 실제 저장 시점을 분리합니다.
+      if (deletedPortfolioImageIds.length > 0) {
+        await deleteFreelancerPortfolioImages(deletedPortfolioImageIds);
+      }
+
+      const newPortfolioFiles = freelancerProfile.portfolioImages
+        .filter((image) => image.localFile)
+        .map((image) => image.localFile as File);
+
+      if (savedProfile.profileId && newPortfolioFiles.length > 0) {
+        await uploadFreelancerPortfolioImages(savedProfile.profileId, newPortfolioFiles);
+      }
+
+      const refreshedProfile = await getMyFreelancerProfile();
+
       await refreshCurrentUser();
 
-      setFreelancerProfile({
-        profileId: savedProfile.profileId,
-        name: savedProfile.memberName || '',
-        specialtyCategoryId: savedProfile.specialtyCategoryId ?? '',
-        specialtyCategoryName: savedProfile.specialtyCategoryName || '',
-        introduction: savedProfile.bio || '',
-        career: savedProfile.career || '',
-        snsLink: savedProfile.snsLink || '',
-        bankAccount: savedProfile.bankAccount || '',
-        location: savedProfile.memberAddress || '',
-        portfolioImages: savedProfile.attachments.map((attachment) => attachment.fileUrl),
-      });
+      revokePortfolioObjectUrls(freelancerProfile.portfolioImages);
+      setFreelancerProfile(mapFreelancerProfileState(refreshedProfile));
+      setDeletedPortfolioImageIds([]);
 
       showToast('프로필이 저장되었습니다.');
     } catch (error) {
@@ -1201,17 +1239,87 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     }
   };
 
+  const handleAddFreelancerPortfolioImages = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files || []);
+
+    if (selectedFiles.length === 0) {
+      return;
+    }
+
+    const remainingCount = MAX_PORTFOLIO_IMAGES - freelancerProfile.portfolioImages.length;
+    if (remainingCount <= 0) {
+      showToast(`포트폴리오 이미지는 최대 ${MAX_PORTFOLIO_IMAGES}장까지 등록할 수 있습니다.`, 'error');
+      event.target.value = '';
+      return;
+    }
+
+    // 프로필 관리에서도 저장 전에는 프론트 미리보기만 바꾸고 실제 업로드는 저장 버튼에서 수행합니다.
+    const nextImages: PortfolioImageItem[] = selectedFiles.slice(0, remainingCount).map((file) => ({
+      id: null,
+      originalFileName: file.name,
+      fileUrl: URL.createObjectURL(file),
+      localFile: file,
+    }));
+
+    setFreelancerProfile((prev) => ({
+      ...prev,
+      portfolioImages: [...prev.portfolioImages, ...nextImages],
+    }));
+    event.target.value = '';
+  };
+
+  const handleRemoveFreelancerPortfolioImage = (index: number) => {
+    setFreelancerProfile((prev) => {
+      const targetImage = prev.portfolioImages[index];
+      if (!targetImage) {
+        return prev;
+      }
+
+      if (targetImage.id !== null) {
+        // 기존 서버 첨부는 즉시 삭제하지 않고 저장 시점에만 삭제 요청을 보내도록 모아둡니다.
+        setDeletedPortfolioImageIds((current) => [...current, targetImage.id as number]);
+      }
+
+      if (targetImage.localFile && targetImage.fileUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(targetImage.fileUrl);
+      }
+
+      return {
+        ...prev,
+        portfolioImages: prev.portfolioImages.filter((_, currentIndex) => currentIndex !== index),
+      };
+    });
+  };
+
+  const handlePreviewFreelancerProfile = () => {
+    if (freelancerProfileMissing || freelancerProfileLoading || !freelancerProfile.freelancerId) {
+      return;
+    }
+
+    // 프로필 상세는 freelancerId 기준 공개 페이지로 이동합니다.
+    navigate(`/freelancer/${freelancerProfile.freelancerId}`);
+  };
+
   const renderFreelancerProfile = () => (
     <div className="max-w-3xl space-y-10">
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-gray-900">프리랜서 프로필 관리</h2>
-        <button 
-          onClick={handleSaveFreelancerProfile}
-          disabled={freelancerProfileSaving}
-          className="px-8 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center gap-2"
-        >
-          <Save size={20} /> {freelancerProfileSaving ? '저장 중...' : '저장하기'}
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handlePreviewFreelancerProfile}
+            disabled={freelancerProfileMissing || freelancerProfileLoading}
+            className="px-6 py-4 bg-white text-coral border border-coral/20 font-bold rounded-2xl hover:bg-coral/5 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            프로필 확인
+          </button>
+          <button 
+            onClick={handleSaveFreelancerProfile}
+            disabled={freelancerProfileSaving}
+            className="px-8 py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 flex items-center gap-2"
+          >
+            <Save size={20} /> {freelancerProfileSaving ? '저장 중...' : '저장하기'}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-8 bg-white p-10 rounded-[40px] border border-coral/10 shadow-sm">
@@ -1283,17 +1391,19 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         </div>
 
         <div className="space-y-3">
-          <label className="text-sm font-bold text-gray-700 ml-1">SNS 링크</label>
+          <label className="text-sm font-bold text-gray-700 ml-1">포트폴리오 링크</label>
           <div className="relative">
             <BookOpen className="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
             <input 
-              type="url" 
+              type="text" 
               value={freelancerProfile.snsLink}
               onChange={(e) => setFreelancerProfile(prev => ({ ...prev, snsLink: e.target.value }))}
               placeholder="https://..."
               className="w-full pl-12 pr-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+              autoComplete="off"
             />
           </div>
+          <p className="text-xs text-gray-400 ml-1">선택 입력입니다. 링크 없이 포트폴리오 이미지만 저장해도 됩니다.</p>
         </div>
 
         <div className="space-y-3">
@@ -1324,17 +1434,38 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         <div className="space-y-4">
           <label className="text-sm font-bold text-gray-700 ml-1">포트폴리오 이미지</label>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {freelancerProfile.portfolioImages.map((img, idx) => (
-              <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group border border-coral/10">
-                <img src={img} alt="" className="w-full h-full object-cover" />
+            {freelancerProfile.portfolioImages.map((image, idx) => (
+              <div key={`${image.id ?? image.originalFileName}-${idx}`} className="relative aspect-square rounded-2xl overflow-hidden group border border-coral/10 bg-white shadow-sm">
+                <img src={image.fileUrl} alt={image.originalFileName} className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveFreelancerPortfolioImage(idx)}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/75 transition-colors"
+                >
+                  <X size={16} />
+                </button>
               </div>
             ))}
-            <button disabled className="aspect-square rounded-2xl border-2 border-dashed border-coral/20 flex flex-col items-center justify-center text-coral/40 bg-ivory/50 cursor-not-allowed">
-              <Plus size={24} />
-              <span className="text-[10px] font-bold mt-1">추가</span>
-            </button>
+            {freelancerProfile.portfolioImages.length < MAX_PORTFOLIO_IMAGES && (
+              <button
+                type="button"
+                onClick={() => portfolioInputRef.current?.click()}
+                className="aspect-square rounded-2xl border-2 border-dashed border-coral/20 flex flex-col items-center justify-center text-coral bg-ivory/50 hover:border-coral hover:bg-coral/5 transition-all"
+              >
+                <Plus size={24} />
+                <span className="text-[10px] font-bold mt-1">추가</span>
+              </button>
+            )}
           </div>
-          <p className="text-xs text-gray-400 ml-1">첨부파일 업로드는 다음 단계에서 구현 예정입니다.</p>
+          <input
+            ref={portfolioInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handleAddFreelancerPortfolioImages}
+          />
+          <p className="text-xs text-gray-400 ml-1">최대 10장까지 등록할 수 있습니다.</p>
         </div>
       </div>
     </div>

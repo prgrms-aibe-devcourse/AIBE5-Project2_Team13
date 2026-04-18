@@ -30,7 +30,8 @@ public class FreelancerProfile {
     @JoinColumn(name = "specialty", nullable = false)
     private Category specialty;
 
-    @Column(name = "sns_link", nullable = false, length = 255)
+    // 포트폴리오 링크는 선택 입력으로 전환되어 DB에서도 null 저장을 허용합니다.
+    @Column(name = "sns_link", length = 255)
     private String snsLink;
 
     @Column(columnDefinition = "TEXT")

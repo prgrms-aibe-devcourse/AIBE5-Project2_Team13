@@ -3,7 +3,8 @@ import apiClient from "./axios";
 export type FreelancerProfileApplyRequest = {
   memberName: string;
   specialtyCategoryId: number;
-  snsLink: string;
+  // 포트폴리오 링크는 이미지 업로드만으로도 신청 가능하므로 optional 입니다.
+  snsLink?: string;
   bio?: string;
   career?: string;
   bankAccount?: string;

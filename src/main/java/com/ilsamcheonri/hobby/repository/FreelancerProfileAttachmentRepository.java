@@ -14,6 +14,9 @@ public interface FreelancerProfileAttachmentRepository extends JpaRepository<Fre
     /** FreelancerProfileService에서 사용 — ID 오름차순 정렬 */
     List<FreelancerProfileAttachment> findByFreelancerProfileIdAndIsDeletedFalseOrderByIdAsc(Long profileId);
 
+    /** FileService에서 사용 — 포트폴리오 10장 제한을 백엔드에서 강제하기 위한 현재 첨부 수 조회 */
+    long countByFreelancerProfileIdAndIsDeletedFalse(Long profileId);
+
     Optional<FreelancerProfileAttachment> findByIdAndIsDeletedFalse(Long id);
 
     void deleteByFreelancerProfileId(Long profileId);
