@@ -30,14 +30,6 @@ export default function RequestBoard() {
     return 0;
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-64 text-gray-400 text-lg">
-        클래스 목록을 불러오는 중...
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="flex justify-center items-center h-64 text-red-400 text-lg">
@@ -57,6 +49,7 @@ export default function RequestBoard() {
         sortFn={sortFn}
         renderItem={() => null}
         wishedIds={wishedIds}
+        loading={loading}
       />
 
       <div className="fixed bottom-10 right-10 z-40">

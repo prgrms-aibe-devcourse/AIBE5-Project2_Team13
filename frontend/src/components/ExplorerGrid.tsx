@@ -34,7 +34,8 @@ interface ExplorerGridProps<T> {
   renderItem: (item: T) => React.ReactNode;
   filterFn: (item: T, query: string, category: string) => boolean;
   sortFn: (a: T, b: T, sortType: string) => number;
-  wishedIds?: Set<string>; // 찜한 classId Set — 요청 클래스 목록에서 하트 표시용
+  wishedIds?: Set<string>;
+  loading?: boolean; // 카드 영역 로딩 표시용 — 카테고리 탭은 항상 노출
 }
 
 export default function ExplorerGrid<T>({
@@ -45,6 +46,7 @@ export default function ExplorerGrid<T>({
   filterFn,
   sortFn,
   wishedIds = new Set(),
+  loading = false,
 }: ExplorerGridProps<T>) {
 
   // ✅ DB에서 가져온 실제 카테고리 목록 사용
@@ -176,7 +178,20 @@ export default function ExplorerGrid<T>({
 
       {/* 카드 그리드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-        {filteredAndSortedItems.length > 0 ? (
+        {loading ? (
+          // 카테고리 탭은 이미 보이는 상태, 카드만 스켈레톤으로 표시
+          Array.from({ length: 8 }).map((_, i) => (
+            <div key={i} className="bg-white rounded-[32px] overflow-hidden animate-pulse">
+              <div className="aspect-[4/3] bg-gray-100" />
+              <div className="p-6 space-y-3">
+                <div className="h-3 bg-gray-100 rounded w-1/3" />
+                <div className="h-5 bg-gray-100 rounded w-4/5" />
+                <div className="h-4 bg-gray-100 rounded w-1/4" />
+                <div className="h-5 bg-gray-100 rounded w-1/3 mt-4" />
+              </div>
+            </div>
+          ))
+        ) : filteredAndSortedItems.length > 0 ? (
           filteredAndSortedItems.map((item: any) => (
             <ExplorerItemCard
               key={item.id}
