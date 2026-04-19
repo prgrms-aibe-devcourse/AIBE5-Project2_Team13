@@ -72,6 +72,7 @@ public class ClassBoardService {
 
     
     @Transactional
+    // 개설된 클래스의 정보를 수정하는 기능
     public Long updateOfferClass(String email, Long id, ClassBoardCreateRequest request) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
@@ -80,7 +81,7 @@ public class ClassBoardService {
                 .findByIdAndBoardTypeAndIsDeletedFalse(id, "OFFER")
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
 
-        // 권한 검증: 작성자만 수정 가능
+        // 권한 검증
         if (!classBoard.getFreelancer().getId().equals(member.getId())) {
             throw new IllegalArgumentException("수정 권한이 없습니다.");
         }
@@ -128,6 +129,7 @@ public class ClassBoardService {
     }
 
     @Transactional
+    // 개설된 클래스를 소프트 삭제(is_deleted=1) 처리하는 기능
     public void deleteOfferClass(String email, Long id) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
@@ -142,5 +144,31 @@ public class ClassBoardService {
         }
 
         classBoard.softDelete();
+    }
+
+    /**
+     * 클래스 모집 상태 토글 (OPEN <-> CLOSE)
+     */
+    @Transactional
+    // 클래스의 모집 상태를 반전(토글)시키는 기능
+    public String toggleStatus(String email, Long id) {
+        Member member = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        ClassBoard classBoard = classBoardRepository
+                .findByIdAndBoardTypeAndIsDeletedFalse(id, "OFFER")
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
+
+        // 권한 검증
+        if (!classBoard.getFreelancer().getId().equals(member.getId())) {
+            throw new IllegalArgumentException("상태 변경 권한이 없습니다.");
+        }
+
+        // 상태 전환 로직
+        String currentStatus = classBoard.getStatus();
+        String nextStatus = "OPEN".equals(currentStatus) ? "CLOSE" : "OPEN";
+        classBoard.updateStatus(nextStatus);
+
+        return nextStatus;
     }
 }

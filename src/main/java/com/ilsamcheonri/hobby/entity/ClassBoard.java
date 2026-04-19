@@ -76,8 +76,9 @@ public class ClassBoard {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
+    @Builder.Default
     @Column(name = "is_deleted")
-    private boolean isDeleted;
+    private boolean isDeleted = false;
 
     /**
      * [비즈니스 로직] 소프트 삭제 처리
@@ -89,6 +90,7 @@ public class ClassBoard {
      * 메서드가 끝날 때 JPA가 변경된 필드를 감지해서 자동으로 UPDATE 쿼리를 날립니다.
      * (이것을 "더티 체킹(Dirty Checking)"이라고 합니다.)
      */
+    // 클래스를 삭제 상태로 변경하는 기능
     public void softDelete() {
         this.isDeleted = true;
     }
@@ -96,6 +98,7 @@ public class ClassBoard {
     /**
      * 클래스(OFFER 타입) 수정 비즈니스 메서드
      */
+    // 개설된 클래스의 정보를 일괄 수정하는 기능
     public void updateOfferClass(Category category, String title, String description, Integer price, 
                                  boolean isOnline, LocalDateTime startAt, LocalDateTime endAt, 
                                  Integer maxCapacity, String curriculum, String location) {
@@ -120,6 +123,7 @@ public class ClassBoard {
      *
      *  TODO: [추후 구현] 신청자 기능이 생기면 신청자가 있을 경우 제목/카테고리 수정 불가 로직 추가 필요
      */
+    // 요청된 클래스의 정보를 일괄 수정하는 기능
     public void updateRequestClass(Category category, String title, String description, Integer price, 
                                    boolean isOnline, java.time.LocalDateTime startAt, java.time.LocalDateTime endAt,
                                    Integer maxCapacity) {
@@ -131,5 +135,10 @@ public class ClassBoard {
         this.startAt     = startAt;
         this.endAt       = endAt;
         this.maxCapacity = maxCapacity;
+    }
+
+    // 클래스의 모집 상태(OPEN/CLOSE)를 변경하는 기능
+    public void updateStatus(String status) {
+        this.status = status;
     }
 }
