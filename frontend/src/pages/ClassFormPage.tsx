@@ -7,6 +7,69 @@ import { useCategories } from '../context/CategoryContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '@/src/lib/utils';
 
+// 커리큘럼 실시간 미리보기 컴포넌트
+function CurriculumForm({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const lines = value.split('\n').filter(line => line.trim() !== '');
+  const items = [];
+  
+  // 2줄씩 한 세트로 묶어서 주차별 제목/설명 생성
+  for (let i = 0; i < lines.length; i += 2) {
+    items.push({
+      title: lines[i],
+      description: lines[i + 1] || ''
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className="text-sm font-bold text-gray-700 ml-1">상세 커리큘럼</label>
+        <textarea 
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="수업이 어떻게 진행되는지 단계별로 설명해주세요.&#10;홀수 줄은 [주차 제목], 짝수 줄은 [주차 설명]으로 표시됩니다.&#10;예:&#10;오리엔테이션&#10;클래스 소개 및 준비물 안내"
+          className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all min-h-[180px] resize-none"
+        />
+      </div>
+
+      {/* 실시간 커리큘럼 미리보기 영역 */}
+      {items.length > 0 && (
+        <div className="mt-6 space-y-4 p-6 bg-ivory/30 rounded-[32px] border border-coral/5">
+          <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <Check size={18} className="text-coral" />
+            커리큘럼 미리보기
+          </h3>
+          <div className="space-y-3">
+            {items.map((item, index) => (
+              <motion.div 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                key={index}
+                className="flex items-start gap-5 p-5 bg-white rounded-3xl border border-coral/10 shadow-sm"
+              >
+                <div className="flex-shrink-0 w-10 h-10 bg-coral/10 text-coral rounded-full flex items-center justify-center font-bold text-sm">
+                  {index + 1}
+                </div>
+                <div className="flex-1 pt-1">
+                  <h4 className="font-bold text-gray-900 mb-1">
+                    {index + 1}주차: {item.title.trim()}
+                  </h4>
+                  {item.description && (
+                    <p className="text-sm text-gray-500 leading-relaxed">
+                      {item.description.trim()}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ClassFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -338,16 +401,7 @@ export default function ClassFormPage() {
               상세 커리큘럼 및 인원
             </h2>
             
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-gray-700 ml-1">상세 커리큘럼</label>
-              <textarea 
-                required
-                value={curriculum}
-                onChange={(e) => setCurriculum(e.target.value)}
-                placeholder="수업이 어떻게 진행되는지 단계별로 설명해주세요."
-                className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all min-h-[150px] resize-none"
-              />
-            </div>
+            <CurriculumForm value={curriculum} onChange={setCurriculum} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
