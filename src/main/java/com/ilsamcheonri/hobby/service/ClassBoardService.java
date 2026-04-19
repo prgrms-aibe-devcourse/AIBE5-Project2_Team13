@@ -168,6 +168,7 @@ public class ClassBoardService {
         String currentStatus = classBoard.getStatus();
         String nextStatus = "OPEN".equals(currentStatus) ? "CLOSE" : "OPEN";
         classBoard.updateStatus(nextStatus);
+        classBoardRepository.save(classBoard);
 
         return nextStatus;
     }

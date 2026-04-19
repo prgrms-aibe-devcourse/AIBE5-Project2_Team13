@@ -5,22 +5,39 @@ import { useClasses } from '../context/ClassContext';
 import { useWish } from '../context/WishContext';
 
 export default function BrowseClasses() {
-  const { classes } = useClasses();
+  const { classes, fetchClasses } = useClasses();
   const { wishedIds } = useWish();
   
-  const filterFn = (item: ClassItem, query: string, category: string) => {
+  const filterFn = (item: ClassItem, query: string, category: string, locationFilter: string, onlyRecruiting: boolean) => {
     const matchesCategory = category === 'all' || item.category === category;
     const matchesSearch = item.title.toLowerCase().includes(query.toLowerCase()) || 
                          item.freelancer.toLowerCase().includes(query.toLowerCase());
-    return matchesCategory && matchesSearch;
+
+    //온라인/오프라인 필터
+    const matchesLocation =
+      locationFilter === 'all' ||
+      (locationFilter === 'online'  && !item.isOffline) ||
+      (locationFilter === 'offline' &&  item.isOffline);
+
+    const matchesRecruiting = !onlyRecruiting || item.status === 'OPEN';
+
+    return matchesCategory && matchesSearch && matchesLocation && matchesRecruiting;
+  };
+
+  //정렬 기능
+  const sortStrategies: Record<string, (a: ClassItem, b: ClassItem) => number> = {
+    priceLow: (a, b) => a.price - b.price,
+    priceHigh: (a, b) => b.price - a.price,
+    rating: (a, b) => (b.rating || 0) - (a.rating || 0),
+    latest: (a, b) => {
+      // 여기서만 날짜 변환 (미리 데이터에 타임스탬프를 심어두면 더 빠름!)
+      return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+    }
   };
 
   const sortFn = (a: ClassItem, b: ClassItem, sortType: string) => {
-    if (sortType === 'priceLow') return a.price - b.price;
-    if (sortType === 'priceHigh') return b.price - a.price;
-    if (sortType === 'rating') return b.rating - a.rating;
-    if (sortType === 'latest') return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-    return 0;
+    const strategy = sortStrategies[sortType];
+    return strategy ? strategy(a, b) : 0;
   };
 
   return (
@@ -32,7 +49,8 @@ export default function BrowseClasses() {
       filterFn={filterFn}
       sortFn={sortFn}
       wishedIds={wishedIds}
-      renderItem={() => null} // Not used as ExplorerGrid handles rendering via ExplorerItemCard
+      renderItem={() => null}
+      onFilterChange={fetchClasses} // 필터 변경 시 API 재호출 (서버 데이터 최신화)
     />
   );
 }

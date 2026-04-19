@@ -16,6 +16,7 @@ export interface ClassItem {
   maxCapacity?: number;
   curriculum?: string;
   description?: string;
+  status?: string;
   createdAt: string;
   updatedAt?: string;
 }

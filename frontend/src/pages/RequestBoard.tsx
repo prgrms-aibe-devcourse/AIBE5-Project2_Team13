@@ -11,7 +11,7 @@ export default function RequestBoard() {
   const { requests, loading, error } = useRequests();
   const { wishedIds } = useWish();
 
-  const filterFn = (item: RequestItem, query: string, category: string) => {
+  const filterFn = (item: RequestItem, query: string, category: string, _locationFilter: string, _onlyRecruiting: boolean) => {
     const matchesCategory = category === 'all' || item.category === category;
     const matchesSearch = item.title.toLowerCase().includes(query.toLowerCase()) ||
                          item.author.toLowerCase().includes(query.toLowerCase());

@@ -17,6 +17,7 @@ interface CreateClassPayload {
 
 interface ClassContextType {
   classes: ClassItem[];
+  fetchClasses: () => Promise<void>;
   addClass: (newClass: CreateClassPayload) => Promise<void>;
   deleteClass: (id: string) => Promise<void>;
   updateClass: (id: string, updatedClass: CreateClassPayload) => Promise<void>;
@@ -61,6 +62,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     reviews: 0,
     isOffline: !isOnline,
     location: !isOnline ? api.location ?? '오프라인 장소' : undefined,
+    status: api.status,
     startAt: api.startAt,
     endAt: api.endAt,
     maxCapacity: api.maxCapacity,
@@ -132,7 +134,7 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <ClassContext.Provider value={{ classes, addClass, deleteClass, updateClass, toggleStatus }}>
+    <ClassContext.Provider value={{ classes, fetchClasses, addClass, deleteClass, updateClass, toggleStatus }}>
       {children}
     </ClassContext.Provider>
   );
