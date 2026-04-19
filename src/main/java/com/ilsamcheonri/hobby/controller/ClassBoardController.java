@@ -37,6 +37,7 @@ public class ClassBoardController {
     }
 
     @PutMapping("/{id}")
+    // 클래스 수정 요청을 처리하는 API
     public ResponseEntity<Long> updateClass(
             @PathVariable Long id,
             @RequestBody @Valid ClassBoardCreateRequest request,  // 또는 별도의 수정용 DTO
@@ -46,12 +47,26 @@ public class ClassBoardController {
     }
 
     @DeleteMapping("/{id}")
+    // 클래스 삭제 요청을 처리하는 API
     public ResponseEntity<Void> deleteClass(
             @PathVariable Long id,
             @AuthenticationPrincipal String email
     ) {
         classBoardService.deleteOfferClass(email, id);
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * 클래스 모집 상태 토글 (OPEN <-> CLOSE)
+     */
+    @PatchMapping("/{id}/status")
+    // 클래스 모집 상태 전환 요청을 처리하는 API
+    public ResponseEntity<String> toggleStatus(
+            @PathVariable Long id,
+            @AuthenticationPrincipal String email
+    ) {
+        String nextStatus = classBoardService.toggleStatus(email, id);
+        return ResponseEntity.ok(nextStatus);
     }
 
 }

@@ -7,7 +7,7 @@ import { useCategories } from '../context/CategoryContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '@/src/lib/utils';
 
-// 커리큘럼 실시간 미리보기 컴포넌트
+// 입력된 텍스트를 분석하여 주차별 커리큘럼 미리보기를 생성하는 컴포넌트
 function CurriculumForm({ value, onChange }: { value: string; onChange: (val: string) => void }) {
   const lines = value.split('\n').filter(line => line.trim() !== '');
   const items = [];

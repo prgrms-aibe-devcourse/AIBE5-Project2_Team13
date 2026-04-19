@@ -17,9 +17,11 @@ interface CreateClassPayload {
 
 interface ClassContextType {
   classes: ClassItem[];
+  fetchClasses: () => Promise<void>;
   addClass: (newClass: CreateClassPayload) => Promise<void>;
   deleteClass: (id: string) => Promise<void>;
   updateClass: (id: string, updatedClass: CreateClassPayload) => Promise<void>;
+  toggleStatus: (id: string) => Promise<void>;
 }
 
 const ClassContext = createContext<ClassContextType | undefined>(undefined);
@@ -30,6 +32,7 @@ interface ClassApiResponse {
   description?: string;
   categoryName: string;
   freelancerName: string;
+  freelancerEmail: string;
   freelancerId: number;
   price: number;
   isOnline: boolean;
@@ -50,6 +53,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     id: String(api.id),
     title: api.title,
     freelancer: api.freelancerName,
+    freelancerEmail: api.freelancerEmail,
     freelancerId: String(api.freelancerId),
     price: api.price,
     category: api.categoryName,
@@ -58,6 +62,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     reviews: 0,
     isOffline: !isOnline,
     location: !isOnline ? api.location ?? '오프라인 장소' : undefined,
+    status: api.status,
     startAt: api.startAt,
     endAt: api.endAt,
     maxCapacity: api.maxCapacity,
@@ -94,6 +99,7 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // 클래스를 삭제하는 기능 (API 호출 후 로컬 상태 반영)
   const deleteClass = async (id: string) => {
     try {
       await apiClient.delete(`/classes/${id}`);
@@ -104,6 +110,7 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // 클래스 정보를 수정하는 기능 (API 호출 후 목록 새로고침)
   const updateClass = async (id: string, updatedClass: CreateClassPayload) => {
     try {
       await apiClient.put(`/classes/${id}`, updatedClass);
@@ -114,8 +121,20 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // 클래스의 모집 상태를 반전(토글)시키는 기능 (API 호출 후 로컬 상태 반영)
+  const toggleStatus = async (id: string) => {
+    try {
+      const response = await apiClient.patch<string>(`/classes/${id}/status`);
+      const nextStatus = response.data;
+      setClasses(prev => prev.map(c => c.id === id ? { ...c, status: nextStatus } : c));
+    } catch (error) {
+      console.error('클래스 상태 변경 실패:', error);
+      throw error;
+    }
+  };
+
   return (
-    <ClassContext.Provider value={{ classes, addClass, deleteClass, updateClass }}>
+    <ClassContext.Provider value={{ classes, fetchClasses, addClass, deleteClass, updateClass, toggleStatus }}>
       {children}
     </ClassContext.Provider>
   );

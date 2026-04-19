@@ -2,6 +2,7 @@ export interface ClassItem {
   id: string;
   title: string;
   freelancer: string;
+  freelancerEmail?: string;
   freelancerId?: string;
   price: number;
   category: string;
@@ -15,6 +16,7 @@ export interface ClassItem {
   maxCapacity?: number;
   curriculum?: string;
   description?: string;
+  status?: string;
   createdAt: string;
   updatedAt?: string;
 }
@@ -120,6 +122,7 @@ export const CATEGORIES = [
   { id: 'etc', name: '기타', icon: 'MoreHorizontal' },
 ];
 
+//클래스 더미데이터
 export const MOCK_CLASSES: ClassItem[] = [
   {
     id: '1',

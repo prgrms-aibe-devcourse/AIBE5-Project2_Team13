@@ -83,7 +83,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const { user, loading: authLoading, logout, refreshCurrentUser } = useAuth();
   const { enrollments, updateEnrollmentStatus } = useEnrollments();
   const { reports } = useReports();
-  const { classes, deleteClass } = useClasses();
+  const { classes, deleteClass, toggleStatus } = useClasses();
   const { freelancers } = useFreelancers();
   const { followingIds, toggleFollow } = useFollow();
   const { categories } = useCategories();
@@ -366,8 +366,8 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   }, [authLoading, userRole]);
   
   const appliedClasses = classes.slice(2, 4);
-  const currentUserName = myDetail?.name || user?.name || '';
-  const teachingClasses = classes.filter(c => c.freelancer === currentUserName);
+  const currentUserEmail = user?.email || '';
+  const teachingClasses = classes.filter(c => c.freelancerEmail === currentUserEmail);
   const pickedClasses = classes.filter(item => wishedIds.has(item.id));
   const pickedRequests = requests.filter(item => wishedIds.has(item.id));
 
@@ -719,9 +719,9 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                         referrerPolicy="no-referrer" 
                         onClick={() => handleClassClick(item.id)}
                       />
-                      <div>
+                      <div className="min-w-0 flex-1">
                         <h4 
-                          className="font-bold text-gray-900 mb-1 cursor-pointer hover:text-coral transition-colors"
+                          className="font-bold text-gray-900 mb-1 cursor-pointer hover:text-coral transition-colors line-clamp-1"
                           onClick={() => handleClassClick(item.id)}
                         >
                           {item.title}
@@ -732,7 +732,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     <button 
                       onClick={() => existingReview ? handleEditReview(existingReview) : handleCreateReview(item)}
                       className={cn(
-                        "w-full md:w-auto px-8 py-3 font-bold rounded-2xl transition-all shadow-lg",
+                        "w-full md:w-auto px-8 py-3 font-bold rounded-2xl transition-all shadow-lg flex-shrink-0 whitespace-nowrap",
                         existingReview 
                           ? "bg-white text-coral border border-coral hover:bg-coral/5 shadow-coral/10" 
                           : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
@@ -857,7 +857,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                 </div>
                 <button 
                   onClick={() => toggleFollow(freelancer.id)}
-                  className="px-4 py-2 bg-coral/10 text-coral font-bold rounded-xl hover:bg-coral hover:text-white transition-all text-xs"
+                  className="px-4 py-2 bg-coral/10 text-coral font-bold rounded-xl hover:bg-coral hover:text-white transition-all text-xs flex-shrink-0 whitespace-nowrap"
                 >
                   팔로잉 중
                 </button>
@@ -1169,6 +1169,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     setIsDeleteConfirmModalOpen(true);
   };
 
+  // 모달에서 삭제 확인 시 실제 API 호출 및 UI 업데이트 기능
   const handleConfirmDeleteClass = async () => {
     if (selectedClassId) {
       try {
@@ -1180,6 +1181,16 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
         setIsDeleteConfirmModalOpen(false);
         setSelectedClassId(null);
       }
+    }
+  };
+
+  // 버튼 클릭 시 클래스 모집 상태 토글 기능을 호출하는 핸들러
+  const handleToggleStatus = async (id: string) => {
+    try {
+      await toggleStatus(id);
+      showToast('모집 상태가 변경되었습니다.');
+    } catch (error) {
+      showToast('상태 변경 중 오류가 발생했습니다.', 'error');
     }
   };
 
@@ -1200,13 +1211,31 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           <div key={item.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex gap-6 items-center shadow-sm group hover:border-coral transition-all">
             <img src={item.image} alt={item.title} className="w-20 h-20 rounded-2xl object-cover" referrerPolicy="no-referrer" />
             <div className="flex-1">
-              <h4 className="font-bold text-gray-900 mb-1 line-clamp-1">{item.title}</h4>
+              <div className="flex items-center gap-2 mb-1">
+                <h4 className="font-bold text-gray-900 line-clamp-1 flex-1">{item.title}</h4>
+                <span className={cn(
+                  "px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 whitespace-nowrap",
+                  item.status === 'OPEN' ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"
+                )}>
+                  {item.status === 'OPEN' ? '모집 중' : '모집 마감'}
+                </span>
+              </div>
               <div className="flex items-center gap-3 text-sm text-gray-400">
                 <span className="flex items-center gap-1"><Users size={14} /> 12명</span>
                 <span className="flex items-center gap-1"><Star size={14} className="text-coral fill-coral" /> {item.rating}</span>
               </div>
             </div>
             <div className="flex flex-col gap-2">
+              <button 
+                onClick={() => handleToggleStatus(item.id)}
+                className={cn(
+                  "p-2 rounded-xl transition-all",
+                  item.status === 'OPEN' ? "text-green-500 hover:bg-green-50" : "text-gray-400 hover:bg-gray-50"
+                )}
+                title={item.status === 'OPEN' ? "모집 마감하기" : "모집 시작하기"}
+              >
+                {item.status === 'OPEN' ? <CheckCircle size={18} /> : <Ban size={18} />}
+              </button>
               <button 
                 onClick={() => navigate(`/class/edit/${item.id}`)}
                 className="p-2 text-coral hover:bg-coral/10 rounded-xl transition-all"

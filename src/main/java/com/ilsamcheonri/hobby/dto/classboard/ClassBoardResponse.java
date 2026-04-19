@@ -17,6 +17,7 @@ public class ClassBoardResponse {
     private String description;
     private String categoryName;
     private String freelancerName;
+    private String freelancerEmail;
     private Long freelancerId;
     private Integer price;
     private Boolean isOnline;
@@ -36,6 +37,7 @@ public class ClassBoardResponse {
                 .description(classBoard.getDescription())
                 .categoryName(classBoard.getCategory().getName())
                 .freelancerName(classBoard.getFreelancer().getName())
+                .freelancerEmail(classBoard.getFreelancer().getEmail())
                 .freelancerId(classBoard.getFreelancer().getId())
                 .price(classBoard.getPrice())
                 .isOnline(classBoard.isOnline())

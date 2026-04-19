@@ -78,7 +78,19 @@ public class DataInitConfig {
             }
 
             alignFreelancerProfileSchema(jdbcTemplate);
+            initializeIsDeletedColumn(jdbcTemplate);
         };
+    }
+
+    private void initializeIsDeletedColumn(JdbcTemplate jdbcTemplate) {
+        try {
+            // CLASS_BOARD 테이블의 is_deleted 컬럼이 NULL인 경우 false(0)로 초기화
+            // (새 컬럼 추가 시 기존 데이터 보정용)
+            jdbcTemplate.execute("UPDATE CLASS_BOARD SET is_deleted = false WHERE is_deleted IS NULL");
+            System.out.println("✅ [DataInitConfig] CLASS_BOARD 테이블 is_deleted 필드 초기화 완료");
+        } catch (Exception exception) {
+            System.out.println("⚠️ [DataInitConfig] is_deleted 필드 초기화 생략 (컬럼 부재 등): " + exception.getMessage());
+        }
     }
 
     /**

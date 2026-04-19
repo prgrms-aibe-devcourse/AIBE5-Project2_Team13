@@ -175,6 +175,7 @@ public class RequestClassService {
      * @return 수정된 요청 클래스 응답 DTO
      */
     @Transactional
+    // 요청된 클래스의 정보를 수정하는 기능
     public RequestClassResponse updateRequestClass(Long id, String email, RequestClassUpdateRequest request) {
 
         // 1단계: 수정 대상 게시글 조회
