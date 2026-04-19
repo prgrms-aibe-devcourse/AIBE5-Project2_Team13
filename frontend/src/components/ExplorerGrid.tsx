@@ -246,7 +246,7 @@ export default function ExplorerGrid<T>({
               lessonType={item.lessonType}
               rating={item.rating}
               reviews={item.reviews}
-              status={type === 'request' ? '요청 중' : undefined}
+              status={type === 'request' ? '요청 중' : item.status}
               isWished={wishedIds.has(item.id)}
               onWishToggle={wishedIds.has(item.id) ? () => toggleWish(item.id) : undefined}
             />
