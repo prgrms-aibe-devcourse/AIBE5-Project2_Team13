@@ -70,6 +70,7 @@ public class ClassBoardService {
         return classBoardRepository.save(offerClass).getId();
     }
 
+    
     @Transactional
     public Long updateOfferClass(String email, Long id, ClassBoardCreateRequest request) {
         Member member = memberRepository.findByEmail(email)
@@ -89,48 +90,39 @@ public class ClassBoardService {
             throw new IllegalArgumentException("종료 일시는 시작 일시보다 이후여야 합니다.");
         }
 
-        // 카테고리 업데이트
+        // 카테고리 준비
+        Category category = classBoard.getCategory();
         if (request.getCategoryId() != null) {
-            Category category = categoryRepository.findById(request.getCategoryId())
+            category = categoryRepository.findById(request.getCategoryId())
                     .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다."));
-            classBoard.updateCategory(category);
         }
 
-        // 필드 업데이트
-        if (request.getTitle() != null) {
-            classBoard.updateTitle(request.getTitle());
-        }
-        if (request.getDescription() != null) {
-            classBoard.updateDescription(request.getDescription());
-        }
-        if (request.getPrice() != null) {
-            classBoard.updatePrice(request.getPrice());
-        }
+        // 온/오프라인 및 위치 정보 로직 처리
+        boolean isOnline = request.getIsOnline() != null ? request.getIsOnline() : classBoard.isOnline();
+        String location = classBoard.getLocation();
         if (request.getIsOnline() != null) {
-            classBoard.updateIsOnline(request.getIsOnline());
-            // 온라인으로 변경 시 위치 정보 초기화 (선택 사항, 여기서는 사용자의 요구에 따라 오프라인일 때만 위치 정보 반영)
-            if (!request.getIsOnline() && request.getLocation() != null) {
-                classBoard.updateLocation(request.getLocation());
-            } else if (request.getIsOnline()) {
-                classBoard.updateLocation(null);
+            if (request.getIsOnline()) {
+                location = null;
+            } else if (request.getLocation() != null) {
+                location = request.getLocation();
             }
         } else if (request.getLocation() != null) {
-            // isOnline이 null이더라도 location이 들어왔다면 업데이트 (기존 상태 유지하며 위치만 변경하는 경우 대비)
-            classBoard.updateLocation(request.getLocation());
+            location = request.getLocation();
         }
 
-        if (request.getStartAt() != null) {
-            classBoard.updateStartAt(request.getStartAt());
-        }
-        if (request.getEndAt() != null) {
-            classBoard.updateEndAt(request.getEndAt());
-        }
-        if (request.getMaxCapacity() != null) {
-            classBoard.updateMaxCapacity(request.getMaxCapacity());
-        }
-        if (request.getCurriculum() != null) {
-            classBoard.updateCurriculum(request.getCurriculum());
-        }
+        // 통합 업데이트 메서드 호출
+        classBoard.updateOfferClass(
+                category,
+                request.getTitle() != null ? request.getTitle() : classBoard.getTitle(),
+                request.getDescription() != null ? request.getDescription() : classBoard.getDescription(),
+                request.getPrice() != null ? request.getPrice() : classBoard.getPrice(),
+                isOnline,
+                request.getStartAt() != null ? request.getStartAt() : classBoard.getStartAt(),
+                request.getEndAt() != null ? request.getEndAt() : classBoard.getEndAt(),
+                request.getMaxCapacity() != null ? request.getMaxCapacity() : classBoard.getMaxCapacity(),
+                request.getCurriculum() != null ? request.getCurriculum() : classBoard.getCurriculum(),
+                location
+        );
 
         return classBoard.getId();
     }

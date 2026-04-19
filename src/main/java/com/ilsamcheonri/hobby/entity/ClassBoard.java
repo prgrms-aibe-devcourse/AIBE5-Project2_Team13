@@ -94,18 +94,37 @@ public class ClassBoard {
     }
 
     /**
-     * 요청 클래스 수정 비즈니스 메서드
-     *
-     * 제목(title)과 카테고리(category)는 수정 불가 — 파라미터에서 제외
-     * 수정 가능 항목: 상세설명, 가격, 온/오프라인, 시작/종료일시, 최대인원
+     * 클래스(OFFER 타입) 수정 비즈니스 메서드
+     */
+    public void updateOfferClass(Category category, String title, String description, Integer price, 
+                                 boolean isOnline, LocalDateTime startAt, LocalDateTime endAt, 
+                                 Integer maxCapacity, String curriculum, String location) {
+        this.category    = category;
+        this.title       = title;
+        this.description = description;
+        this.price       = price;
+        this.isOnline    = isOnline;
+        this.startAt     = startAt;
+        this.endAt       = endAt;
+        this.maxCapacity = maxCapacity;
+        this.curriculum  = curriculum;
+        this.location    = location;
+    }
+
+    /**
+     * 클래스 수정 메서드
      *
      * JPA 더티 체킹(Dirty Checking):
      * @Transactional 안에서 이 메서드를 호출하면 필드가 변경됐음을 JPA가 감지하고
      * 트랜잭션 종료 시점에 자동으로 UPDATE 쿼리를 실행합니다. (save() 호출 불필요)
+     *
+     *  TODO: [추후 구현] 신청자 기능이 생기면 신청자가 있을 경우 제목/카테고리 수정 불가 로직 추가 필요
      */
-    public void updateRequestClass(String description, Integer price, boolean isOnline,
-                                   java.time.LocalDateTime startAt, java.time.LocalDateTime endAt,
+    public void updateRequestClass(Category category, String title, String description, Integer price, 
+                                   boolean isOnline, java.time.LocalDateTime startAt, java.time.LocalDateTime endAt,
                                    Integer maxCapacity) {
+        this.category    = category;
+        this.title       = title;
         this.description = description;
         this.price       = price;
         this.isOnline    = isOnline;
@@ -113,16 +132,4 @@ public class ClassBoard {
         this.endAt       = endAt;
         this.maxCapacity = maxCapacity;
     }
-
-    // 업데이트 메서드들
-    public void updateCategory(Category category) { this.category = category; }
-    public void updateTitle(String title) { this.title = title; }
-    public void updateDescription(String description) { this.description = description; }
-    public void updatePrice(Integer price) { this.price = price; }
-    public void updateIsOnline(Boolean isOnline) { this.isOnline = isOnline; }
-    public void updateStartAt(LocalDateTime startAt) { this.startAt = startAt; }
-    public void updateEndAt(LocalDateTime endAt) { this.endAt = endAt; }
-    public void updateMaxCapacity(Integer maxCapacity) { this.maxCapacity = maxCapacity; }
-    public void updateCurriculum(String curriculum) { this.curriculum = curriculum; }
-    public void updateLocation(String location) { this.location = location; }
 }

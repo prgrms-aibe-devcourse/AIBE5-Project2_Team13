@@ -169,16 +169,9 @@ public class RequestClassService {
     /**
      * 요청 클래스를 수정합니다.
      *
-     * 수정 불가 항목: 제목(title), 카테고리(category)
-     * 수정 가능 항목: 상세설명, 가격, 온/오프라인, 시작/종료일시, 최대인원
-     *
-     * 수정 불가 이유:
-     * - 프리랜서들이 요청 클래스를 보고 문의를 준비 중일 수 있습니다.
-     * - 제목/카테고리가 바뀌면 기존에 보던 클래스를 다시 찾기 어려워집니다.
-     *
      * @param id      수정할 요청 클래스 ID
      * @param email   현재 로그인한 사용자 이메일 (본인 확인용)
-     * @param request 수정할 내용 (제목·카테고리 제외)
+     * @param request 수정할 내용
      * @return 수정된 요청 클래스 응답 DTO
      */
     @Transactional
@@ -199,8 +192,17 @@ public class RequestClassService {
             throw new IllegalArgumentException("종료 일시는 시작 일시보다 이후여야 합니다.");
         }
 
-        // 4단계: 수정 적용 (JPA 더티 체킹으로 자동 UPDATE)
+        // 4단계: 카테고리 정보 조회 (수정된 경우)
+        Category category = requestClass.getCategory();
+        if (request.getCategoryId() != null) {
+            category = categoryRepository.findById(request.getCategoryId())
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다."));
+        }
+
+        // 5단계: 수정 적용 (JPA 더티 체킹으로 자동 UPDATE)
         requestClass.updateRequestClass(
+                category,
+                request.getTitle() != null ? request.getTitle() : requestClass.getTitle(),
                 request.getDescription(),
                 request.getPrice() != null ? request.getPrice() : 0,
                 request.getIsOnline(),

@@ -11,19 +11,18 @@ import java.time.LocalDateTime;
 
 /**
  * 📥 요청 클래스 수정 시 프론트엔드에서 받아오는 데이터 DTO
- *
- * ⭐ 제목(title)과 카테고리(categoryId)는 수정 불가 — 필드 자체를 제외합니다.
- *
- * 수정 불가 이유:
- * - 프리랜서들이 요청 클래스를 보고 문의를 준비 중일 수 있습니다.
- * - 제목/카테고리가 바뀌면 기존에 보던 클래스를 다시 찾기 어려워집니다.
- * - 수정 가능 항목: 상세 설명, 가격, 온/오프라인, 시작/종료 일시, 최대 인원
  */
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class RequestClassUpdateRequest {
+
+    /** 제목 */
+    private String title;
+
+    /** 카테고리 ID */
+    private Long categoryId;
 
     /** 상세 설명 — 자유롭게 수정 가능 */
     private String description;
