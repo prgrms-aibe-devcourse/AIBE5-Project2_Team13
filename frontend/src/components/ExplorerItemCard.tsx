@@ -116,23 +116,26 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
             />
           )}
 
-          {/* 카테고리 + 상태 뱃지 */}
-          <div className="absolute top-4 left-4 flex gap-2">
+          {/* 카테고리 뱃지 (좌측 상단) */}
+          <div className="absolute top-4 left-4 z-10">
             <div className={cn(
-              "px-3 py-1 bg-black/50 backdrop-blur-sm rounded-lg text-[13px] font-bold text-white shadow-sm",
+              "px-3 py-1 bg-black/50 backdrop-blur-sm rounded-lg text-[13px] font-bold text-white shadow-sm w-fit",
               compact && "px-2.5 py-1 text-[12px]"
             )}>
               {categoryName}
             </div>
-            {status && (
-              <div className={cn(
-                "px-3 py-1 bg-coral text-white rounded-lg text-[13px] font-bold shadow-sm",
-                compact && "px-2.5 py-1 text-[12px]"
-              )}>
-                {status}
-              </div>
-            )}
           </div>
+
+          {/* 모집 상태 뱃지 (우측 상단) - 모집마감일 때만 노출 */}
+          {type === 'class' && status !== 'OPEN' && (
+            <div className={cn(
+              "absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm w-fit flex-shrink-0 whitespace-nowrap bg-gray-400 text-white",
+              compact && "px-2.5 py-0.5 text-[10px]",
+              isWished && "right-14" // 하트 아이콘이 있을 경우 왼쪽으로 이동
+            )}>
+              모집마감
+            </div>
+          )}
 
           {/* 찜 하트 아이콘 — 찜한 클래스에만 표시 */}
           {isWished && (
