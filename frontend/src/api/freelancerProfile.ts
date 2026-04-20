@@ -38,6 +38,7 @@ export type FreelancerProfileDetailResponse = {
   freelancerId: number;
   profileId: number;
   memberName: string;
+  memberEmail: string;   // 본인 여부 판단용 (팔로우 버튼 숨김)
   memberImageUrl: string | null;
   memberAddress: string | null;
   specialtyCategoryId: number | null;

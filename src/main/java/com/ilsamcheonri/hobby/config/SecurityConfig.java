@@ -73,6 +73,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()
                         // 파일 다운로드 — 로그인 없이 접근 가능 (이미지 표시용)
                         .requestMatchers(HttpMethod.GET, "/api/files/download/**").permitAll()
+                        // 팔로워 수 조회 — 비로그인 허용 (프리랜서 프로필 공개 정보)
+                        .requestMatchers(HttpMethod.GET, "/api/follows/*/count").permitAll()
                         .requestMatchers("/api/member/**").authenticated()
                         .anyRequest().authenticated()
                 )
