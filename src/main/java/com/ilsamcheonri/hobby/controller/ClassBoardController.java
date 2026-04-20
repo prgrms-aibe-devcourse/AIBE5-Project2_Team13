@@ -2,6 +2,7 @@ package com.ilsamcheonri.hobby.controller;
 
 import com.ilsamcheonri.hobby.dto.classboard.ClassBoardCreateRequest;
 import com.ilsamcheonri.hobby.dto.classboard.ClassBoardResponse;
+import com.ilsamcheonri.hobby.dto.classboard.ClassDetailResponse;
 import com.ilsamcheonri.hobby.service.ClassBoardService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -18,36 +19,39 @@ public class ClassBoardController {
 
     private final ClassBoardService classBoardService;
 
+    // 전체 클래스 목록 조회
     @GetMapping
     public ResponseEntity<List<ClassBoardResponse>> getClassList() {
         return ResponseEntity.ok(classBoardService.getOfferClassList());
     }
 
+    // 특정 클래스 상세 조회
     @GetMapping("/{id}")
-    public ResponseEntity<ClassBoardResponse> getClass(@PathVariable Long id) {
-        return ResponseEntity.ok(classBoardService.getOfferClass(id));
+    public ResponseEntity<ClassDetailResponse> getClass(@PathVariable Long id) {
+        return ResponseEntity.ok(classBoardService.getDetails(id));
     }
 
+    // 클래스 등록
     @PostMapping
     public ResponseEntity<Long> createClass(
-            @RequestBody @Valid ClassBoardCreateRequest request,
+            @ModelAttribute @Valid ClassBoardCreateRequest request,
             @AuthenticationPrincipal String email
     ) {
         return ResponseEntity.ok(classBoardService.createOfferClass(email, request));
     }
 
+    // 클래스 정보 수정
     @PutMapping("/{id}")
-    // 클래스 수정 요청을 처리하는 API
     public ResponseEntity<Long> updateClass(
             @PathVariable Long id,
-            @RequestBody @Valid ClassBoardCreateRequest request,  // 또는 별도의 수정용 DTO
+            @ModelAttribute @Valid ClassBoardCreateRequest request,
             @AuthenticationPrincipal String email
     ) {
         return ResponseEntity.ok(classBoardService.updateOfferClass(email, id, request));
     }
 
+    // 클래스 삭제
     @DeleteMapping("/{id}")
-    // 클래스 삭제 요청을 처리하는 API
     public ResponseEntity<Void> deleteClass(
             @PathVariable Long id,
             @AuthenticationPrincipal String email
@@ -56,11 +60,8 @@ public class ClassBoardController {
         return ResponseEntity.ok().build();
     }
 
-    /**
-     * 클래스 모집 상태 토글 (OPEN <-> CLOSE)
-     */
+    // 클래스 모집 상태 토글 (OPEN <-> CLOSE)
     @PatchMapping("/{id}/status")
-    // 클래스 모집 상태 전환 요청을 처리하는 API
     public ResponseEntity<String> toggleStatus(
             @PathVariable Long id,
             @AuthenticationPrincipal String email
@@ -68,5 +69,4 @@ public class ClassBoardController {
         String nextStatus = classBoardService.toggleStatus(email, id);
         return ResponseEntity.ok(nextStatus);
     }
-
 }

@@ -38,7 +38,7 @@ export default function ClassDetail() {
   const { classes } = useClasses();
   const { toggleFollow, isFollowing: checkFollowing, followLoading } = useFollow();
   const { isWished, syncWishStatus, toggleWish } = useWish();
-  const [detailItem, setDetailItem] = useState<ClassItem | null>(null);
+  const [detailItem, setDetailItem] = useState<(ClassItem & { detailImages?: string[] }) | null>(null);
   
   const [wishLoading, setWishLoading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -102,7 +102,6 @@ export default function ClassDetail() {
   useEffect(() => {
     if (itemFromContext) {
       setDetailItem(itemFromContext);
-      return;
     }
 
     const fetchClass = async () => {
@@ -110,6 +109,12 @@ export default function ClassDetail() {
       try {
         const response = await apiClient.get(`/classes/${id}`);
         const apiClass = response.data;
+        //이미지 파일이 헤더에 들어가게
+        const detailImages = Array.isArray(apiClass.images)
+          ? apiClass.images
+              .map((image: { fileUrl?: string | null }) => image.fileUrl)
+              .filter((fileUrl: string | null | undefined): fileUrl is string => !!fileUrl)
+          : [];
         setDetailItem({
           id: String(apiClass.id),
           title: apiClass.title,
@@ -118,15 +123,20 @@ export default function ClassDetail() {
           freelancerId: String(apiClass.freelancerId),
           price: apiClass.price,
           category: apiClass.categoryName,
-          image: `https://picsum.photos/seed/class${apiClass.id}/400/300`,
+          image: apiClass.representativeImageUrl || detailImages[0] || `https://picsum.photos/seed/class${apiClass.id}/400/300`,
           rating: 0,
           reviews: 0,
           isOffline: !apiClass.isOnline,
           location: apiClass.isOnline ? undefined : apiClass.location,
+          startAt: apiClass.startAt,
+          endAt: apiClass.endAt,
+          maxCapacity: apiClass.maxCapacity,
           curriculum: apiClass.curriculum,
           description: apiClass.description,
+          status: apiClass.status,
           createdAt: apiClass.createdAt ?? new Date().toISOString(),
           updatedAt: apiClass.updatedAt,
+          detailImages,
         });
       } catch (error) {
         console.error('클래스 상세 조회 실패:', error);
@@ -381,14 +391,20 @@ export default function ClassDetail() {
               <h2 className="text-2xl font-bold text-gray-900 mb-6">클래스 소개</h2>
               <div className="prose prose-coral max-w-none text-gray-600 leading-relaxed space-y-4">
                 <p className="whitespace-pre-wrap">{(item as any).description || `${item.title} 클래스에 오신 것을 환영합니다! 포근한 분위기 속에서 즐겁게 새로운 취미를 시작해보세요.`}</p>
-                <div className="rounded-3xl overflow-hidden mt-8">
-                  <img 
-                    src={`https://picsum.photos/seed/${item.id}-detail/1200/800`} 
-                    alt="Service Detail" 
-                    className="w-full h-auto grayscale hover:grayscale-0 transition-all duration-700"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
+                {/* 본문에 이미지 추가*/}
+                {!!(item as any).detailImages?.length && (
+                  <div className="space-y-6 mt-8">
+                    {(item as any).detailImages.map((imageUrl: string, index: number) => (
+                      <div key={`${imageUrl}-${index}`} className="rounded-3xl overflow-hidden border border-coral/10 bg-ivory/20">
+                        <img
+                          src={imageUrl}
+                          alt={`${item.title} 상세 이미지 ${index + 1}`}
+                          className="w-full h-auto object-cover"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </section>
 

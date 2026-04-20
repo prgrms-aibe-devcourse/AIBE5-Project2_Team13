@@ -8,12 +8,14 @@ import lombok.NoArgsConstructor;
 
 import java.util.List;
 
+/**
+ * 클래스 상세 정보를 반환하기 위한 DTO (이미지 리스트 포함)
+ */
 @Getter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ClassBoardResponse {
-
+public class ClassDetailResponse {
     private Long id;
     private String title;
     private String description;
@@ -31,22 +33,15 @@ public class ClassBoardResponse {
     private String location;
     private String createdAt;
     private String updatedAt;
-    private List<ClassAttachmentResponse> attachments;
+
+    // 첨부 이미지 리스트
+    private List<ClassAttachmentResponse> images;
+
+    // 대표 이미지 URL
     private String representativeImageUrl;
 
-    public static ClassBoardResponse from(ClassBoard classBoard) {
-        return from(classBoard, List.of());
-    }
-
-    //첨부파일 불러오기
-    public static ClassBoardResponse from(ClassBoard classBoard, List<ClassAttachmentResponse> attachments) {
-        String representativeImageUrl = attachments.stream()
-                .filter(ClassAttachmentResponse::getIsRepresentative)
-                .findFirst()
-                .map(ClassAttachmentResponse::getFileUrl)
-                .orElseGet(() -> attachments.isEmpty() ? null : attachments.get(0).getFileUrl());
-
-        return ClassBoardResponse.builder()
+    public static ClassDetailResponse from(ClassBoard classBoard, List<ClassAttachmentResponse> images) {
+        return ClassDetailResponse.builder()
                 .id(classBoard.getId())
                 .title(classBoard.getTitle())
                 .description(classBoard.getDescription())
@@ -64,8 +59,12 @@ public class ClassBoardResponse {
                 .location(classBoard.getLocation())
                 .createdAt(classBoard.getCreatedAt() != null ? classBoard.getCreatedAt().toString() : null)
                 .updatedAt(classBoard.getUpdatedAt() != null ? classBoard.getUpdatedAt().toString() : null)
-                .attachments(attachments)
-                .representativeImageUrl(representativeImageUrl)
+                .images(images)
+                .representativeImageUrl(images.stream()
+                        .filter(ClassAttachmentResponse::getIsRepresentative)
+                        .findFirst()
+                        .map(ClassAttachmentResponse::getFileUrl)
+                        .orElse(null))
                 .build();
     }
 }

@@ -7,7 +7,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -16,6 +15,8 @@ import java.util.Collections;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
+
+    public static final String JWT_ERROR_ATTR = "jwt_error";
 
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -34,7 +35,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 String email = jwtTokenProvider.getEmail(token);
 
-                System.out.println("[JwtAuthenticationFilter] 인증 성공 - email: " + email);
+                System.out.println("[JwtAuthenticationFilter] 인증 성공 - URI: " + request.getRequestURI() + ", email: " + email);
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
@@ -46,8 +47,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
 
             } catch (Exception e) {
-                // 토큰 검증 실패 시 어떤 에러인지 콘솔에 출력
-                System.out.println("[JwtAuthenticationFilter] 토큰 검증 실패: " + e.getMessage());
+                System.out.println("[JwtAuthenticationFilter] 토큰 검증 실패 - URI: " + request.getRequestURI() + ", message: " + e.getMessage());
+                request.setAttribute(JWT_ERROR_ATTR, e.getClass().getSimpleName() + ": " + e.getMessage());
                 SecurityContextHolder.clearContext();
             }
         } else {

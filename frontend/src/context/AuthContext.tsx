@@ -1,5 +1,6 @@
 // AuthContext.tsx
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import axios from "axios";
 import apiClient from "@/src/api/axios";
 import { clearAccessToken, clearStoredUserContext, getAccessToken, setAccessToken, setStoredUserContext } from "@/src/lib/auth";
 
@@ -37,9 +38,7 @@ const normalizeRole = (role?: string): string => {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-
-
-  const isLoggedIn = !!user;
+  const [isLoggedIn, setIsLoggedIn] = useState(() => !!getAccessToken());
 
   const loadCurrentUser = async () => {
     const [summaryRes, detailRes] = await Promise.all([
@@ -56,21 +55,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setStoredUserContext(`ROLE_${nextUser.role}`, nextUser.email);
     setUser(nextUser);
+    setIsLoggedIn(true);
   };
 
   useEffect(() => {
     const token = getAccessToken();
 
     if (!token) {
+      setIsLoggedIn(false);
       setLoading(false);
       return;
     }
 
+    setIsLoggedIn(true);
+
     (async () => {
       try {
         await loadCurrentUser();
-      } catch {
-        logout();
+      } catch (error) {
+        if (axios.isAxiosError(error) && (error.response?.status === 401 || error.response?.status === 403)) {
+          logout();
+        }
       } finally {
         setLoading(false);
       }
@@ -81,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const res = await apiClient.post("/auth/login", { email, password });
 
     setAccessToken(res.data.accessToken);
+    setIsLoggedIn(true);
     await loadCurrentUser();
   };
 
@@ -88,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearAccessToken();
     clearStoredUserContext();
     setUser(null);
+    setIsLoggedIn(false);
   };
 
   return (

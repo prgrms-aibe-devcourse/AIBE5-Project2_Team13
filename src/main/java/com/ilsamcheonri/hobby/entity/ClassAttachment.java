@@ -44,6 +44,10 @@ public class ClassAttachment {
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 
+    // 대표이미지
+    @Column(name = "is_representative")
+    private boolean isRepresentative;
+
     public void softDelete() {
         this.isDeleted = true;
     }

@@ -6,6 +6,31 @@ import { useClasses } from '../context/ClassContext';
 import { useCategories } from '../context/CategoryContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '@/src/lib/utils';
+import apiClient from '../api/axios';
+
+type EditableImageItem = {
+  id: number | null;
+  url: string;
+  localFile?: File;
+};
+
+interface ClassDetailResponse {
+  id: number;
+  title: string;
+  description?: string;
+  categoryName: string;
+  price: number;
+  isOnline: boolean;
+  startAt?: string;
+  endAt?: string;
+  maxCapacity?: number;
+  curriculum?: string;
+  location?: string;
+  images?: Array<{
+    id: number;
+    fileUrl?: string | null;
+  }>;
+}
 
 // 입력된 텍스트를 분석하여 주차별 커리큘럼 미리보기를 생성하는 컴포넌트
 function CurriculumForm({ value, onChange }: { value: string; onChange: (val: string) => void }) {
@@ -71,15 +96,16 @@ function CurriculumForm({ value, onChange }: { value: string; onChange: (val: st
 }
 
 export default function ClassFormPage() {
+  const MAX_IMAGE_COUNT = 10;
+  const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addClass, updateClass, classes } = useClasses();
+  const { addClass, updateClass } = useClasses();
   const { categories } = useCategories();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isEditMode = !!id;
-  const existingClass = isEditMode ? classes.find(c => c.id === id) : null;
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('');
@@ -91,55 +117,106 @@ export default function ClassFormPage() {
   const [location, setLocation] = useState('');
   const [capacity, setCapacity] = useState('1');
   const [price, setPrice] = useState('');
-  const [images, setImages] = useState<string[]>([]);
+  const [images, setImages] = useState<EditableImageItem[]>([]);
+  const [deletedImageIds, setDeletedImageIds] = useState<number[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    if (isEditMode && existingClass && categories.length > 0) {
-      setTitle(existingClass.title);
-      const matchedCategory = categories.find(cat => cat.name === existingClass.category);
-      setCategory(matchedCategory ? String(matchedCategory.id) : '');
-      setPrice(existingClass.price.toString());
-      setMethod(existingClass.isOffline ? 'offline' : 'online');
-      setLocation(existingClass.location || '');
-      setImages([existingClass.image]);
-      // Fill fields with existing data from class_board
-      setContent((existingClass as any).description || '');
-      setCurriculum((existingClass as any).curriculum || '');
-      // Parse dates from ISO format
-      if (existingClass.startAt) {
-        setStartDate(existingClass.startAt.split('T')[0]);
-      }
-      if (existingClass.endAt) {
-        setEndDate(existingClass.endAt.split('T')[0]);
-      }
-      setCapacity(String(existingClass.maxCapacity || ''));
-    } else if (!isEditMode && !category && categories.length > 0) {
+    if (!isEditMode && !category && categories.length > 0) {
       setCategory(String(categories[0].id));
     }
-  }, [isEditMode, existingClass, categories]);
+  }, [isEditMode, category, categories]);
+
+  //수정 버튼 누르면 입력창에 자동으로 내용 채워주는 역할
+  useEffect(() => {
+    if (!isEditMode || !id || categories.length === 0) {
+      return;
+    }
+
+    const loadDetail = async () => {
+      try {
+        const response = await apiClient.get<ClassDetailResponse>(`/classes/${id}`);
+        const detail = response.data;
+        const matchedCategory = categories.find((cat) => cat.name === detail.categoryName);
+
+        setTitle(detail.title ?? '');
+        setCategory(matchedCategory ? String(matchedCategory.id) : '');
+        setPrice(String(detail.price ?? ''));
+        setMethod(detail.isOnline ? 'online' : 'offline');
+        setLocation(detail.location || '');
+        setContent(detail.description || '');
+        setCurriculum(detail.curriculum || '');
+        setStartDate(detail.startAt ? detail.startAt.split('T')[0] : '');
+        setEndDate(detail.endAt ? detail.endAt.split('T')[0] : '');
+        setCapacity(String(detail.maxCapacity || '1'));
+        setDeletedImageIds([]);
+        setImages(
+          Array.isArray(detail.images)
+            ? detail.images
+                .filter((image) => !!image.fileUrl)
+                .map((image) => ({
+                  id: image.id,
+                  url: image.fileUrl as string,
+                }))
+            : []
+        );
+      } catch (error) {
+        setToast('클래스 정보를 불러오지 못했습니다.');
+      }
+    };
+
+    loadDetail();
+  }, [isEditMode, id, categories]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach((file: File) => {
-        if (images.length < 10) {
+      const newFiles = Array.from(files);
+      const currentImageCount = images.length;
+
+      if (currentImageCount + newFiles.length > MAX_IMAGE_COUNT) {
+        setToast('이미지는 최대 10장까지 업로드할 수 있습니다.');
+      }
+      
+      newFiles.forEach((file: File, index: number) => {
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+          setToast(`"${file.name}" 파일은 10MB 이하만 업로드할 수 있습니다.`);
+          return;
+        }
+
+        if (currentImageCount + index < MAX_IMAGE_COUNT) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            setImages(prev => [...prev, reader.result as string].slice(0, 10));
+            setImages((prev) => [
+              ...prev,
+              { id: null, url: reader.result as string, localFile: file },
+            ].slice(0, MAX_IMAGE_COUNT));
           };
           reader.readAsDataURL(file);
         }
       });
     }
+
+    e.target.value = '';
   };
 
   const removeImage = (index: number) => {
-    setImages(prev => prev.filter((_, i) => i !== index));
+    setImages((prev) => {
+      const target = prev[index];
+      if (target?.id) {
+        setDeletedImageIds((ids) => (ids.includes(target.id as number) ? ids : [...ids, target.id as number]));
+      }
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (loading) {
+      setToast('로그인 상태를 확인 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
 
     if (!isLoggedIn) {
       setToast('로그인 후 클래스 등록이 가능합니다.');
@@ -165,6 +242,10 @@ export default function ClassFormPage() {
           startAt: `${startDate}T00:00:00`,
           endAt: `${endDate}T00:00:00`,
           maxCapacity: Number(capacity),
+          images: images
+            .filter((image) => !!image.localFile)
+            .map((image) => image.localFile as File),
+          deletedImageIds,
         });
         setToast('수정되었습니다.');
         setTimeout(() => navigate('/profile'), 1500);
@@ -185,6 +266,9 @@ export default function ClassFormPage() {
       maxCapacity: Number(capacity),
       curriculum,
       location: method === 'offline' ? location : undefined,
+      images: images
+        .filter((image) => !!image.localFile)
+        .map((image) => image.localFile as File),
     };
 
     try {
@@ -192,6 +276,17 @@ export default function ClassFormPage() {
       setToast('클래스가 성공적으로 등록되었습니다!');
       setTimeout(() => navigate('/profile'), 1500);
     } catch (error: any) {
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message;
+      if (status === 401) {
+        setToast(message || '인증이 필요합니다. 로그인 페이지로 이동합니다.');
+        setTimeout(() => navigate('/login'), 1500);
+        return;
+      }
+      if (status === 403) {
+        setToast(message || '접근 권한이 없습니다.');
+        return;
+      }
       console.error('클래스 등록 실패:', error);
       if (error?.response?.status === 403) {
         setToast('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
@@ -290,9 +385,9 @@ export default function ClassFormPage() {
                 onChange={handleImageChange}
               />
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                {images.map((img, idx) => (
+                {images.map((image, idx) => (
                   <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group">
-                    <img src={img} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                    <img src={image.url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
                     <button 
                       type="button"
                       onClick={() => removeImage(idx)}
