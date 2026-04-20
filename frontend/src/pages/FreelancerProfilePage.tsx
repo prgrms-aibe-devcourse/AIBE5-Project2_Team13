@@ -26,6 +26,7 @@ import { useFollow } from '../context/FollowContext';
 import { getFreelancerProfileByFreelancerId, type FreelancerProfileDetailResponse } from '@/src/api/freelancerProfile';
 import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 import axios from 'axios';
+import SafeImage from '../components/SafeImage';
 
 type TabType = 'portfolio' | 'classes' | 'reviews';
 
@@ -170,11 +171,9 @@ export default function FreelancerProfilePage() {
               className="relative w-48 h-48 md:w-64 md:h-64 shrink-0"
             >
               <div className="w-full h-full rounded-[48px] overflow-hidden border-4 border-ivory shadow-xl">
-                <img 
-                  src={profile.memberImageUrl || DEFAULT_PROFILE_IMAGE_URL} 
-                  alt={profile.memberName} 
-                  className="w-full h-full object-cover"
-                />
+               <SafeImage src={profile.memberImageUrl || DEFAULT_PROFILE_IMAGE_URL}
+                                            alt={profile.memberName}
+                                            className="w-full h-full object-cover" />
               </div>
             </motion.div>
 
@@ -332,7 +331,7 @@ export default function FreelancerProfilePage() {
                           className="aspect-square rounded-[32px] overflow-hidden border border-coral/10 shadow-sm group relative cursor-zoom-in"
                           onClick={() => handleOpenPortfolioImage(portfolioStartIndex + idx)}
                         >
-                          <img src={img} alt={`Portfolio ${portfolioStartIndex + idx + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                          <SafeImage src={img} alt={`Portfolio ${portfolioStartIndex + idx + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                           <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <span className="text-white font-bold">확대 보기</span>
                           </div>
