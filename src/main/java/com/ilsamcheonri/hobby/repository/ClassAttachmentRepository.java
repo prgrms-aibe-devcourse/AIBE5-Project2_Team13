@@ -28,4 +28,7 @@ public interface ClassAttachmentRepository extends JpaRepository<ClassAttachment
      void updateRepresentativeById(@Param("id") Long id);
 
     List<ClassAttachment> findByClassBoardIdAndIsDeletedFalseOrderByIdAsc(Long classId);
+
+    //쿼리메소드
+    long countByClassBoardIdAndIsDeletedFalse(Long classId);
 }

@@ -37,6 +37,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 @Transactional(rollbackFor = Exception.class)
 public class FileService {
+    private static final int MAX_CLASS_IMAGES = 10;
     // 프리랜서 포트폴리오는 기획상 최대 10장까지 허용합니다.
     private static final int MAX_FREELANCER_PORTFOLIO_IMAGES = 10;
     private static final String DOWNLOAD_URL_PREFIX = "/api/files/download/";
@@ -70,6 +71,7 @@ public class FileService {
             FileTargetType targetType,
             Long targetId
     ) throws IOException {
+        validateClassImageLimit(targetType, targetId, 1);
         // 단건 업로드도 포트폴리오 총 개수 제한을 우회할 수 없도록 진입 시점에 검사합니다.
         validateFreelancerPortfolioLimit(targetType, targetId, 1);
 
@@ -127,6 +129,7 @@ public class FileService {
                 .filter(file -> !file.isEmpty())
                 .count();
 
+        validateClassImageLimit(targetType, targetId, uploadableFileCount);
         validateFreelancerPortfolioLimit(targetType, targetId, uploadableFileCount);
 
         List<FileUploadResponse> results = new ArrayList<>();
@@ -344,6 +347,21 @@ public class FileService {
     }
 
     /** 실제 파일을 디스크에서 삭제합니다. 실패 시 트랜잭션 롤백 방지를 위해 예외를 던지지 않습니다. */
+    private void validateClassImageLimit(
+            FileTargetType targetType,
+            Long targetId,
+            long additionalFileCount
+    ) {
+        if (targetType != FileTargetType.CLASS || additionalFileCount <= 0) {
+            return;
+        }
+
+        long currentCount = classAttachmentRepository.countByClassBoardIdAndIsDeletedFalse(targetId);
+        if (currentCount + additionalFileCount > MAX_CLASS_IMAGES) {
+            throw new IllegalArgumentException("클래스 이미지는 최대 10장까지 등록할 수 있습니다.");
+        }
+    }
+
     private void deletePhysicalFile(String savedFileName) {
         try {
             Path filePath = Paths.get(uploadPath).resolve(savedFileName).normalize();

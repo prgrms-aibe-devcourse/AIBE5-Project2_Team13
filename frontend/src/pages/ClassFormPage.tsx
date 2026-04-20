@@ -71,6 +71,8 @@ function CurriculumForm({ value, onChange }: { value: string; onChange: (val: st
 }
 
 export default function ClassFormPage() {
+  const MAX_IMAGE_COUNT = 10;
+  const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addClass, updateClass, classes } = useClasses();
@@ -125,18 +127,29 @@ export default function ClassFormPage() {
     if (files) {
       const newFiles = Array.from(files);
       const currentImageCount = images.length;
+
+      if (currentImageCount + newFiles.length > MAX_IMAGE_COUNT) {
+        setToast('이미지는 최대 10장까지 업로드할 수 있습니다.');
+      }
       
       newFiles.forEach((file: File, index: number) => {
-        if (currentImageCount + index < 10) {
+        if (file.size > MAX_IMAGE_SIZE_BYTES) {
+          setToast(`"${file.name}" 파일은 10MB 이하만 업로드할 수 있습니다.`);
+          return;
+        }
+
+        if (currentImageCount + index < MAX_IMAGE_COUNT) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            setImages(prev => [...prev, reader.result as string].slice(0, 10));
+            setImages(prev => [...prev, reader.result as string].slice(0, MAX_IMAGE_COUNT));
           };
           reader.readAsDataURL(file);
-          setImageFiles(prev => [...prev, file].slice(0, 10));
+          setImageFiles(prev => [...prev, file].slice(0, MAX_IMAGE_COUNT));
         }
       });
     }
+
+    e.target.value = '';
   };
 
   const removeImage = (index: number) => {
