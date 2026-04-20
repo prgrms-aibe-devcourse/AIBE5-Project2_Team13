@@ -690,6 +690,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     personLabel="프리랜서"
                     category={classItem.category}
                     categoryName="승인 대기"
+                    status={classItem.status}
                   />
                   {renderEnrollmentButton(e)}
                 </div>
