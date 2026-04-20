@@ -2,6 +2,9 @@ package com.ilsamcheonri.hobby.repository;
 
 import com.ilsamcheonri.hobby.entity.ClassBoard;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -44,4 +47,23 @@ public interface ClassBoardRepository extends JpaRepository<ClassBoard, Long> {
      * → SELECT * FROM CLASS_BOARD WHERE freelancer_id = ? AND board_type = ? AND is_deleted = false
      */
     List<ClassBoard> findByFreelancerIdAndBoardTypeAndIsDeletedFalse(Long freelancerId, String boardType);
+
+    /**
+     * N+1 문제 해결을 위한 JOIN FETCH 쿼리
+     * boardType으로 필터링하면서 이미지 정보까지 한 번에 조회합니다.
+     * 속도 향상을 위해 추가
+     */
+    @Query("SELECT DISTINCT cb FROM ClassBoard cb " +
+            "LEFT JOIN FETCH cb.attachments a " +
+            "WHERE cb.boardType = :boardType AND cb.isDeleted = false " +
+            "ORDER BY cb.createdAt DESC")
+    List<ClassBoard> findAllWithAttachmentsByBoardType(@Param("boardType") String boardType);
+
+    // 마이페이지에>내 클래스 관리의 이미지 미리보기 속도 향상을 위해 추가
+    @Query("SELECT DISTINCT cb FROM ClassBoard cb " +
+            "LEFT JOIN FETCH cb.attachments a " +
+            "WHERE cb.freelancer.id = :freelancerId " +
+            "AND cb.isDeleted = false " +
+            "ORDER BY cb.createdAt DESC")
+    List<ClassBoard> findMyClassesWithAttachments(@Param("freelancerId") Long freelancerId);
 }
