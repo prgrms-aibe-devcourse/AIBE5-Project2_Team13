@@ -640,18 +640,6 @@ export interface UserProfile {
   avatar: string;
 }
 
-export interface FreelancerApprovalRequest {
-  id: string;
-  name: string;
-  email: string;
-  specialty: string;
-  career: string;
-  portfolio: string;
-  appliedAt: string;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED';
-  rejectReason?: string;
-}
-
 export interface AdminUserItem {
   id: string;
   name: string;
@@ -672,29 +660,6 @@ export interface ReportItem {
   status: 'PENDING' | 'RESOLVED';
   isDeleted?: boolean;
 }
-
-export const MOCK_FREELANCER_APPROVALS: FreelancerApprovalRequest[] = [
-  { 
-    id: 'a1', 
-    name: '박공예', 
-    email: 'park@example.com',
-    specialty: '도자기', 
-    career: '도예 경력 10년, 다수 전시회 참여',
-    portfolio: 'https://portfolio.com/park',
-    appliedAt: '2024-04-07', 
-    status: 'PENDING' 
-  },
-  { 
-    id: 'a2', 
-    name: '최댄스', 
-    email: 'choi@example.com',
-    specialty: '현대무용', 
-    career: '무용 전공, 강습 경력 5년',
-    portfolio: 'https://portfolio.com/choi',
-    appliedAt: '2024-04-06', 
-    status: 'PENDING' 
-  },
-];
 
 export const MOCK_USERS_ADMIN: AdminUserItem[] = [
   { id: 'u1', name: '홍길동', birth: '1990-01-01', role: 'ROLE_USER', phone: '010-1111-2222', address: '서울시 종로구', joinedAt: '2024-01-15', isDeleted: false },
