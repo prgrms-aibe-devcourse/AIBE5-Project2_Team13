@@ -115,7 +115,8 @@ export default function Home() {
             </Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {classes.slice(0, 8).map((item) => (
+            {/* 모집중인 클래스(status === 'OPEN')만 필터링하여 상위 8개 노출 */}
+            {classes.filter(item => item.status === 'OPEN').slice(0, 8).map((item) => (
               <ClassCard key={item.id} item={item} />
             ))}
           </div>
