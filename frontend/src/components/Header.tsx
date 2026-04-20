@@ -11,6 +11,7 @@ import {
 import { cn } from '@/src/lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '@/src/context/AuthContext';
+import { getChatRooms } from '@/src/api/chat';
 import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 import { getFreelancerApplicationStatus } from '@/src/api/freelancerRegistration';
 import { useEffect } from 'react';
@@ -22,7 +23,7 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isNotiOpen, setIsNotiOpen] = useState(false);
   const [hasNewNoti, setHasNewNoti] = useState(true);
-  const [hasNewChat, setHasNewChat] = useState(true);
+  const [hasNewChat, setHasNewChat] = useState(false);
 
 const { user, logout, loading } = useAuth();
 const isLoggedIn = !loading && !!user;
@@ -67,6 +68,46 @@ const isLoggedIn = !loading && !!user;
     };
   }, [isLoggedIn, role, location.pathname]);
 
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setHasNewChat(false);
+      return;
+    }
+
+    let isMounted = true;
+
+    // 헤더 채팅 점은 목업 상태가 아니라 현재 채팅방 목록의 unread 합계 기준으로만 표시합니다.
+    getChatRooms()
+      .then((rooms) => {
+        if (isMounted) {
+          setHasNewChat(rooms.some((room) => room.unreadCount > 0));
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setHasNewChat(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, location.pathname]);
+
+  useEffect(() => {
+    const handleUnreadUpdate = (event: Event) => {
+      const customEvent = event as CustomEvent<{ hasUnread?: boolean }>;
+      setHasNewChat(customEvent.detail?.hasUnread === true);
+    };
+
+    // 채팅방 진입 후 unread가 사라지는 순간 헤더 점도 같은 기준으로 바로 반영합니다.
+    window.addEventListener('chat-unread-updated', handleUnreadUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('chat-unread-updated', handleUnreadUpdate as EventListener);
+    };
+  }, []);
+
   const navItems = [
     { name: 'AI 추천', path: '/ai-recommend' },
     { name: '클래스 찾기', path: '/browse' },
@@ -101,10 +142,6 @@ const isLoggedIn = !loading && !!user;
   const handleNotiClick = () => {
     setIsNotiOpen(v => !v);
     setHasNewNoti(false);
-  };
-
-  const handleChatClick = () => {
-    setHasNewChat(false);
   };
 
   const handleLogout = () => {
@@ -203,7 +240,6 @@ const isLoggedIn = !loading && !!user;
                 {/* Chat (유지) */}
                 <Link
                   to="/chat"
-                  onClick={handleChatClick}
                   className={cn(
                     'relative p-2',
                     location.pathname === '/chat'

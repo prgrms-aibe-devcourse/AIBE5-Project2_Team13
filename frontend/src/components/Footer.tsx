@@ -73,7 +73,9 @@ export default function Footer() {
             <ul className="space-y-4 text-sm text-gray-500">
               <li><Link to="/notices" className="hover:text-coral transition-colors">공지사항</Link></li>
               <li><Link to="/faq" className="hover:text-coral transition-colors">자주 묻는 질문</Link></li>
-              <li><Link to="/contact" className="hover:text-coral transition-colors">1:1 문의</Link></li>
+              <li><Link to="/chat?adminInquiry=true" className="hover:text-coral transition-colors">1:1 문의</Link></li>
+              {/* 이제 footer는 관리자 이메일을 알지 않고, "관리자 문의 플래그"만 채팅 페이지로 넘깁니다. */}
+              {/* footer 문의는 관리자 문의 의도만 넘기고, 실제 관리자 이메일 고정은 백엔드가 처리합니다. */}
             </ul>
           </div>
           

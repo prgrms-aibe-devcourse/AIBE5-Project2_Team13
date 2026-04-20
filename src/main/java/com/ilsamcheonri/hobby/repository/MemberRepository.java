@@ -19,6 +19,9 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     // 로그인 시 사용: 이메일로 회원 정보 찾기
     Optional<Member> findByEmail(String email);
 
+    // 채팅에서는 탈퇴 계정과 대화방을 새로 열지 않도록 활성 회원만 대상으로 조회합니다.
+    Optional<Member> findByEmailAndIsDeletedFalse(String email);
+
     Optional<Member> findByNameAndPhoneAndBirth(String name, String phone, java.time.LocalDate birth);
 
     Optional<Member> findByEmailAndNameAndPhoneAndBirth(String email, String name, String phone, java.time.LocalDate birth);
