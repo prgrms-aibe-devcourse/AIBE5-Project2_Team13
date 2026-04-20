@@ -15,7 +15,6 @@ import { useEnrollments } from '../context/EnrollmentContext';
 import { useReports } from '../context/ReportContext';
 import { useClasses } from '../context/ClassContext';
 import { useFollow } from '../context/FollowContext';
-import { useAuth } from '../context/AuthContext';
 import { ReviewItem } from '@/src/constants';
 import { getAccessToken } from '../lib/auth';
 import { useWish } from '../context/WishContext';
@@ -38,7 +37,6 @@ export default function ClassDetail() {
   const { addReport } = useReports();
   const { classes } = useClasses();
   const { toggleFollow, isFollowing: checkFollowing, followLoading } = useFollow();
-  const { user } = useAuth();
   const { isWished, syncWishStatus, toggleWish } = useWish();
   const [detailItem, setDetailItem] = useState<ClassItem | null>(null);
   
