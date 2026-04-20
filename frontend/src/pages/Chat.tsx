@@ -1,5 +1,5 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ChevronDown, ChevronLeft, MessageCircle, Search, Send } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronUp, MessageCircle, Search, Send, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '@/src/context/AuthContext';
@@ -44,6 +44,8 @@ const formatRoomTime = (value: string | null) => {
 const formatMessageTime = (value: string) =>
   new Date(value).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // 개발 환경에서는 Vite 프록시(/ws -> 8080)를 타도록 브라우저 origin 기준으로 WebSocket 주소를 만듭니다.
 const buildWebSocketUrl = (token: string) => {
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -63,9 +65,14 @@ export default function Chat() {
   const [roomLoading, setRoomLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [leavingRoom, setLeavingRoom] = useState(false);
+  const [isMessageSearchOpen, setIsMessageSearchOpen] = useState(false);
+  const [messageSearchKeyword, setMessageSearchKeyword] = useState('');
+  const [activeSearchMatchIndex, setActiveSearchMatchIndex] = useState(0);
   const socketRef = useRef<WebSocket | null>(null);
   const selectedRoomIdRef = useRef<number | null>(null);
   const messageListRef = useRef<HTMLDivElement>(null);
+  const messageSearchInputRef = useRef<HTMLInputElement>(null);
+  const messageItemRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const resolvedTargetKeyRef = useRef<string | null>(null);
   const shouldForceScrollToBottomRef = useRef(false);
 
@@ -98,6 +105,12 @@ export default function Chat() {
   // 채팅방을 바꿀 때는 이전 방의 스크롤 위치를 버리고 새 방의 최신 메시지 위치로 강제 이동시킵니다.
   useEffect(() => {
     shouldForceScrollToBottomRef.current = true;
+  }, [selectedRoomId]);
+
+  useEffect(() => {
+    setIsMessageSearchOpen(false);
+    setMessageSearchKeyword('');
+    setActiveSearchMatchIndex(0);
   }, [selectedRoomId]);
 
   // 방 목록 새로고침은 채팅방 생성 직후, 새 메시지 수신 후, 읽음 처리 후에 공통으로 재사용합니다.
@@ -346,6 +359,64 @@ export default function Chat() {
     });
   }, [rooms, searchKeyword]);
 
+  const searchedMessageIds = useMemo(() => {
+    const keyword = messageSearchKeyword.trim().toLowerCase();
+    if (!keyword) {
+      return [];
+    }
+
+    return messages
+      .filter((message) => message.message.toLowerCase().includes(keyword))
+      .map((message) => message.messageId);
+  }, [messages, messageSearchKeyword]);
+
+  useEffect(() => {
+    setActiveSearchMatchIndex(0);
+  }, [messageSearchKeyword, selectedRoomId]);
+
+  useEffect(() => {
+    if (!isMessageSearchOpen) {
+      return;
+    }
+
+    messageSearchInputRef.current?.focus();
+  }, [isMessageSearchOpen]);
+
+  useEffect(() => {
+    if (!searchedMessageIds.length) {
+      return;
+    }
+
+    const safeIndex = ((activeSearchMatchIndex % searchedMessageIds.length) + searchedMessageIds.length) % searchedMessageIds.length;
+    const activeMessageId = searchedMessageIds[safeIndex];
+    const activeMessageElement = messageItemRefs.current[activeMessageId];
+
+    activeMessageElement?.scrollIntoView({
+      block: 'center',
+      behavior: 'smooth',
+    });
+  }, [activeSearchMatchIndex, searchedMessageIds]);
+
+  const renderHighlightedMessage = (message: string, keyword: string) => {
+    const trimmedKeyword = keyword.trim();
+    if (!trimmedKeyword) {
+      return message;
+    }
+
+    const pattern = new RegExp(`(${escapeRegExp(trimmedKeyword)})`, 'gi');
+    const segments = message.split(pattern);
+
+    return segments.map((segment, index) =>
+      segment.toLowerCase() === trimmedKeyword.toLowerCase() ? (
+        <mark key={`${segment}-${index}`} className="bg-yellow-200/80 text-inherit rounded px-0.5">
+          {segment}
+        </mark>
+      ) : (
+        <React.Fragment key={`${segment}-${index}`}>{segment}</React.Fragment>
+      ),
+    );
+  };
+
   // 전송 버튼과 Enter 키는 같은 WebSocket SEND_MESSAGE 이벤트를 사용합니다.
   const handleSend = () => {
     const socket = socketRef.current;
@@ -556,14 +627,96 @@ export default function Chat() {
                     </>
                   )}
                 </div>
-                <button
-                  onClick={handleLeaveRoom}
-                  disabled={leavingRoom}
-                  className="px-4 py-2 text-sm font-bold text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  채팅방 나가기
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setIsMessageSearchOpen((prev) => !prev)}
+                    className={cn(
+                      'w-10 h-10 rounded-xl border border-gray-200 text-gray-500 flex items-center justify-center transition-all',
+                      isMessageSearchOpen ? 'bg-coral/5 text-coral border-coral/20' : 'hover:bg-gray-50',
+                    )}
+                    aria-label="대화 내역 검색"
+                    title="대화 내역 검색"
+                  >
+                    <Search size={18} />
+                  </button>
+                  <button
+                    onClick={handleLeaveRoom}
+                    disabled={leavingRoom}
+                    className="px-4 py-2 text-sm font-bold text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    채팅방 나가기
+                  </button>
+                </div>
               </div>
+
+              {isMessageSearchOpen && (
+                <div className="px-6 py-3 border-b border-coral/10 bg-ivory/20 flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
+                    <input
+                      ref={messageSearchInputRef}
+                      type="text"
+                      value={messageSearchKeyword}
+                      onChange={(e) => setMessageSearchKeyword(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchedMessageIds.length > 0) {
+                          e.preventDefault();
+                          setActiveSearchMatchIndex((prev) =>
+                            e.shiftKey
+                              ? (prev - 1 + searchedMessageIds.length) % searchedMessageIds.length
+                              : (prev + 1) % searchedMessageIds.length,
+                          );
+                        }
+                      }}
+                      placeholder="현재 채팅방 대화 검색"
+                      className="w-full pl-9 pr-9 py-2.5 bg-white border border-coral/10 rounded-xl outline-none focus:border-coral transition-all text-sm"
+                    />
+                    {messageSearchKeyword && (
+                      <button
+                        onClick={() => {
+                          setMessageSearchKeyword('');
+                          setActiveSearchMatchIndex(0);
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                        aria-label="검색어 지우기"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-gray-500 min-w-16 text-center">
+                    {searchedMessageIds.length === 0 && messageSearchKeyword.trim()
+                      ? '0건'
+                      : `${searchedMessageIds.length === 0 ? 0 : activeSearchMatchIndex + 1}/${searchedMessageIds.length}`}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() =>
+                        setActiveSearchMatchIndex((prev) =>
+                          searchedMessageIds.length === 0 ? 0 : (prev - 1 + searchedMessageIds.length) % searchedMessageIds.length,
+                        )
+                      }
+                      disabled={searchedMessageIds.length === 0}
+                      className="w-8 h-8 rounded-lg border border-gray-200 text-gray-500 flex items-center justify-center hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label="이전 검색 결과"
+                    >
+                      <ChevronUp size={16} />
+                    </button>
+                    <button
+                      onClick={() =>
+                        setActiveSearchMatchIndex((prev) =>
+                          searchedMessageIds.length === 0 ? 0 : (prev + 1) % searchedMessageIds.length,
+                        )
+                      }
+                      disabled={searchedMessageIds.length === 0}
+                      className="w-8 h-8 rounded-lg border border-gray-200 text-gray-500 flex items-center justify-center hover:bg-white transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label="다음 검색 결과"
+                    >
+                      <ChevronDown size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <div ref={messageListRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-ivory/10">
                 {roomLoading ? (
@@ -577,21 +730,32 @@ export default function Chat() {
                 ) : (
                   messages.map((message) => {
                     const isMine = message.senderEmail === user?.email;
+                    const isMatchedMessage = searchedMessageIds.includes(message.messageId);
+                    const activeMessageId =
+                      searchedMessageIds.length > 0
+                        ? searchedMessageIds[((activeSearchMatchIndex % searchedMessageIds.length) + searchedMessageIds.length) % searchedMessageIds.length]
+                        : null;
+                    const isActiveMatchedMessage = activeMessageId === message.messageId;
                     return (
                       <div
                         key={message.messageId}
+                        ref={(element) => {
+                          messageItemRefs.current[message.messageId] = element;
+                        }}
                         className={cn('flex', isMine ? 'justify-end' : 'justify-start')}
                       >
                         <div className={cn('max-w-[75%] flex flex-col gap-1', isMine ? 'items-end' : 'items-start')}>
                           <div
                             className={cn(
-                              'p-4 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap',
+                              'p-4 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap transition-all',
                               isMine
                                 ? 'bg-coral text-white rounded-tr-none'
                                 : 'bg-gray-100 text-gray-900 rounded-tl-none',
+                              isMatchedMessage && 'ring-2 ring-yellow-200',
+                              isActiveMatchedMessage && 'ring-2 ring-coral/40',
                             )}
                           >
-                            {message.message}
+                            {renderHighlightedMessage(message.message, messageSearchKeyword)}
                           </div>
                           <span className="text-[10px] text-gray-400 px-1">{formatMessageTime(message.sentAt)}</span>
                         </div>
