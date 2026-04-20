@@ -17,6 +17,8 @@ interface ClassOrderSummaryResponse {
   price: number;
   approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
   appliedAt: string;
+  studentName: string;
+  studentEmail: string;
 }
 
 export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
@@ -33,8 +35,8 @@ export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
       id: String(order.orderId),
       classId: String(order.classId),
       classTitle: order.classTitle,
-      studentName: '',
-      studentEmail: '',
+      studentName: order.studentName,
+      studentEmail: order.studentEmail,
       status: mappedStatus,
       appliedAt: order.appliedAt?.split('T')[0] ?? '',
       price: order.price ?? 0,

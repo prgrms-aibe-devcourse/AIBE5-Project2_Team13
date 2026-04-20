@@ -192,8 +192,9 @@ export default function ClassDetail() {
 
   const item = detailItem;
   const isOwnClassInquiryTarget = myFreelancerId !== null && Number(item.freelancerId) === myFreelancerId;
-  const currentEnrollment = enrollments.find(e => e.classId === item.id);
+  const currentEnrollment = enrollments.find(e => e.classId === item.id && e.status !== 'CANCELLED');
   const status = currentEnrollment?.status;
+  const isClosed = item.status === 'CLOSE'; //모집마감
     
   const categoryName = CATEGORIES.find(c => c.id === item.category)?.name || '미술·공예';
 
@@ -645,10 +646,10 @@ export default function ClassDetail() {
                 <div className="space-y-3">
                   <button 
                     onClick={handleApply}
-                    disabled={applyLoading}
+                    disabled={applyLoading || !!currentEnrollment || isClosed}
                     className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    {applyLoading ? '처리 중...' : '구매하기'}
+                    {applyLoading ? '처리 중...' : currentEnrollment ? '신청 완료' : isClosed ? '모집 마감' : '구매하기'}
                   </button>
                   <div className="grid grid-cols-3 gap-2">
                     <button 

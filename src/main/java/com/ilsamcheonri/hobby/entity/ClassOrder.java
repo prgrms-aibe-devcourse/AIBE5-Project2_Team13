@@ -18,14 +18,18 @@ public class ClassOrder {
     public enum ApprovalStatus {
         PENDING, //승인 대기
         APPROVED, //승인됨
-        REJECTED //거절됨
-    }
+        REJECTED, //거절됨
+        CANCELLED //(학생이) 취소함
+        }
 
     //클래스 진행 상태
     public enum ProgressStatus {
+        BEFORE_START,   // 수강 전
         IN_PROGRESS,//승인 후 수강중
-        COMPLETED //수강완료
-    } //취소 상태 추가?
+        COMPLETED, //수강완료
+        DENY,  // (프리랜서가) 수강거절
+        CANCELLED // 취소됨
+    }
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

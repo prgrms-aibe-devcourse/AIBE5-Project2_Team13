@@ -57,6 +57,7 @@ public class ClassBoard {
     @Column(name = "end_at", nullable = false)
     private LocalDateTime endAt;
 
+    @Builder.Default
     @Column(length = 20)
     private String status = "OPEN"; // OPEN(열림), CLOSE(닫힘)
 

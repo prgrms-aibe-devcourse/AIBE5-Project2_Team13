@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { EnrollmentItem, EnrollmentStatus } from '../constants';
 import { getMyClassOrders } from '@/src/api/classOrder';
 import { getAccessToken } from '@/src/lib/auth';
+import { useAuth } from './AuthContext';
 
 interface EnrollmentContextType {
   enrollments: EnrollmentItem[];
@@ -14,6 +15,7 @@ const EnrollmentContext = createContext<EnrollmentContextType | undefined>(undef
 
 export function EnrollmentProvider({ children }: { children: ReactNode }) {
   const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
+  const { user } = useAuth();
 
   //마이페이지 데이터 갱신
   const refreshEnrollments = async () => {
@@ -31,15 +33,15 @@ export function EnrollmentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshEnrollments();
-  }, []);
+  }, [user]);
 
   const applyForClass = (classId: string, classTitle: string, price: number, orderId?: string) => {
     const newEnrollment: EnrollmentItem = {
       id: orderId ?? `e${Date.now()}`,
       classId,
       classTitle,
-      studentName: '포근한 사용자', // Demo user
-      studentEmail: 'user@example.com',
+      studentName: user?.name || '포근한 사용자',
+      studentEmail: user?.email || 'user@example.com',
       status: 'PENDING',
       appliedAt: new Date().toISOString().split('T')[0],
       price,

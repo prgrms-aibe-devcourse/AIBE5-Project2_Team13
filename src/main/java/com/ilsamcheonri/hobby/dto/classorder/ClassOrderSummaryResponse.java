@@ -20,6 +20,8 @@ public class ClassOrderSummaryResponse {
     private Integer price;
     private String approvalStatus;
     private String appliedAt;
+    private String studentName;
+    private String studentEmail;
 
     public static ClassOrderSummaryResponse from(ClassOrder order) {
         return ClassOrderSummaryResponse.builder()
@@ -29,6 +31,8 @@ public class ClassOrderSummaryResponse {
                 .price(order.getAmount())
                 .approvalStatus(order.getApprovalStatus().name())
                 .appliedAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : null)
+                .studentName(order.getStudent().getName())
+                .studentEmail(order.getStudent().getEmail())
                 .build();
     }
 }

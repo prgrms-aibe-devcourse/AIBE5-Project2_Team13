@@ -34,16 +34,22 @@ public class ClassOrderService {
         ClassBoard classBoard = classBoardRepository.findByIdForUpdate(request.getClassBoardId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
 
-        classOrderRepository.findByStudentIdAndClassBoardIdAndIsDeletedFalse(student.getId(), classBoard.getId())
-                .ifPresent(order -> {
-                    throw new IllegalStateException("이미 신청한 클래스입니다.");
-                });
+        if ("CLOSE".equalsIgnoreCase(classBoard.getStatus())) {
+            throw new IllegalStateException("이미 모집이 마감된 클래스입니다.");
+        }
 
         int currentVolume = classBoard.getCurrentVolume() == null ? 0 : classBoard.getCurrentVolume();
         int maxCapacity = classBoard.getMaxCapacity() == null ? 0 : classBoard.getMaxCapacity();
         if (currentVolume >= maxCapacity) {
+            // 정원이 이미 차있는데 상태만 OPEN인 경우를 대비해 여기서도 상태 업데이트를 시도합니다.
+            classBoard.updateStatus("CLOSE");
             throw new IllegalStateException("정원이 마감된 클래스입니다.");
         }
+
+        classOrderRepository.findByStudentIdAndClassBoardIdAndIsDeletedFalse(student.getId(), classBoard.getId())
+                .ifPresent(order -> {
+                    throw new IllegalStateException("이미 신청한 클래스입니다.");
+                });
 
         ClassOrder classOrder = ClassOrder.builder()
                 .student(student)
@@ -55,6 +61,12 @@ public class ClassOrderService {
 
         ClassOrder saved = classOrderRepository.save(classOrder);
         classBoard.increaseVolume();
+
+        // 정원이 꽉 찼는지 체크하여 상태 변경
+        if (classBoard.getCurrentVolume() >= classBoard.getMaxCapacity()) {
+            classBoard.updateStatus("CLOSE");
+        }
+
         return saved.getId();
     }
 
