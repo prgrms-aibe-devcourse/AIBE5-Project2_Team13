@@ -8,9 +8,11 @@ import {
   Heart, 
   ChevronLeft,
   ChevronRight, 
+  ExternalLink,
   Image as ImageIcon, 
   Briefcase, 
   LayoutGrid,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -36,6 +38,8 @@ export default function FreelancerProfilePage() {
   
   const [activeTab, setActiveTab] = useState<TabType>('portfolio');
   const [portfolioStartIndex, setPortfolioStartIndex] = useState(0);
+  // 확대 모달은 "선택된 이미지 인덱스"를 기준으로 열고 닫아서 이전/다음 이동까지 함께 처리합니다.
+  const [selectedPortfolioImageIndex, setSelectedPortfolioImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (!id || Number.isNaN(Number(id))) {
@@ -97,12 +101,60 @@ export default function FreelancerProfilePage() {
   const visiblePortfolioImages = portfolioImages.slice(portfolioStartIndex, portfolioStartIndex + 4);
   const canMovePortfolioLeft = portfolioImages.length > 4 && portfolioStartIndex > 0;
   const canMovePortfolioRight = portfolioImages.length > 4 && portfolioStartIndex + 4 < portfolioImages.length;
+  const selectedPortfolioImage = selectedPortfolioImageIndex !== null
+    ? portfolioImages[selectedPortfolioImageIndex] || null
+    : null;
 
   const handleFollow = () => {
     if (profile) {
       // 팔로잉 기준도 이제 목업 id가 아니라 실제 freelancerId 문자열을 사용합니다.
       toggleFollow(String(profile.freelancerId));
     }
+  };
+
+  const handleOpenPortfolioLink = () => {
+    if (!profile?.snsLink) {
+      return;
+    }
+
+    // 포트폴리오 링크는 상세 액션이 아니라 본문 정보로 보고 새 탭에서 열어줍니다.
+    window.open(profile.snsLink, '_blank', 'noopener,noreferrer');
+  };
+
+  const syncPortfolioViewport = (targetIndex: number) => {
+    // 확대 모달에서 이미지를 넘겼을 때도, 본문 4장 목록 안에 같은 이미지가 보이도록 시작 인덱스를 맞춥니다.
+    if (targetIndex < portfolioStartIndex) {
+      setPortfolioStartIndex(targetIndex);
+      return;
+    }
+
+    if (targetIndex >= portfolioStartIndex + 4) {
+      setPortfolioStartIndex(targetIndex - 3);
+    }
+  };
+
+  const handleOpenPortfolioImage = (imageIndex: number) => {
+    // 본문 이미지 카드 클릭 시 해당 인덱스를 기억해서 확대 모달을 엽니다.
+    setSelectedPortfolioImageIndex(imageIndex);
+    syncPortfolioViewport(imageIndex);
+  };
+
+  const handleMoveSelectedPortfolioImage = (direction: 'prev' | 'next') => {
+    if (selectedPortfolioImageIndex === null) {
+      return;
+    }
+
+    const nextIndex = direction === 'prev'
+      ? selectedPortfolioImageIndex - 1
+      : selectedPortfolioImageIndex + 1;
+
+    if (nextIndex < 0 || nextIndex >= portfolioImages.length) {
+      return;
+    }
+
+    // 모달 안에서 좌우 이동할 때 본문 캐러셀 위치도 함께 동기화합니다.
+    setSelectedPortfolioImageIndex(nextIndex);
+    syncPortfolioViewport(nextIndex);
   };
 
   return (
@@ -237,8 +289,20 @@ export default function FreelancerProfilePage() {
                   </p>
                 </div>
 
+                <div className="flex justify-start">
+                  <button
+                    onClick={handleOpenPortfolioLink}
+                    disabled={!profile.snsLink}
+                    className="px-8 py-4 bg-white border-2 border-coral/20 text-coral font-bold rounded-2xl hover:bg-ivory transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ExternalLink size={20} />
+                    포트폴리오 링크
+                  </button>
+                </div>
+
                 {portfolioImages.length > 0 ? (
                   <div className="relative">
+                    {/* 본문 캐러셀은 한 번에 4장만 보여주고, 현재 양끝 상태에 따라 버튼을 숨깁니다. */}
                     {canMovePortfolioLeft && (
                       <button
                         type="button"
@@ -264,9 +328,14 @@ export default function FreelancerProfilePage() {
                         <motion.div 
                           key={`${img}-${portfolioStartIndex + idx}`}
                           whileHover={{ y: -10 }}
-                          className="aspect-square rounded-[32px] overflow-hidden border border-coral/10 shadow-sm group relative"
+                          // 클릭 시 확대 모달이 열리고, 현재 보고 있는 이미지 인덱스가 저장됩니다.
+                          className="aspect-square rounded-[32px] overflow-hidden border border-coral/10 shadow-sm group relative cursor-zoom-in"
+                          onClick={() => handleOpenPortfolioImage(portfolioStartIndex + idx)}
                         >
                           <img src={img} alt={`Portfolio ${portfolioStartIndex + idx + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                          <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                            <span className="text-white font-bold">확대 보기</span>
+                          </div>
                         </motion.div>
                       ))}
                     </div>
@@ -333,6 +402,62 @@ export default function FreelancerProfilePage() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      <AnimatePresence>
+        {selectedPortfolioImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            // 확대 모달은 배경 클릭으로도 닫히고, 내부 버튼/이미지 클릭은 전파를 막습니다.
+            className="fixed inset-0 z-50 bg-black/75 px-4 py-8 flex items-center justify-center"
+            onClick={() => setSelectedPortfolioImageIndex(null)}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedPortfolioImageIndex(null)}
+              className="absolute top-6 right-6 w-11 h-11 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition-colors"
+            >
+              <X size={22} />
+            </button>
+            {selectedPortfolioImageIndex !== null && selectedPortfolioImageIndex > 0 && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  // 첫 이미지가 아닐 때만 이전 버튼을 노출합니다.
+                  handleMoveSelectedPortfolioImage('prev');
+                }}
+                className="absolute left-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition-colors"
+              >
+                <ChevronLeft size={24} />
+              </button>
+            )}
+            {selectedPortfolioImageIndex !== null && selectedPortfolioImageIndex < portfolioImages.length - 1 && (
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  // 마지막 이미지가 아닐 때만 다음 버튼을 노출합니다.
+                  handleMoveSelectedPortfolioImage('next');
+                }}
+                className="absolute right-6 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/15 text-white flex items-center justify-center hover:bg-white/25 transition-colors"
+              >
+                <ChevronRight size={24} />
+              </button>
+            )}
+            <motion.img
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              src={selectedPortfolioImage}
+              alt="선택한 포트폴리오 이미지"
+              className="max-w-full max-h-full rounded-[28px] shadow-2xl object-contain"
+              onClick={(event) => event.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </div>
   );
