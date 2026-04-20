@@ -55,9 +55,15 @@ public class SecurityConfig {
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, authException) -> {
                             Object jwtError = request.getAttribute(JwtAuthenticationFilter.JWT_ERROR_ATTR);
-                            String message = jwtError == null
-                                    ? "인증이 필요합니다."
-                                    : "JWT 인증 실패: " + jwtError;
+                            String message = "인증이 필요합니다.";
+                            if (jwtError != null) {
+                                String errorString = jwtError.toString();
+                                if (errorString.contains("ExpiredJwtException")) {
+                                    message = "로그인 세션이 만료되었습니다. 다시 로그인해주세요.";
+                                } else {
+                                    message = "JWT 인증 실패: " + jwtError;
+                                }
+                            }
                             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                             response.setContentType(MediaType.APPLICATION_JSON_VALUE);

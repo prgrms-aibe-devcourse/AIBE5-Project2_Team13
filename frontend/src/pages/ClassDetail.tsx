@@ -234,6 +234,10 @@ export default function ClassDetail() {
 
   //클래스 '구매하기' 버튼 눌렀을 때
   const handleApply = async () => {
+    if (currentEnrollment) {
+      showToast('이미 신청한 클래스입니다.', 'error');
+      return;
+    }
     if (!requireLogin()) return;
     if (!id || applyLoading) return;
 

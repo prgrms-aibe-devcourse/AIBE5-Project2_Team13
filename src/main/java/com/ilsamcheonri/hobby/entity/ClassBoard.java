@@ -79,6 +79,7 @@ public class ClassBoard {
     private LocalDateTime updatedAt;
 
     @Builder.Default
+
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 
