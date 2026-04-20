@@ -32,7 +32,14 @@ public class ClassBoardService {
     public List<ClassBoardResponse> getOfferClassList() {
         return classBoardRepository.findByBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc("OFFER")
                 .stream()
-                .map(ClassBoardResponse::from)
+                .map(classBoard -> { //첨부파일 이미지 표시
+                    List<ClassAttachmentResponse> attachments = classAttachmentRepository
+                            .findAllByClassBoardIdAndIsDeletedFalse(classBoard.getId())
+                            .stream()
+                            .map(ClassAttachmentResponse::from)
+                            .collect(Collectors.toList());
+                    return ClassBoardResponse.from(classBoard, attachments);
+                })
                 .collect(Collectors.toList());
     }
 
@@ -124,29 +131,48 @@ public class ClassBoardService {
             throw new IllegalArgumentException("수정 권한이 없습니다.");
         }
 
-        // 기존 이미지 정리 및 새 이미지 업데이트 로직은 그대로 유지했어요
-        List<ClassAttachment> existingAttachments = classAttachmentRepository.findByClassBoardIdAndIsDeletedFalse(id);
-        List<Long> existingFileIds = existingAttachments.stream()
-                .map(ClassAttachment::getId)
-                .collect(Collectors.toList());
-        if (!existingFileIds.isEmpty()) {
-            fileService.deleteMultiple(existingFileIds, FileTargetType.CLASS);
+        if (request.getEndAt() != null && request.getStartAt() != null &&
+                request.getEndAt().isBefore(request.getStartAt())) {
+            throw new IllegalArgumentException("종료 일시는 시작 일시보다 이후여야 합니다.");
+        }
+
+        classBoard.updateOfferClass(
+                categoryRepository.findById(request.getCategoryId())
+                        .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 카테고리입니다.")),
+                request.getTitle(),
+                request.getDescription(),
+                request.getPrice(),
+                request.getIsOnline(),
+                request.getStartAt(),
+                request.getEndAt(),
+                request.getMaxCapacity(),
+                request.getCurriculum(),
+                request.getLocation()
+        );
+
+        if (request.getDeletedImageIds() != null && !request.getDeletedImageIds().isEmpty()) {
+            fileService.deleteMultiple(request.getDeletedImageIds(), FileTargetType.CLASS);
         }
 
         if (request.getImages() != null && !request.getImages().isEmpty()) {
             try {
-                List<FileUploadResponse> uploadedFiles = fileService.uploadMultiple(
+                fileService.uploadMultiple(
                         request.getImages(),
                         FileTargetType.CLASS,
                         classBoard.getId()
                 );
-                if (!uploadedFiles.isEmpty()) {
-                    updateRepresentativeImage(classBoard.getId(), uploadedFiles.get(0).getFileId());
-                }
             } catch (IOException e) {
                 throw new RuntimeException("클래스 이미지 업로드에 실패했습니다.", e);
             }
         }
+
+        //한 게시글 id에 첨부되어있는 사진 모두 불러오기
+        List<ClassAttachment> remainingAttachments = classAttachmentRepository
+                .findByClassBoardIdAndIsDeletedFalseOrderByIdAsc(classBoard.getId());
+        if (!remainingAttachments.isEmpty()) {
+            updateRepresentativeImage(classBoard.getId(), remainingAttachments.get(0).getId());
+        }
+
         return classBoard.getId();
     }
 

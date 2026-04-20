@@ -47,4 +47,5 @@ public class ClassBoardCreateRequest {
      private String location;
 
     private List<MultipartFile> images;
+    private List<Long> deletedImageIds;
 }

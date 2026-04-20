@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Getter
 @Builder
 @NoArgsConstructor
@@ -29,8 +31,21 @@ public class ClassBoardResponse {
     private String location;
     private String createdAt;
     private String updatedAt;
+    private List<ClassAttachmentResponse> attachments;
+    private String representativeImageUrl;
 
     public static ClassBoardResponse from(ClassBoard classBoard) {
+        return from(classBoard, List.of());
+    }
+
+    //첨부파일 불러오기
+    public static ClassBoardResponse from(ClassBoard classBoard, List<ClassAttachmentResponse> attachments) {
+        String representativeImageUrl = attachments.stream()
+                .filter(ClassAttachmentResponse::getIsRepresentative)
+                .findFirst()
+                .map(ClassAttachmentResponse::getFileUrl)
+                .orElseGet(() -> attachments.isEmpty() ? null : attachments.get(0).getFileUrl());
+
         return ClassBoardResponse.builder()
                 .id(classBoard.getId())
                 .title(classBoard.getTitle())
@@ -49,6 +64,8 @@ public class ClassBoardResponse {
                 .location(classBoard.getLocation())
                 .createdAt(classBoard.getCreatedAt() != null ? classBoard.getCreatedAt().toString() : null)
                 .updatedAt(classBoard.getUpdatedAt() != null ? classBoard.getUpdatedAt().toString() : null)
+                .attachments(attachments)
+                .representativeImageUrl(representativeImageUrl)
                 .build();
     }
 }

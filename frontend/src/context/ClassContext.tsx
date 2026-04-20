@@ -16,6 +16,7 @@ interface CreateClassPayload {
   curriculum?: string;
   location?: string;
   images?: File[];
+  deletedImageIds?: number[];
 }
 
 interface ClassContextType {
@@ -49,13 +50,20 @@ interface ClassApiResponse {
   images?: Array<{
     fileUrl?: string | null;
   }>;
+  attachments?: Array<{
+    fileUrl?: string | null;
+  }>;
   createdAt?: string;
   updatedAt?: string;
 }
 
 //DB의 이미지 url을 가져옵니다
 const getImageUrls = (api: ClassApiResponse): string[] => {
-  const candidates = Array.isArray(api.images) ? api.images : [];
+  const candidates = Array.isArray(api.images)
+    ? api.images
+    : Array.isArray(api.attachments)
+      ? api.attachments
+      : [];
   return candidates
     .map((image) => image?.fileUrl)
     .filter((fileUrl): fileUrl is string => !!fileUrl);
@@ -201,13 +209,40 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
 
   // 클래스 정보를 수정하는 기능 (API 호출 후 목록 새로고침)
   const updateClass = async (id: string, updatedClass: CreateClassPayload) => {
-    try {
-      await apiClient.put(`/classes/${id}`, updatedClass, getAuthConfig());
-      await fetchClasses(); // 목록 새로고침하여 변경사항 반영
-    } catch (error) {
-      console.error('클래스 수정 실패:', error);
-      throw error;
+    const formData = new FormData();
+
+    // 1. 단순 텍스트/숫자 필드 정의
+    const simpleFields = {
+      title: updatedClass.title,
+      description: updatedClass.description || '',
+      categoryId: String(updatedClass.categoryId),
+      price: String(updatedClass.price),
+      isOnline: String(updatedClass.isOnline),
+      startAt: updatedClass.startAt,
+      endAt: updatedClass.endAt,
+      maxCapacity: String(updatedClass.maxCapacity),
+      curriculum: updatedClass.curriculum,
+      location: updatedClass.location,
+    };
+
+    // 2. 반복문으로 깔끔하게 append
+    Object.entries(simpleFields).forEach(([key, value]) => {
+      if (value !== undefined && value !== null) {
+        formData.append(key, value);
+      }
+    });
+
+    // 3. 특별 처리 필드 (파일이나 배열 등)는 아래에 따로 관리
+    if (updatedClass.deletedImageIds?.length) {
+      updatedClass.deletedImageIds.forEach((id) => formData.append('deletedImageIds', String(id)));
     }
+
+    if (updatedClass.images?.length) {
+      updatedClass.images.forEach((file) => formData.append('images', file));
+    }
+
+    await apiClient.put(`/classes/${id}`, formData, getAuthConfig());
+    await fetchClasses();
   };
 
   // 클래스의 모집 상태를 반전(토글)시키는 기능 (API 호출 후 로컬 상태 반영)

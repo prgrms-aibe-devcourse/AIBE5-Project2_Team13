@@ -6,6 +6,8 @@ import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "CLASS_BOARD")
@@ -79,6 +81,11 @@ public class ClassBoard {
     @Builder.Default
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+
+    //"나한테는 이런 애들이 붙어있어!"라고 알려주는 관계 매핑(Mapping) 코드
+    //ClassBoardRepository 쿼리 작동 위해 작성함
+    @OneToMany(mappedBy = "classBoard", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ClassAttachment> attachments = new ArrayList<>();
 
     /**
      * [비즈니스 로직] 소프트 삭제 처리
