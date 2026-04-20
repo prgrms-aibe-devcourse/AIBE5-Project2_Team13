@@ -18,6 +18,8 @@ import { useFollow } from '../context/FollowContext';
 import { ReviewItem } from '@/src/constants';
 import { getAccessToken } from '../lib/auth';
 import { useWish } from '../context/WishContext';
+import { useAuth } from '@/src/context/AuthContext';
+import { getMyFreelancerProfile } from '@/src/api/freelancerProfile';
 
 const TABS = [
   { id: 'description', label: '클래스 소개' },//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
@@ -30,10 +32,11 @@ const TABS = [
 export default function ClassDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { enrollments, applyForClass } = useEnrollments();
   const { addReport } = useReports();
   const { classes } = useClasses();
-  const { toggleFollow, isFollowing: checkFollowing } = useFollow();
+  const { toggleFollow, isFollowing: checkFollowing, followLoading } = useFollow();
   const { isWished, syncWishStatus, toggleWish } = useWish();
   const [detailItem, setDetailItem] = useState<(ClassItem & { detailImages?: string[] }) | null>(null);
   
@@ -45,6 +48,7 @@ export default function ClassDetail() {
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState('description');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [myFreelancerId, setMyFreelancerId] = useState<number | null>(null);
 
   // Refs for scroll sync
   const sectionRefs = {
@@ -115,7 +119,7 @@ export default function ClassDetail() {
           id: String(apiClass.id),
           title: apiClass.title,
           freelancer: apiClass.freelancerName,
-          freelancerEmail: apiClass.freelancerEmail,
+          freelancerEmail: apiClass.freelancerEmail ?? '',  // 본인 여부 판단용
           freelancerId: String(apiClass.freelancerId),
           price: apiClass.price,
           category: apiClass.categoryName,
@@ -150,6 +154,31 @@ export default function ClassDetail() {
     syncWishStatus(id).catch(() => {});
   }, [id, syncWishStatus]);
 
+  useEffect(() => {
+    if (user?.role !== 'FREELANCER') {
+      setMyFreelancerId(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    getMyFreelancerProfile()
+      .then((myProfile) => {
+        if (isMounted) {
+          setMyFreelancerId(myProfile.freelancerId ?? null);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMyFreelancerId(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.role]);
+
   if (!detailItem) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -160,6 +189,7 @@ export default function ClassDetail() {
   }
 
   const item = detailItem;
+  const isOwnClassInquiryTarget = myFreelancerId !== null && Number(item.freelancerId) === myFreelancerId;
   const currentEnrollment = enrollments.find(e => e.classId === item.id);
   const status = currentEnrollment?.status;
     
@@ -416,27 +446,31 @@ export default function ClassDetail() {
                       </Link>
                       <BadgeCheck size={18} className="text-coral" />
                     </div>
-                    <button 
-                      onClick={() => toggleFollow(item.freelancerId || 'f1')}
-                      className={cn(
-                        "px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
-                        checkFollowing(item.freelancerId || 'f1')
-                          ? "bg-coral/10 text-coral border border-coral/20"
-                          : "bg-coral text-white shadow-md shadow-coral/20 hover:bg-coral/90"
-                      )}
-                    >
-                      {checkFollowing(item.freelancerId || 'f1') ? (
-                        <>
-                          <UserCheck size={14} />
-                          팔로잉 중
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus size={14} />
-                          팔로우
-                         </>
-                      )}
-                    </button>
+                    {/* 본인 클래스면 팔로우 버튼 숨김 */}
+                    {user?.email !== (item as any).freelancerEmail && (
+                      <button
+                        onClick={() => toggleFollow(item.freelancerId || 'f1')}
+                        disabled={followLoading}
+                        className={cn(
+                          "px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-60",
+                          checkFollowing(item.freelancerId || 'f1')
+                            ? "bg-coral/10 text-coral border border-coral/20"
+                            : "bg-coral text-white shadow-md shadow-coral/20 hover:bg-coral/90"
+                        )}
+                      >
+                        {checkFollowing(item.freelancerId || 'f1') ? (
+                          <>
+                            <Heart size={14} className="fill-coral" />
+                            팔로잉 중
+                          </>
+                        ) : (
+                          <>
+                            <Heart size={14} />
+                            팔로우
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                   <p className="text-gray-500 text-base">{(item as any).expertIntro || '전문가님의 노하우를 담아 친절하게 알려드려요.'}</p>
                 </div>
@@ -597,8 +631,10 @@ export default function ClassDetail() {
                   </button>
                   <div className="grid grid-cols-3 gap-2">
                     <button 
-                      onClick={() => navigate('/chat')}
-                      className="col-span-1 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-[15px] flex flex-col items-center justify-center gap-1"
+                      // 클래스 상세 문의는 수업 프리랜서 회원 PK로 직접 채팅방 생성/재사용을 요청합니다.
+                      onClick={() => navigate(`/chat?targetMemberId=${item.freelancerId}`)}
+                      disabled={isOwnClassInquiryTarget}
+                      className="col-span-1 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-[15px] flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <MessageCircle size={16} />
                       문의하기

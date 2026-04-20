@@ -1,6 +1,16 @@
 import React, { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import apiClient from '../api/axios';
 import { getAccessToken } from '../lib/auth';
+import { useAuth } from './AuthContext';
+
+/**
+ * 찜(Wish) Context
+ *
+ * ✅ 핵심 수정: user(로그인 계정)가 바뀔 때마다 wishedIds 자동 초기화·재조회
+ *
+ * - 로그아웃              → wishedIds 빈 Set 초기화
+ * - 다른 계정으로 로그인  → 새 계정의 찜 목록 재조회
+ */
 
 interface WishContextType {
   wishedIds: Set<string>;
@@ -15,6 +25,7 @@ const WishContext = createContext<WishContextType | undefined>(undefined);
 const toWishId = (classId: string | number) => String(classId);
 
 export function WishProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth(); // ✅ 로그인 계정 감지용
   const [wishedIds, setWishedIds] = useState<Set<string>>(new Set());
 
   const fetchWishedIds = useCallback(async () => {
@@ -32,9 +43,13 @@ export function WishProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // ✅ 핵심 수정 — user.email 기준으로 계정 변경 감지
+  //
+  // user === null      → 로그아웃 → 빈 Set으로 초기화
+  // user 이메일 변경   → 다른 계정 로그인 → 새 계정의 찜 목록 재조회
   useEffect(() => {
     fetchWishedIds();
-  }, [fetchWishedIds]);
+  }, [user?.email]); // email 기준으로 계정 변경 감지 (fetchWishedIds 의존성 제거)
 
   const isWished = useCallback(
     (classId: string | number) => wishedIds.has(toWishId(classId)),

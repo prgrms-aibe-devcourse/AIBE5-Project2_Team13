@@ -27,6 +27,10 @@ import java.util.List;
 @RequiredArgsConstructor
 public class DataInitConfig {
 
+    // 관리자 1:1 문의 채팅은 프론트/서비스 여기저기 흩어두지 않고 초기 데이터 설정 클래스에서 단일 기준값으로 관리합니다.
+    // 관리자 1:1 문의 채팅은 이 이메일 계정을 고정 대상으로 사용합니다.
+    public static final String ADMIN_CHAT_EMAIL = "admin@gmail.com";
+
     @Bean
     CommandLineRunner init(RoleCodeRepository roleCodeRepo,
                            CategoryRepository categoryRepo,
@@ -77,8 +81,8 @@ public class DataInitConfig {
                 System.out.println("✅ [DataInitConfig] 카테고리 대분류 9개 초기 데이터 삽입 완료");
             }
 
-            alignFreelancerProfileSchema(jdbcTemplate);
             initializeIsDeletedColumn(jdbcTemplate);
+            ensureChatParticipantLastClearedAtColumn(jdbcTemplate);
         };
     }
 
@@ -91,6 +95,29 @@ public class DataInitConfig {
             System.out.println("✅ [DataInitConfig] CLASS_BOARD 테이블 is_deleted 필드 초기화 완료");
         } catch (Exception exception) {
             System.out.println("⚠️ [DataInitConfig] is_deleted 필드 초기화 생략 (컬럼 부재 등): " + exception.getMessage());
+        }
+    }
+
+    /** 채팅방 나가고 다시 채팅을 할 때 새로운 채팅처럼 보이게 하기 위한 쿼리 */
+    private void ensureChatParticipantLastClearedAtColumn(JdbcTemplate jdbcTemplate) {
+        try {
+            Integer columnCount = jdbcTemplate.queryForObject(
+                    """
+                    SELECT COUNT(*)
+                    FROM information_schema.columns
+                    WHERE table_schema = DATABASE()
+                      AND LOWER(table_name) = 'chat_participant'
+                      AND LOWER(column_name) = 'last_cleared_at'
+                    """,
+                    Integer.class
+            );
+
+            if (columnCount != null && columnCount == 0) {
+                // 채팅방 나가기 후 재입장한 사용자에게는 이 시점 이후 메시지만 보이게 할 새 컬럼입니다.
+                jdbcTemplate.execute("ALTER TABLE CHAT_PARTICIPANT ADD COLUMN last_cleared_at DATETIME(6) NULL");
+            }
+        } catch (Exception exception) {
+            System.out.println("⚠️ [DataInitConfig] CHAT_PARTICIPANT.last_cleared_at 컬럼 보정 생략: " + exception.getMessage());
         }
     }
 
@@ -111,42 +138,4 @@ public class DataInitConfig {
                 .build();
     }
 
-    private void alignFreelancerProfileSchema(JdbcTemplate jdbcTemplate) {
-        try {
-            // 운영/로컬 DB마다 테이블 대소문자 차이가 있을 수 있어 information_schema로 실제 이름을 먼저 찾습니다.
-            String tableName = jdbcTemplate.query(
-                    """
-                    SELECT table_name
-                    FROM information_schema.tables
-                    WHERE table_schema = DATABASE()
-                      AND LOWER(table_name) = 'freelancer_profile'
-                    LIMIT 1
-                    """,
-                    rs -> rs.next() ? rs.getString("table_name") : null
-            );
-
-            if (tableName == null) {
-                return;
-            }
-
-            // 기존 로컬 DB가 sns_link NOT NULL 제약을 갖고 있으면 선택 입력 전환과 충돌하므로 서버 시작 시 한 번 맞춰줍니다.
-            String isNullable = jdbcTemplate.query(
-                    """
-                    SELECT is_nullable
-                    FROM information_schema.columns
-                    WHERE table_schema = DATABASE()
-                      AND LOWER(table_name) = 'freelancer_profile'
-                      AND LOWER(column_name) = 'sns_link'
-                    LIMIT 1
-                    """,
-                    rs -> rs.next() ? rs.getString("is_nullable") : null
-            );
-
-            if ("NO".equalsIgnoreCase(isNullable)) {
-                jdbcTemplate.execute("ALTER TABLE `" + tableName + "` MODIFY COLUMN sns_link VARCHAR(255) NULL");
-            }
-        } catch (Exception exception) {
-            System.out.println("⚠️ [DataInitConfig] sns_link nullable 스키마 보정 생략: " + exception.getMessage());
-        }
-    }
 }

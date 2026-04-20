@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { 
   Star, 
   MapPin, 
@@ -23,22 +23,29 @@ import {
 } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import { useFollow } from '../context/FollowContext';
-import { getFreelancerProfileByFreelancerId, type FreelancerProfileDetailResponse } from '@/src/api/freelancerProfile';
 import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 import axios from 'axios';
+import apiClient from '../api/axios';
+import { getFreelancerProfileByFreelancerId, getMyFreelancerProfile, type FreelancerProfileDetailResponse } from '@/src/api/freelancerProfile';
+import { useAuth } from '@/src/context/AuthContext';
+import SafeImage from '../components/SafeImage';
 
 type TabType = 'portfolio' | 'classes' | 'reviews';
 
 export default function FreelancerProfilePage() {
   const { id } = useParams<{ id: string }>();
-  const { toggleFollow, isFollowing: checkFollowing } = useFollow();
+  const { toggleFollow, isFollowing: checkFollowing, followLoading } = useFollow();
+  const { user } = useAuth(); // 본인 여부 판단용
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<FreelancerProfileDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [myFreelancerId, setMyFreelancerId] = useState<number | null>(null);
   
   const [activeTab, setActiveTab] = useState<TabType>('portfolio');
   const [portfolioStartIndex, setPortfolioStartIndex] = useState(0);
   // 확대 모달은 "선택된 이미지 인덱스"를 기준으로 열고 닫아서 이전/다음 이동까지 함께 처리합니다.
+  const [followerCount, setFollowerCount] = useState<number>(0);
   const [selectedPortfolioImageIndex, setSelectedPortfolioImageIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -54,37 +61,62 @@ export default function FreelancerProfilePage() {
       try {
         setLoading(true);
         setNotFound(false);
-        // /freelancer/:id 는 이제 profileId가 아니라 freelancerId 기준 공개 API를 조회합니다.
         const detail = await getFreelancerProfileByFreelancerId(Number(id));
         if (isMounted) {
           setProfile(detail);
         }
       } catch (error) {
-        if (!isMounted) {
-          return;
-        }
-
+        if (!isMounted) return;
         if (axios.isAxiosError(error) && error.response?.status === 404) {
           setNotFound(true);
         }
       } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
+        if (isMounted) setLoading(false);
       }
     };
 
     loadProfile();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, [id]);
+
+  // ✅ 프로필 로드 후 팔로워 수 API 조회
+  useEffect(() => {
+    if (!profile?.freelancerId) return;
+
+    apiClient.get<{ count: number }>(`/follows/${profile.freelancerId}/count`)
+      .then(res => setFollowerCount(res.data.count))
+      .catch(() => setFollowerCount(0));
+  }, [profile?.freelancerId]);
 
   useEffect(() => {
     // 포트폴리오 탭 전환 또는 다른 프리랜서로 이동하면 슬라이드 위치를 처음으로 되돌립니다.
     setPortfolioStartIndex(0);
   }, [profile?.freelancerId, activeTab]);
+
+  useEffect(() => {
+    if (user?.role !== 'FREELANCER') {
+      setMyFreelancerId(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    getMyFreelancerProfile()
+      .then((myProfile) => {
+        if (isMounted) {
+          setMyFreelancerId(myProfile.freelancerId ?? null);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMyFreelancerId(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.role]);
 
   if (loading) {
     return <div className="p-20 text-center text-gray-500">프리랜서 프로필을 불러오는 중입니다.</div>;
@@ -105,21 +137,36 @@ export default function FreelancerProfilePage() {
     ? portfolioImages[selectedPortfolioImageIndex] || null
     : null;
 
-  const handleFollow = () => {
-    if (profile) {
-      // 팔로잉 기준도 이제 목업 id가 아니라 실제 freelancerId 문자열을 사용합니다.
-      toggleFollow(String(profile.freelancerId));
+  // 본인 프로필 여부 — 이메일 기준 비교
+  const isSelf = !!user && !!profile && user.email === profile.memberEmail;
+
+  const handleFollow = async () => {
+    if (!profile) return;
+
+    // 본인 프로필이면 팔로우 불가 (UI에서 버튼 자체를 숨기지만 이중 방어)
+    if (isSelf) return;
+
+    const targetId = String(profile.freelancerId);
+    const wasFollowing = checkFollowing(targetId);
+
+    try {
+      await toggleFollow(targetId);
+      // 팔로우 토글 성공 후에만 팔로워 수 낙관적 업데이트
+      setFollowerCount(prev => wasFollowing ? Math.max(0, prev - 1) : prev + 1);
+    } catch {
+      // 실패 시 count 변경 없음 (toggleFollow 내부에서 에러 로그 출력)
     }
   };
 
+  // ─────────────────────────────────────
+  // 포트폴리오 링크 외부 열기
+  // ─────────────────────────────────────
   const handleOpenPortfolioLink = () => {
-    if (!profile?.snsLink) {
-      return;
-    }
-
-    // 포트폴리오 링크는 상세 액션이 아니라 본문 정보로 보고 새 탭에서 열어줍니다.
+    if (!profile?.snsLink) return;
     window.open(profile.snsLink, '_blank', 'noopener,noreferrer');
   };
+
+  const isOwnFreelancerProfile = myFreelancerId !== null && profile.freelancerId === myFreelancerId;
 
   const syncPortfolioViewport = (targetIndex: number) => {
     // 확대 모달에서 이미지를 넘겼을 때도, 본문 4장 목록 안에 같은 이미지가 보이도록 시작 인덱스를 맞춥니다.
@@ -170,11 +217,9 @@ export default function FreelancerProfilePage() {
               className="relative w-48 h-48 md:w-64 md:h-64 shrink-0"
             >
               <div className="w-full h-full rounded-[48px] overflow-hidden border-4 border-ivory shadow-xl">
-                <img 
-                  src={profile.memberImageUrl || DEFAULT_PROFILE_IMAGE_URL} 
-                  alt={profile.memberName} 
-                  className="w-full h-full object-cover"
-                />
+               <SafeImage src={profile.memberImageUrl || DEFAULT_PROFILE_IMAGE_URL}
+                                            alt={profile.memberName}
+                                            className="w-full h-full object-cover" />
               </div>
             </motion.div>
 
@@ -194,7 +239,7 @@ export default function FreelancerProfilePage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Users size={18} className="text-coral" />
-                    <span>팔로워 0</span>
+                    <span>팔로워 {followerCount}명</span>
                   </div>
                 </div>
               </div>
@@ -218,19 +263,34 @@ export default function FreelancerProfilePage() {
               </div>
 
               <div className="flex gap-4 justify-center md:justify-start pt-4">
-                <button 
-                  onClick={handleFollow}
-                  className={cn(
-                    "flex-1 md:flex-none px-12 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg",
-                    checkFollowing(String(profile.freelancerId)) 
-                      ? "bg-ivory text-coral border-2 border-coral shadow-coral/10" 
-                      : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
-                  )}
+                {/* 본인 프로필이면 팔로우 버튼 숨김 */}
+                {!isSelf && (
+                  <button
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                    className={cn(
+                      "flex-1 md:flex-none px-12 py-4 rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg disabled:opacity-60",
+                      checkFollowing(String(profile.freelancerId))
+                        ? "bg-ivory text-coral border-2 border-coral shadow-coral/10"
+                        : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
+                    )}
+                  >
+                    <Heart
+                      size={20}
+                      className={cn(
+                        "transition-all",
+                        checkFollowing(String(profile.freelancerId)) && "fill-coral"
+                      )}
+                    />
+                    {checkFollowing(String(profile.freelancerId)) ? '팔로잉' : '팔로우'}
+                  </button>
+                )}
+                <button
+                  // 프리랜서 프로필 상세 문의도 대상 freelancer 회원 PK로 실제 1:1 채팅방을 엽니다.
+                  onClick={() => navigate(`/chat?targetMemberId=${profile.freelancerId}`)}
+                  disabled={isOwnFreelancerProfile}
+                  className="flex-1 md:flex-none px-12 py-4 bg-white border-2 border-coral/20 text-coral font-bold rounded-2xl hover:bg-ivory transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Heart size={20} className={cn(checkFollowing(String(profile.freelancerId)) && "fill-coral")} />
-                  {checkFollowing(String(profile.freelancerId)) ? '팔로잉' : '팔로우'}
-                </button>
-                <button className="flex-1 md:flex-none px-12 py-4 bg-white border-2 border-coral/20 text-coral font-bold rounded-2xl hover:bg-ivory transition-all flex items-center justify-center gap-2">
                   <MessageSquare size={20} />
                   1:1 문의
                 </button>
@@ -332,7 +392,7 @@ export default function FreelancerProfilePage() {
                           className="aspect-square rounded-[32px] overflow-hidden border border-coral/10 shadow-sm group relative cursor-zoom-in"
                           onClick={() => handleOpenPortfolioImage(portfolioStartIndex + idx)}
                         >
-                          <img src={img} alt={`Portfolio ${portfolioStartIndex + idx + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                          <SafeImage src={img} alt={`Portfolio ${portfolioStartIndex + idx + 1}`} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                           <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <span className="text-white font-bold">확대 보기</span>
                           </div>
