@@ -19,7 +19,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(chatWebSocketHandler, "/ws/chat")
-                .setAllowedOrigins("http://localhost:5173")
+                // 로컬 협업/테스트에서는 접속 호스트(IP, localhost 등)가 달라질 수 있으므로 origin 패턴을 넓게 허용합니다.
+                // 실제 인증은 handshake interceptor의 JWT 검증이 담당합니다.
+                .setAllowedOriginPatterns("*")
                 .addInterceptors(chatHandshakeInterceptor);
     }
 }
