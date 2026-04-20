@@ -75,7 +75,7 @@ export default function ClassFormPage() {
   const navigate = useNavigate();
   const { addClass, updateClass, classes } = useClasses();
   const { categories } = useCategories();
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, loading } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const isEditMode = !!id;
@@ -92,6 +92,7 @@ export default function ClassFormPage() {
   const [capacity, setCapacity] = useState('1');
   const [price, setPrice] = useState('');
   const [images, setImages] = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
@@ -122,13 +123,17 @@ export default function ClassFormPage() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (files) {
-      Array.from(files).forEach((file: File) => {
-        if (images.length < 10) {
+      const newFiles = Array.from(files);
+      const currentImageCount = images.length;
+      
+      newFiles.forEach((file: File, index: number) => {
+        if (currentImageCount + index < 10) {
           const reader = new FileReader();
           reader.onloadend = () => {
             setImages(prev => [...prev, reader.result as string].slice(0, 10));
           };
           reader.readAsDataURL(file);
+          setImageFiles(prev => [...prev, file].slice(0, 10));
         }
       });
     }
@@ -136,10 +141,16 @@ export default function ClassFormPage() {
 
   const removeImage = (index: number) => {
     setImages(prev => prev.filter((_, i) => i !== index));
+    setImageFiles(prev => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (loading) {
+      setToast('로그인 상태를 확인 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
 
     if (!isLoggedIn) {
       setToast('로그인 후 클래스 등록이 가능합니다.');
@@ -185,6 +196,7 @@ export default function ClassFormPage() {
       maxCapacity: Number(capacity),
       curriculum,
       location: method === 'offline' ? location : undefined,
+      images: imageFiles,
     };
 
     try {
@@ -192,6 +204,17 @@ export default function ClassFormPage() {
       setToast('클래스가 성공적으로 등록되었습니다!');
       setTimeout(() => navigate('/profile'), 1500);
     } catch (error: any) {
+      const status = error?.response?.status;
+      const message = error?.response?.data?.message;
+      if (status === 401) {
+        setToast(message || '인증이 필요합니다. 로그인 페이지로 이동합니다.');
+        setTimeout(() => navigate('/login'), 1500);
+        return;
+      }
+      if (status === 403) {
+        setToast(message || '접근 권한이 없습니다.');
+        return;
+      }
       console.error('클래스 등록 실패:', error);
       if (error?.response?.status === 403) {
         setToast('로그인이 필요합니다. 로그인 페이지로 이동합니다.');

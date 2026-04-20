@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import axios from 'axios';
 import apiClient from '../api/axios';
 import { ClassItem } from '../constants';
+import { getAccessToken } from '../lib/auth';
 
 interface CreateClassPayload {
   title: string;
@@ -13,6 +15,7 @@ interface CreateClassPayload {
   maxCapacity: number;
   curriculum?: string;
   location?: string;
+  images?: File[];
 }
 
 interface ClassContextType {
@@ -76,6 +79,18 @@ function toClassItem(api: ClassApiResponse): ClassItem {
 export const ClassProvider = ({ children }: { children: ReactNode }) => {
   const [classes, setClasses] = useState<ClassItem[]>([]);
 
+  const getAuthConfig = () => {
+    const token = getAccessToken();
+
+    return token
+      ? {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      : undefined;
+  };
+
   const fetchClasses = async () => {
     try {
       const response = await apiClient.get<ClassApiResponse[]>('/classes');
@@ -91,7 +106,38 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
 
   const addClass = async (newClass: CreateClassPayload) => {
     try {
-      await apiClient.post('/classes', newClass);
+      const token = getAccessToken();
+      const formData = new FormData();
+      formData.append('title', newClass.title);
+      formData.append('description', newClass.description || '');
+      formData.append('categoryId', String(newClass.categoryId));
+      formData.append('price', String(newClass.price));
+      formData.append('isOnline', String(newClass.isOnline));
+      formData.append('startAt', newClass.startAt);
+      formData.append('endAt', newClass.endAt);
+      formData.append('maxCapacity', String(newClass.maxCapacity));
+      if (newClass.curriculum) {
+        formData.append('curriculum', newClass.curriculum);
+      }
+      if (newClass.location) {
+        formData.append('location', newClass.location);
+      }
+      if (newClass.images && newClass.images.length > 0) {
+        newClass.images.forEach((file) => {
+          formData.append('images', file);
+        });
+      }
+
+      console.log('[ClassContext] createClass token exists:', !!token);
+      console.log('[ClassContext] createClass token preview:', token ? token.slice(0, 20) : null);
+
+      await axios.post('/api/classes', formData, {
+        headers: token
+          ? {
+              Authorization: `Bearer ${token}`,
+            }
+          : undefined,
+      });
       await fetchClasses();
     } catch (error) {
       console.error('클래스 생성 실패:', error);
@@ -102,7 +148,7 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
   // 클래스를 삭제하는 기능 (API 호출 후 로컬 상태 반영)
   const deleteClass = async (id: string) => {
     try {
-      await apiClient.delete(`/classes/${id}`);
+      await apiClient.delete(`/classes/${id}`, getAuthConfig());
       setClasses(prev => prev.filter(c => c.id !== id));
     } catch (error) {
       console.error('클래스 삭제 실패:', error);
@@ -113,7 +159,7 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
   // 클래스 정보를 수정하는 기능 (API 호출 후 목록 새로고침)
   const updateClass = async (id: string, updatedClass: CreateClassPayload) => {
     try {
-      await apiClient.put(`/classes/${id}`, updatedClass);
+      await apiClient.put(`/classes/${id}`, updatedClass, getAuthConfig());
       await fetchClasses(); // 목록 새로고침하여 변경사항 반영
     } catch (error) {
       console.error('클래스 수정 실패:', error);
@@ -124,7 +170,7 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
   // 클래스의 모집 상태를 반전(토글)시키는 기능 (API 호출 후 로컬 상태 반영)
   const toggleStatus = async (id: string) => {
     try {
-      const response = await apiClient.patch<string>(`/classes/${id}/status`);
+      const response = await apiClient.patch<string>(`/classes/${id}/status`, undefined, getAuthConfig());
       const nextStatus = response.data;
       setClasses(prev => prev.map(c => c.id === id ? { ...c, status: nextStatus } : c));
     } catch (error) {

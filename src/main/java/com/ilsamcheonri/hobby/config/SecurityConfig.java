@@ -2,10 +2,12 @@ package com.ilsamcheonri.hobby.config;
 
 import com.ilsamcheonri.hobby.jwt.JwtAuthenticationFilter;
 import com.ilsamcheonri.hobby.jwt.JwtTokenProvider;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -15,9 +17,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.servlet.config.annotation.CorsRegistry;
-import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @Configuration
@@ -31,17 +32,14 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-
         CorsConfiguration configuration = new CorsConfiguration();
-
         configuration.setAllowedOrigins(List.of("http://localhost:5173"));
-        configuration.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
-
         return source;
     }
 
@@ -54,24 +52,31 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                /*
-                  // GET 요청만 허용
-                  .requestMatchers(HttpMethod.GET, "/api/your-endpoint/**").permitAll()
-
-                  // 모든 메서드 허용
-                  .requestMatchers("/api/your-endpoint/**").permitAll()
-                 */
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            Object jwtError = request.getAttribute(JwtAuthenticationFilter.JWT_ERROR_ATTR);
+                            String message = jwtError == null
+                                    ? "인증이 필요합니다."
+                                    : "JWT 인증 실패: " + jwtError;
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write("{\"message\":\"" + message + "\"}");
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+                            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+                            response.getWriter().write("{\"message\":\"접근 권한이 없습니다.\"}");
+                        })
+                )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
-                        // 카테고리 목록 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
-                        // OFFER 클래스 목록 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/classes/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/classes/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/classes/**").authenticated()
-                        // 요청 클래스 목록/상세 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()
-                        // 파일 다운로드 — 로그인 없이 접근 가능 (이미지 표시용)
                         .requestMatchers(HttpMethod.GET, "/api/files/download/**").permitAll()
                         .requestMatchers("/api/member/**").authenticated()
                         .anyRequest().authenticated()
@@ -85,9 +90,4 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-
-    // JWT 만료 시간 허용 오차 (클럭 스큐) 설정
-    // JWT 라이브러리에서 기본적으로 제공하는 AllowedClockSkew를 통해 처리할 수 있지만,
-    // Spring Security 설정을 통해 전역적으로 적용하는 방법이 더 일관적입니다.
-    // 여기서는 SecurityConfig에서 별도로 설정하지 않고, Jwts.parserBuilder()에서 처리하도록 합니다.
 }
