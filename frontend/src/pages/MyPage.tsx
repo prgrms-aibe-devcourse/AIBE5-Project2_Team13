@@ -25,6 +25,7 @@ import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 
 import { useNavigate, Link } from 'react-router-dom';
 import MyRequestManage from './MyRequestManage';
+import SafeImage from '../components/SafeImage';
 
 const REVENUE_DATA = [
   { month: '1월', revenue: 1200000, students: 45 },
@@ -1505,7 +1506,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {freelancerProfile.portfolioImages.map((image, idx) => (
               <div key={`${image.id ?? image.originalFileName}-${idx}`} className="relative aspect-square rounded-2xl overflow-hidden group border border-coral/10 bg-white shadow-sm">
-                <img src={image.fileUrl} alt={image.originalFileName} className="w-full h-full object-cover" />
+                <SafeImage src={image.fileUrl} alt={image.originalFileName} className="w-full h-full object-cover" />
                 <button
                   type="button"
                   onClick={() => handleRemoveFreelancerPortfolioImage(idx)}
