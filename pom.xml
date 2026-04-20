@@ -61,6 +61,12 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
+		<!-- 1:1 채팅 실시간 전송을 위한 WebSocket 지원 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
 		<!--애플리케이션과 AWS RDS(MySQL)를 연결해 주는 DB 통신 드라이버-->
 		<dependency>
 			<groupId>com.mysql</groupId>

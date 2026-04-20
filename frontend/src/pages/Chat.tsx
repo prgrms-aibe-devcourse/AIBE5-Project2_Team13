@@ -1,300 +1,648 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Plus, Send, Paperclip, MoreVertical, ChevronLeft, User, MessageSquare } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ChevronDown, ChevronLeft, MessageCircle, Search, Send } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/src/context/AuthContext';
+import { getAccessToken } from '@/src/lib/auth';
+import {
+  createOrOpenDirectChatRoom,
+  getChatMessages,
+  getChatRooms,
+  leaveChatRoom,
+  markChatRoomAsRead,
+  type ChatMessage,
+  type ChatRoomSummary,
+} from '@/src/api/chat';
 
-interface ChatRoom {
-  id: string;
-  name: string;
-  lastMessage: string;
-  time: string;
-  unread: number;
-  avatar: string;
-}
+type ChatSocketEvent =
+  | {
+      // 서버가 새 메시지 저장 후 브라우저에 보내는 실시간 이벤트입니다.
+      type: 'MESSAGE_CREATED';
+      payload: ChatMessage;
+    }
+  | {
+      // WebSocket 처리 중 사용자에게 바로 보여줄 오류 이벤트입니다.
+      type: 'ERROR';
+      message: string;
+    };
 
-interface Message {
-  id: string;
-  text: string;
-  sender: 'me' | 'other';
-  time: string;
-}
+// 채팅방 목록은 오늘이면 시:분, 아니면 월/일만 보여 카카오톡 느낌으로 정리합니다.
+const formatRoomTime = (value: string | null) => {
+  if (!value) return '';
+  const date = new Date(value);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
 
-const MOCK_ROOMS: ChatRoom[] = [
-  { id: '1', name: '김화가 프리랜서', lastMessage: '수채화 클래스 준비물은 제가 다 준비해드려요!', time: '오후 2:30', unread: 1, avatar: 'https://picsum.photos/seed/avatar1/100/100' },
-  { id: '2', name: '이지요가 프리랜서', lastMessage: '네, 토요일 오후 2시 예약 가능합니다.', time: '오전 11:15', unread: 0, avatar: 'https://picsum.photos/seed/avatar2/100/100' },
-  { id: '3', name: '셰프박 프리랜서', lastMessage: '파스타 면 삶는 법부터 차근차근 알려드릴게요.', time: '어제', unread: 0, avatar: 'https://picsum.photos/seed/avatar3/100/100' },
-];
+  if (isToday) {
+    return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+  }
 
-const MOCK_MESSAGES: Message[] = [
-  { id: '1', text: '안녕하세요! 수채화 클래스 문의드려요.', sender: 'me', time: '오후 2:15' },
-  { id: '2', text: '안녕하세요! 반갑습니다. 어떤 점이 궁금하신가요?', sender: 'other', time: '오후 2:16' },
-  { id: '3', text: '준비물을 따로 챙겨가야 할까요?', sender: 'me', time: '오후 2:20' },
-  { id: '4', text: '수채화 클래스 준비물은 제가 다 준비해드려요! 몸만 편하게 오시면 됩니다.', sender: 'other', time: '오후 2:30' },
-];
+  return date.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' });
+};
+
+// 메시지 말풍선 아래 시간 표시는 시:분까지만 사용합니다.
+const formatMessageTime = (value: string) =>
+  new Date(value).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+
+// 개발 환경에서는 Vite 프록시(/ws -> 8080)를 타도록 브라우저 origin 기준으로 WebSocket 주소를 만듭니다.
+const buildWebSocketUrl = (token: string) => {
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+  return `${protocol}//${window.location.host}/ws/chat?token=${encodeURIComponent(token)}`;
+};
 
 export default function Chat() {
-  const [rooms, setRooms] = useState<ChatRoom[]>(MOCK_ROOMS);
-  const [selectedRoom, setSelectedRoom] = useState<ChatRoom>(MOCK_ROOMS[0]);
-  const [messages, setMessages] = useState<Message[]>(MOCK_MESSAGES);
-  const [input, setInput] = useState('');
-  const [macros, setMacros] = useState<string[]>([]);
-  const [userRole, setUserRole] = useState<string | null>(localStorage.getItem('userRole'));
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user, isLoggedIn, loading } = useAuth();
+  const [rooms, setRooms] = useState<ChatRoomSummary[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [input, setInput] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [pageLoading, setPageLoading] = useState(true);
+  const [roomLoading, setRoomLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [leavingRoom, setLeavingRoom] = useState(false);
+  const socketRef = useRef<WebSocket | null>(null);
+  const selectedRoomIdRef = useRef<number | null>(null);
+  const messageListRef = useRef<HTMLDivElement>(null);
+  const resolvedTargetKeyRef = useRef<string | null>(null);
+  const shouldForceScrollToBottomRef = useRef(false);
 
-  useEffect(() => {
-    // Clear unread count for the selected room when chat is opened or room is changed
-    setRooms(prev => prev.map(room => 
-      room.id === selectedRoom.id ? { ...room, unread: 0 } : room
-    ));
-  }, [selectedRoom.id]);
-
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const scrollMessageListToBottom = (behavior: ScrollBehavior) => {
+    const messageListElement = messageListRef.current;
+    if (!messageListElement) {
+      return;
     }
+
+    messageListElement.scrollTo({
+      top: messageListElement.scrollHeight,
+      behavior,
+    });
+  };
+
+  const syncHeaderUnreadIndicator = (nextRooms: ChatRoomSummary[]) => {
+    // 헤더 채팅 점은 unread가 남아 있는 방이 하나라도 있는지만 보면 되므로, 채팅 페이지에서 즉시 이벤트로 동기화합니다.
+    window.dispatchEvent(
+      new CustomEvent('chat-unread-updated', {
+        detail: {
+          hasUnread: nextRooms.some((room) => room.unreadCount > 0),
+        },
+      }),
+    );
+  };
+
+  // WebSocket 이벤트 핸들러 안에서도 최신 선택 방 id를 참조할 수 있게 ref로 보관합니다.
+  selectedRoomIdRef.current = selectedRoomId;
+
+  // 채팅방을 바꿀 때는 이전 방의 스크롤 위치를 버리고 새 방의 최신 메시지 위치로 강제 이동시킵니다.
+  useEffect(() => {
+    shouldForceScrollToBottomRef.current = true;
+  }, [selectedRoomId]);
+
+  // 방 목록 새로고침은 채팅방 생성 직후, 새 메시지 수신 후, 읽음 처리 후에 공통으로 재사용합니다.
+  const refreshRooms = async (preferredRoomId?: number | null) => {
+    const nextRooms = await getChatRooms();
+    setRooms(nextRooms);
+    syncHeaderUnreadIndicator(nextRooms);
+
+    setSelectedRoomId((prev) => {
+      if (preferredRoomId && nextRooms.some((room) => room.roomId === preferredRoomId)) {
+        return preferredRoomId;
+      }
+
+      if (prev && nextRooms.some((room) => room.roomId === prev)) {
+        return prev;
+      }
+
+      // 헤더에서 /chat 으로만 진입한 경우에는 목록만 보여주고 특정 방을 자동으로 열지 않습니다.
+      if (prev === null) {
+        return null;
+      }
+
+      return nextRooms[0]?.roomId ?? null;
+    });
+  };
+
+  // 비로그인 사용자는 채팅 페이지에서 로그인 유도 화면만 보여줍니다.
+  useEffect(() => {
+    if (!loading && !isLoggedIn) {
+      setPageLoading(false);
+    }
+  }, [isLoggedIn, loading]);
+
+  // 문의 버튼에서 roomId 없이 들어오면 target 정보로 방 생성/재사용 후 roomId로 정착시킵니다.
+  useEffect(() => {
+    if (!isLoggedIn) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const initialize = async () => {
+      setPageLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const targetMemberIdParam = searchParams.get('targetMemberId');
+        // footer에서 들어온 관리자 문의는 roomId 대신 adminInquiry=true 쿼리로만 구분합니다.
+        const adminInquiryParam = searchParams.get('adminInquiry');
+        const roomIdParam = searchParams.get('roomId');
+
+        let preferredRoomId = roomIdParam ? Number(roomIdParam) : null;
+        const targetKey = targetMemberIdParam
+          ? `member:${targetMemberIdParam}`
+          : adminInquiryParam === 'true'
+            ? 'admin'
+            : null;
+
+        // 클래스 상세, 프리랜서 프로필, footer 문의하기는 처음엔 target 정보만 들고 들어옵니다.
+        // 일반 문의(targetMemberId)와 관리자 문의(adminInquiry)를 같은 create-or-open API로 묶습니다.
+        // 개발 모드 StrictMode나 빠른 상태 전환으로 effect가 다시 실행돼도, 같은 대상에 대한 방 생성/재사용 요청은 한 번만 보냅니다.
+        if (targetKey && resolvedTargetKeyRef.current !== targetKey) {
+          resolvedTargetKeyRef.current = targetKey;
+          const directRoom = await createOrOpenDirectChatRoom({
+            targetMemberId: targetMemberIdParam ? Number(targetMemberIdParam) : undefined,
+            // 실제 관리자 이메일은 프론트가 모르고, 백엔드가 고정값을 사용해 대상 회원을 해석합니다.
+            adminInquiry: adminInquiryParam === 'true',
+          });
+
+          // 새로 연 1:1 문의 방은 목록 새로고침 전에 바로 선택 상태에 넣어 최근 방 포커스에 덮이지 않게 합니다.
+          setRooms((prev) => {
+            const nextRooms = [directRoom, ...prev.filter((room) => room.roomId !== directRoom.roomId)];
+            syncHeaderUnreadIndicator(nextRooms);
+            return nextRooms;
+          });
+          setSelectedRoomId(directRoom.roomId);
+          preferredRoomId = directRoom.roomId;
+          setSearchParams({ roomId: String(directRoom.roomId) }, { replace: true });
+        }
+
+        if (!targetKey) {
+          resolvedTargetKeyRef.current = null;
+        }
+
+        if (isMounted) {
+          if (preferredRoomId) {
+            setSelectedRoomId(preferredRoomId);
+          }
+          await refreshRooms(preferredRoomId);
+        }
+      } catch (error: any) {
+        if (isMounted) {
+          setErrorMessage(error?.response?.data?.message ?? '채팅방을 불러오지 못했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setPageLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, searchParams, setSearchParams]);
+
+  // 현재 선택한 방이 바뀌면 전체 이력을 다시 읽고, 입장 시 unread도 읽음 처리합니다.
+  useEffect(() => {
+    if (!selectedRoomId || !isLoggedIn) {
+      setMessages([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRoomMessages = async () => {
+      setRoomLoading(true);
+      setErrorMessage(null);
+      setMessages([]);
+
+      try {
+        const nextMessages = await getChatMessages(selectedRoomId);
+        if (!isMounted) return;
+
+        setMessages(nextMessages);
+        await markChatRoomAsRead(selectedRoomId);
+        await refreshRooms(selectedRoomId);
+      } catch (error: any) {
+        if (isMounted) {
+          setErrorMessage(error?.response?.data?.message ?? '메시지를 불러오지 못했습니다.');
+        }
+      } finally {
+        if (isMounted) {
+          setRoomLoading(false);
+        }
+      }
+    };
+
+    loadRoomMessages();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isLoggedIn, selectedRoomId]);
+
+  // 실시간 메시지는 브라우저 기본 WebSocket으로 처리합니다. 별도 STOMP 라이브러리는 쓰지 않습니다.
+  useEffect(() => {
+    const token = getAccessToken();
+    if (!token || !isLoggedIn) {
+      return;
+    }
+
+    const socket = new WebSocket(buildWebSocketUrl(token));
+    socketRef.current = socket;
+
+    socket.onmessage = async (event) => {
+      const payload = JSON.parse(event.data) as ChatSocketEvent;
+
+      if (payload.type === 'ERROR') {
+        setErrorMessage(payload.message);
+        return;
+      }
+
+      if (payload.type === 'MESSAGE_CREATED') {
+        const incomingMessage = payload.payload;
+
+        // 어느 방에서 메시지가 왔든 좌측 목록의 최근 메시지/unread는 즉시 갱신합니다.
+        await refreshRooms(selectedRoomIdRef.current);
+
+        if (selectedRoomIdRef.current === incomingMessage.roomId) {
+          setMessages((prev) => {
+            if (prev.some((message) => message.messageId === incomingMessage.messageId)) {
+              return prev;
+            }
+            return [...prev, incomingMessage];
+          });
+
+          // 현재 열려 있는 방에서 상대 메시지를 받으면 바로 읽음 처리해 badge가 남지 않게 합니다.
+          if (incomingMessage.senderEmail !== user?.email) {
+            try {
+              await markChatRoomAsRead(incomingMessage.roomId);
+              await refreshRooms(incomingMessage.roomId);
+            } catch {
+              // 읽음 처리는 다음 방 새로고침 때 다시 맞춰집니다.
+            }
+          }
+        }
+      }
+    };
+
+    socket.onerror = () => {
+      setErrorMessage('실시간 채팅 연결 중 오류가 발생했습니다.');
+    };
+
+    return () => {
+      socket.close();
+      socketRef.current = null;
+    };
+  }, [isLoggedIn, user?.email]);
+
+  // 채팅방을 처음 열거나 다시 들어왔을 때는 무조건 즉시 최하단으로 맞춥니다.
+  useLayoutEffect(() => {
+    if (!selectedRoomId || roomLoading || !shouldForceScrollToBottomRef.current) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      scrollMessageListToBottom('auto');
+      shouldForceScrollToBottomRef.current = false;
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [messages, roomLoading, selectedRoomId]);
+
+  // 같은 방 안에서 새 메시지가 추가될 때만 부드럽게 최하단으로 이동합니다.
+  useEffect(() => {
+    if (!messages.length || shouldForceScrollToBottomRef.current) {
+      return;
+    }
+
+    scrollMessageListToBottom('smooth');
   }, [messages]);
 
-  // Fetch macros for freelancers
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      // Always sync role from localStorage first for immediate UI response
-      const role = localStorage.getItem('userRole');
-      console.log('Detected user role:', role);
-      setUserRole(role);
+  // 현재 선택된 채팅방 헤더/본문 렌더링에 쓰는 선택 방 데이터입니다.
+  const selectedRoom = useMemo(
+    () => rooms.find((room) => room.roomId === selectedRoomId) ?? null,
+    [rooms, selectedRoomId],
+  );
+  const isSelectedRoomFreelancer = selectedRoom?.otherMemberRole === 'F';
 
-      if (user) {
-        console.log('User authenticated:', user.uid);
-        const userDocRef = doc(db, 'users', user.uid);
-        
-        // Use onSnapshot for real-time updates of both role and macros
-        const unsubDoc = onSnapshot(userDocRef, async (docSnap) => {
-          if (docSnap.exists()) {
-            const data = docSnap.data();
-            console.log('Firestore user data:', data);
-            
-            // Sync role from Firestore if it differs (e.g., just upgraded)
-            if (data.role && data.role !== role) {
-              console.log('Updating role from Firestore:', data.role);
-              setUserRole(data.role);
-              localStorage.setItem('userRole', data.role);
-            }
+  // 좌측 검색창은 상대 이름, 이메일, 최근 메시지를 기준으로 필터링합니다.
+  const filteredRooms = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase();
+    if (!keyword) return rooms;
 
-            if (data.role === 'ROLE_FREELANCER') {
-              if (data.macros && data.macros.length > 0) {
-                console.log('Setting macros from Firestore:', data.macros);
-                setMacros(data.macros);
-              } else {
-                const defaultMacros = [
-                  '안녕하세요! 상담 가능합니다.',
-                  '문의하신 내용은 확인 후 연락드릴게요.',
-                  '결제 확인되었습니다.'
-                ];
-                console.log('Initializing default macros');
-                setMacros(defaultMacros);
-                try {
-                  await updateDoc(userDocRef, { macros: defaultMacros });
-                } catch (err) {
-                  console.error("Error initializing macros:", err);
-                }
-              }
-            }
-          } else {
-            console.log('User document does not exist in Firestore');
-          }
-        });
-        return () => unsubDoc();
-      } else {
-        console.log('User not authenticated');
-        setMacros([]);
-      }
+    return rooms.filter((room) => {
+      return (
+        room.otherMemberName.toLowerCase().includes(keyword) ||
+        room.otherMemberEmail.toLowerCase().includes(keyword) ||
+        (room.lastMessage ?? '').toLowerCase().includes(keyword)
+      );
     });
-    return () => unsubscribe();
-  }, []);
+  }, [rooms, searchKeyword]);
 
+  // 전송 버튼과 Enter 키는 같은 WebSocket SEND_MESSAGE 이벤트를 사용합니다.
   const handleSend = () => {
-    if (!input.trim()) return;
-    const newMsg: Message = {
-      id: Date.now().toString(),
-      text: input,
-      sender: 'me',
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages([...messages, newMsg]);
+    const socket = socketRef.current;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !selectedRoomId || !input.trim()) {
+      return;
+    }
+
+    socket.send(
+      JSON.stringify({
+        type: 'SEND_MESSAGE',
+        roomId: selectedRoomId,
+        message: input.trim(),
+      }),
+    );
     setInput('');
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      alert(`파일 '${file.name}'이(가) 선택되었습니다. (데모용)`);
-      const newMsg: Message = {
-        id: Date.now().toString(),
-        text: `📎 파일 첨부: ${file.name}`,
-        sender: 'me',
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
-      setMessages([...messages, newMsg]);
+  const handleLeaveRoom = async () => {
+    if (!selectedRoomId || leavingRoom) {
+      return;
+    }
+
+    const shouldLeave = window.confirm('이 채팅방에서 나가시겠습니까? 목록에서 숨겨지며, 같은 상대와 다시 문의하면 기존 대화가 복구됩니다.');
+    if (!shouldLeave) {
+      return;
+    }
+
+    setLeavingRoom(true);
+
+    try {
+      const leavingRoomId = selectedRoomId;
+      await leaveChatRoom(leavingRoomId);
+
+      const nextRooms = await getChatRooms();
+      setRooms(nextRooms);
+      syncHeaderUnreadIndicator(nextRooms);
+      setMessages([]);
+
+      const nextSelectedRoomId = nextRooms[0]?.roomId ?? null;
+      setSelectedRoomId(nextSelectedRoomId);
+
+      if (nextSelectedRoomId) {
+        setSearchParams({ roomId: String(nextSelectedRoomId) }, { replace: true });
+      } else {
+        setSearchParams({}, { replace: true });
+      }
+    } catch (error: any) {
+      setErrorMessage(error?.response?.data?.message ?? '채팅방 나가기에 실패했습니다.');
+    } finally {
+      setLeavingRoom(false);
     }
   };
+
+  if (!loading && !isLoggedIn) {
+    return (
+      <div className="min-h-[calc(100vh-140px)] flex flex-col items-center justify-center gap-4 px-4">
+        <MessageCircle className="text-coral" size={40} />
+        <p className="text-gray-600 text-center">채팅은 로그인 후 이용할 수 있습니다.</p>
+        <button
+          onClick={() => navigate('/login')}
+          className="px-6 py-3 bg-coral text-white rounded-2xl font-bold hover:bg-coral/90 transition-all"
+        >
+          로그인하러 가기
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 h-[calc(100vh-120px)]">
       <div className="bg-white rounded-[40px] shadow-sm border border-coral/10 overflow-hidden flex h-full">
-        {/* Sidebar */}
-        <aside className="w-full md:w-80 border-r border-coral/10 flex flex-col bg-ivory/20">
+        <aside
+          className={cn(
+            'w-full md:w-80 border-r border-coral/10 flex flex-col bg-ivory/20',
+            // 모바일에서는 방을 고르면 목록을 숨기고 대화창만 보여줍니다.
+            selectedRoomId ? 'hidden md:flex' : 'flex',
+          )}
+        >
           <div className="p-6 border-b border-coral/10">
             <h2 className="text-xl font-bold text-gray-900 mb-4">채팅</h2>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
               <input
                 type="text"
-                placeholder="대화방 검색"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="이름, 이메일 검색"
                 className="w-full pl-10 pr-4 py-2 bg-white border border-coral/10 rounded-xl outline-none focus:border-coral transition-all text-sm"
               />
             </div>
           </div>
+
           <div className="flex-1 overflow-y-auto">
-            {rooms.map((room) => (
-              <button
-                key={room.id}
-                onClick={() => setSelectedRoom(room)}
-                className={cn(
-                  "w-full p-4 flex gap-3 items-center transition-all hover:bg-white",
-                  selectedRoom.id === room.id ? "bg-white border-l-4 border-coral" : ""
-                )}
-              >
-                <img src={room.avatar} alt={room.name} className="w-12 h-12 rounded-2xl object-cover" />
-                <div className="flex-1 text-left min-w-0">
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="font-bold text-gray-900 truncate">{room.name}</span>
-                    <span className="text-[10px] text-gray-400">{room.time}</span>
+            {pageLoading ? (
+              <div className="p-6 text-sm text-gray-400">채팅방을 불러오는 중입니다.</div>
+            ) : filteredRooms.length === 0 ? (
+              <div className="p-6 text-sm text-gray-400 leading-relaxed">
+                아직 열린 대화가 없습니다.
+                <br />
+                클래스 상세, 프리랜서 프로필, 1:1 문의에서 대화를 시작해보세요.
+              </div>
+            ) : (
+              filteredRooms.map((room) => (
+                <button
+                  key={room.roomId}
+                  onClick={() => {
+                    // 방 선택 시 URL도 roomId 기준으로 맞춰 새로고침해도 같은 방을 열 수 있게 합니다.
+                    setSelectedRoomId(room.roomId);
+                    setSearchParams({ roomId: String(room.roomId) }, { replace: true });
+                  }}
+                  className={cn(
+                    'w-full p-4 flex gap-3 items-center cursor-pointer transition-all',
+                    selectedRoomId === room.roomId
+                      ? 'bg-white border-l-4 border-coral'
+                      : 'hover:bg-white hover:shadow-sm hover:-translate-y-[1px]',
+                  )}
+                >
+                  <div className="w-12 h-12 rounded-2xl bg-coral/10 overflow-hidden flex items-center justify-center text-coral font-bold">
+                    {room.otherMemberImgUrl ? (
+                      <img src={room.otherMemberImgUrl} alt={room.otherMemberName} className="w-full h-full object-cover" />
+                    ) : (
+                      room.otherMemberName.slice(0, 1)
+                    )}
                   </div>
-                  <p className="text-xs text-gray-500 truncate">{room.lastMessage}</p>
-                </div>
-                {room.unread > 0 && (
-                  <span className="w-5 h-5 bg-coral text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {room.unread}
-                  </span>
-                )}
-              </button>
-            ))}
+                  <div className="flex-1 min-w-0 text-left">
+                    <div className="flex justify-between items-center mb-1 gap-2">
+                      <span className="font-bold text-gray-900 truncate">{room.otherMemberName}</span>
+                      <span className="text-[10px] text-gray-400 whitespace-nowrap">{formatRoomTime(room.lastMessageAt)}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-gray-500 truncate flex-1">
+                        {room.lastMessage || '대화를 시작해보세요.'}
+                      </p>
+                      {room.unreadCount > 0 && (
+                        <span className="min-w-5 h-5 px-1 bg-coral text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                          {room.unreadCount}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </aside>
 
-        {/* Main Chat Window */}
-        <main className="flex-1 flex flex-col bg-white">
-          {/* Top Bar */}
-          <div className="p-4 md:p-6 border-b border-coral/10 flex justify-between items-center">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate(-1)} className="md:hidden p-2 text-gray-400">
-                <ChevronLeft size={24} />
-              </button>
-              <div className="relative">
-                <img src={selectedRoom.avatar} alt={selectedRoom.name} className="w-10 h-10 rounded-xl object-cover" />
-                <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-              </div>
-              <div>
-                <h3 className="font-bold text-gray-900">{selectedRoom.name}</h3>
-                <span className="text-[10px] text-green-500 font-medium">현재 활동 중</span>
-              </div>
-            </div>
-            <button className="p-2 text-gray-400 hover:text-coral transition-colors">
-              <MoreVertical size={20} />
-            </button>
-          </div>
-
-          {/* Messages */}
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-ivory/10">
-            {messages.map((msg) => (
-              <div key={msg.id} className={cn("flex", msg.sender === 'me' ? "justify-end" : "justify-start")}>
-                <div className={cn("flex gap-2 max-w-[75%]", msg.sender === 'me' ? "flex-row-reverse" : "flex-row")}>
-                  {msg.sender === 'other' && (
-                    <div className="w-8 h-8 rounded-lg bg-coral/10 flex items-center justify-center flex-shrink-0">
-                      <User size={16} className="text-coral" />
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-1">
-                    <div
-                      className={cn(
-                        "p-4 rounded-2xl text-sm leading-relaxed shadow-sm",
-                        msg.sender === 'me'
-                          ? "bg-coral text-white rounded-tr-none"
-                          : "bg-gray-100 text-gray-900 rounded-tl-none"
-                      )}
-                    >
-                      {msg.text}
-                    </div>
-                    <span className={cn("text-[10px] text-gray-400 px-1", msg.sender === 'me' ? "text-right" : "text-left")}>
-                      {msg.time}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Input Area */}
-          <div className="p-4 md:p-6 border-t border-coral/10">
-            {/* Macro Buttons for Freelancers */}
-            {userRole === 'ROLE_FREELANCER' && macros.length > 0 && (
-              <div className="flex gap-2 mb-4 overflow-x-auto no-scrollbar pb-1">
-                <div className="flex items-center gap-2 px-2 py-1 bg-coral/5 rounded-lg mr-1">
-                  <MessageSquare size={14} className="text-coral" />
-                  <span className="text-[10px] font-bold text-coral whitespace-nowrap">매크로</span>
-                </div>
-                {macros.map((macro, idx) => (
+        <main
+          className={cn(
+            'relative flex-1 flex-col bg-white',
+            // 모바일에서는 선택된 방이 있을 때만 본문을 보여줍니다.
+            selectedRoomId ? 'flex' : 'hidden md:flex',
+          )}
+        >
+          {selectedRoom ? (
+            <>
+              <div className="p-6 border-b border-coral/10 flex justify-between items-center">
+                <div className="flex items-center gap-3">
                   <button
-                    key={idx}
-                    onClick={() => setInput(prev => prev ? `${prev} ${macro}` : macro)}
-                    className="whitespace-nowrap px-4 py-2 bg-white text-gray-600 text-xs font-bold rounded-full hover:bg-coral hover:text-white transition-all border border-coral/20 shadow-sm"
+                    // 모바일 뒤로가기는 실제 브라우저 back이 아니라 "목록으로 복귀" 동작입니다.
+                    onClick={() => setSelectedRoomId(null)}
+                    className="md:hidden p-2 text-gray-400"
                   >
-                    {macro}
+                    <ChevronLeft size={24} />
                   </button>
-                ))}
-              </div>
-            )}
-
-            <div className="flex items-center gap-3">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileChange} 
-                className="hidden" 
-              />
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 bg-ivory text-gray-400 rounded-2xl hover:text-coral transition-colors"
-              >
-                <Plus size={20} />
-              </button>
-              <button 
-                onClick={() => fileInputRef.current?.click()}
-                className="p-3 bg-ivory text-gray-400 rounded-2xl hover:text-coral transition-colors hidden md:block"
-              >
-                <Paperclip size={20} />
-              </button>
-              <div className="flex-1 relative">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-                  placeholder="메시지를 입력하세요..."
-                  className="w-full px-6 py-3 bg-ivory border-2 border-transparent focus:border-coral rounded-2xl outline-none transition-all pr-12"
-                />
+                  {isSelectedRoomFreelancer ? (
+                    <button
+                      onClick={() => navigate(`/freelancer/${selectedRoom.otherMemberId}`)}
+                      className="group flex items-center gap-3 rounded-2xl px-2 py-1 -mx-2 -my-1 text-left cursor-pointer transition-all hover:bg-coral/5"
+                    >
+                      <div className="w-10 h-10 rounded-xl bg-coral/10 overflow-hidden flex items-center justify-center text-coral font-bold transition-all group-hover:bg-coral/15">
+                        {selectedRoom.otherMemberImgUrl ? (
+                          <img
+                            src={selectedRoom.otherMemberImgUrl}
+                            alt={selectedRoom.otherMemberName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          selectedRoom.otherMemberName.slice(0, 1)
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-bold text-gray-900 transition-colors group-hover:text-coral">
+                            {selectedRoom.otherMemberName}
+                          </h3>
+                          <span className="text-[11px] font-medium text-coral">프리랜서</span>
+                        </div>
+                        <span className="text-xs text-gray-400">{selectedRoom.otherMemberEmail}</span>
+                      </div>
+                    </button>
+                  ) : (
+                    <>
+                      <div className="w-10 h-10 rounded-xl bg-coral/10 overflow-hidden flex items-center justify-center text-coral font-bold">
+                        {selectedRoom.otherMemberImgUrl ? (
+                          <img
+                            src={selectedRoom.otherMemberImgUrl}
+                            alt={selectedRoom.otherMemberName}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          selectedRoom.otherMemberName.slice(0, 1)
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-gray-900">{selectedRoom.otherMemberName}</h3>
+                        <span className="text-xs text-gray-400">{selectedRoom.otherMemberEmail}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
                 <button
-                  onClick={handleSend}
-                  disabled={!input.trim()}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 text-coral disabled:opacity-30"
+                  onClick={handleLeaveRoom}
+                  disabled={leavingRoom}
+                  className="px-4 py-2 text-sm font-bold text-gray-500 border border-gray-200 rounded-xl hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <Send size={20} />
+                  채팅방 나가기
                 </button>
               </div>
+
+              <div ref={messageListRef} className="flex-1 overflow-y-auto p-6 space-y-6 bg-ivory/10">
+                {roomLoading ? (
+                  <div className="text-sm text-gray-400">메시지를 불러오는 중입니다.</div>
+                ) : messages.length === 0 ? (
+                  <div className="text-sm text-gray-400 leading-relaxed">
+                    아직 메시지가 없습니다.
+                    <br />
+                    첫 메시지를 보내 대화를 시작해보세요.
+                  </div>
+                ) : (
+                  messages.map((message) => {
+                    const isMine = message.senderEmail === user?.email;
+                    return (
+                      <div
+                        key={message.messageId}
+                        className={cn('flex', isMine ? 'justify-end' : 'justify-start')}
+                      >
+                        <div className={cn('max-w-[75%] flex flex-col gap-1', isMine ? 'items-end' : 'items-start')}>
+                          <div
+                            className={cn(
+                              'p-4 rounded-2xl text-sm leading-relaxed shadow-sm whitespace-pre-wrap',
+                              isMine
+                                ? 'bg-coral text-white rounded-tr-none'
+                                : 'bg-gray-100 text-gray-900 rounded-tl-none',
+                            )}
+                          >
+                            {message.message}
+                          </div>
+                          <span className="text-[10px] text-gray-400 px-1">{formatMessageTime(message.sentAt)}</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <button
+                onClick={() => scrollMessageListToBottom('smooth')}
+                className="absolute bottom-24 right-6 z-10 w-10 h-10 rounded-full border border-coral/20 bg-white text-coral flex items-center justify-center hover:bg-coral/5 transition-all shadow-sm"
+                aria-label="최신 메시지로 이동"
+                title="최신 메시지로 이동"
+              >
+                <ChevronDown size={18} />
+              </button>
+
+              <div className="px-6 py-4 border-t border-coral/10">
+                {errorMessage && (
+                  <div className="mb-3 text-sm text-red-500">{errorMessage}</div>
+                )}
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+                        e.preventDefault();
+                        handleSend();
+                      }
+                    }}
+                    placeholder="메시지를 입력하세요"
+                    className="flex-1 px-4 py-3 rounded-2xl border border-coral/10 outline-none focus:border-coral transition-all"
+                  />
+                  <button
+                    onClick={handleSend}
+                    disabled={!input.trim()}
+                    className="w-12 h-12 rounded-2xl bg-coral text-white flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <Send size={18} />
+                  </button>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+              대화할 채팅방을 선택해주세요.
             </div>
-          </div>
+          )}
         </main>
       </div>
     </div>

@@ -116,19 +116,6 @@ const handleSocialSignUp = (provider: string) => {
   alert(`${provider} 소셜 회원가입은 준비 중입니다.`);
 };
 
-//토큰
-const fetchMe = async () => {
-  const token = localStorage.getItem('accessToken');
-
-  const res = await axios.get('http://localhost:8080/api/member/me', {
-    headers: {
-      Authorization: `Bearer ${token}`
-    }
-  });
-
-  return res.data;
-};
-
 const handleSubmit = async (e: React.FormEvent) => {
   e.preventDefault();
 

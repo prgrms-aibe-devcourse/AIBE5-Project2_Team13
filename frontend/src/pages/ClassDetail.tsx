@@ -18,6 +18,8 @@ import { useFollow } from '../context/FollowContext';
 import { ReviewItem } from '@/src/constants';
 import { getAccessToken } from '../lib/auth';
 import { useWish } from '../context/WishContext';
+import { useAuth } from '@/src/context/AuthContext';
+import { getMyFreelancerProfile } from '@/src/api/freelancerProfile';
 
 const TABS = [
   { id: 'description', label: '클래스 소개' },//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
@@ -30,6 +32,7 @@ const TABS = [
 export default function ClassDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { enrollments, applyForClass } = useEnrollments();
   const { addReport } = useReports();
   const { classes } = useClasses();
@@ -45,6 +48,7 @@ export default function ClassDetail() {
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [activeTab, setActiveTab] = useState('description');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
+  const [myFreelancerId, setMyFreelancerId] = useState<number | null>(null);
 
   // Refs for scroll sync
   const sectionRefs = {
@@ -139,6 +143,31 @@ export default function ClassDetail() {
     syncWishStatus(id).catch(() => {});
   }, [id, syncWishStatus]);
 
+  useEffect(() => {
+    if (user?.role !== 'FREELANCER') {
+      setMyFreelancerId(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    getMyFreelancerProfile()
+      .then((myProfile) => {
+        if (isMounted) {
+          setMyFreelancerId(myProfile.freelancerId ?? null);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setMyFreelancerId(null);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.role]);
+
   if (!detailItem) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center">
@@ -149,6 +178,7 @@ export default function ClassDetail() {
   }
 
   const item = detailItem;
+  const isOwnClassInquiryTarget = myFreelancerId !== null && Number(item.freelancerId) === myFreelancerId;
   const currentEnrollment = enrollments.find(e => e.classId === item.id);
   const status = currentEnrollment?.status;
     
@@ -580,8 +610,10 @@ export default function ClassDetail() {
                   </button>
                   <div className="grid grid-cols-3 gap-2">
                     <button 
-                      onClick={() => navigate('/chat')}
-                      className="col-span-1 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-[15px] flex flex-col items-center justify-center gap-1"
+                      // 클래스 상세 문의는 수업 프리랜서 회원 PK로 직접 채팅방 생성/재사용을 요청합니다.
+                      onClick={() => navigate(`/chat?targetMemberId=${item.freelancerId}`)}
+                      disabled={isOwnClassInquiryTarget}
+                      className="col-span-1 py-3 bg-white border border-gray-200 text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition-all text-[15px] flex flex-col items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <MessageCircle size={16} />
                       문의하기
