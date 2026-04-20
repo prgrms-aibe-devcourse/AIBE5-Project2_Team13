@@ -30,8 +30,10 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     boolean existsByEmail(String email);
 
     // MyPage 초기 정보 (이름, 권한)
+    // 2026.04.20 id까지 추가 - 최준열 수정
     @Query("""
         select new com.ilsamcheonri.hobby.dto.MemberSummaryDto(
+            m.id,
             m.name,
             m.roleCode.roleCode
         )

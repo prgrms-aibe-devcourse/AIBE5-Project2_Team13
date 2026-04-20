@@ -15,6 +15,7 @@ import { useEnrollments } from '../context/EnrollmentContext';
 import { useReports } from '../context/ReportContext';
 import { useClasses } from '../context/ClassContext';
 import { useFollow } from '../context/FollowContext';
+import { useAuth } from '../context/AuthContext';
 import { ReviewItem } from '@/src/constants';
 import { getAccessToken } from '../lib/auth';
 import { useWish } from '../context/WishContext';
@@ -36,7 +37,8 @@ export default function ClassDetail() {
   const { enrollments, applyForClass } = useEnrollments();
   const { addReport } = useReports();
   const { classes } = useClasses();
-  const { toggleFollow, isFollowing: checkFollowing } = useFollow();
+  const { toggleFollow, isFollowing: checkFollowing, followLoading } = useFollow();
+  const { user } = useAuth();
   const { isWished, syncWishStatus, toggleWish } = useWish();
   const [detailItem, setDetailItem] = useState<ClassItem | null>(null);
   
@@ -114,6 +116,7 @@ export default function ClassDetail() {
           id: String(apiClass.id),
           title: apiClass.title,
           freelancer: apiClass.freelancerName,
+          freelancerEmail: apiClass.freelancerEmail ?? '',  // 본인 여부 판단용
           freelancerId: String(apiClass.freelancerId),
           price: apiClass.price,
           category: apiClass.categoryName,
@@ -429,27 +432,31 @@ export default function ClassDetail() {
                       </Link>
                       <BadgeCheck size={18} className="text-coral" />
                     </div>
-                    <button 
-                      onClick={() => toggleFollow(item.freelancerId || 'f1')}
-                      className={cn(
-                        "px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5",
-                        checkFollowing(item.freelancerId || 'f1')
-                          ? "bg-coral/10 text-coral border border-coral/20"
-                          : "bg-coral text-white shadow-md shadow-coral/20 hover:bg-coral/90"
-                      )}
-                    >
-                      {checkFollowing(item.freelancerId || 'f1') ? (
-                        <>
-                          <UserCheck size={14} />
-                          팔로잉 중
-                        </>
-                      ) : (
-                        <>
-                          <UserPlus size={14} />
-                          팔로우
-                         </>
-                      )}
-                    </button>
+                    {/* 본인 클래스면 팔로우 버튼 숨김 */}
+                    {user?.email !== (item as any).freelancerEmail && (
+                      <button
+                        onClick={() => toggleFollow(item.freelancerId || 'f1')}
+                        disabled={followLoading}
+                        className={cn(
+                          "px-4 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 disabled:opacity-60",
+                          checkFollowing(item.freelancerId || 'f1')
+                            ? "bg-coral/10 text-coral border border-coral/20"
+                            : "bg-coral text-white shadow-md shadow-coral/20 hover:bg-coral/90"
+                        )}
+                      >
+                        {checkFollowing(item.freelancerId || 'f1') ? (
+                          <>
+                            <Heart size={14} className="fill-coral" />
+                            팔로잉 중
+                          </>
+                        ) : (
+                          <>
+                            <Heart size={14} />
+                            팔로우
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                   <p className="text-gray-500 text-base">{(item as any).expertIntro || '전문가님의 노하우를 담아 친절하게 알려드려요.'}</p>
                 </div>

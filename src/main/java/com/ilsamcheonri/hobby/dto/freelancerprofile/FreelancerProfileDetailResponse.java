@@ -11,6 +11,8 @@ public class FreelancerProfileDetailResponse {
     private Long freelancerId;
     private Long profileId;
     private String memberName;
+    // 프론트에서 본인 여부 판단에 사용 (팔로우 버튼 숨김) - 최준열 추가
+    private String memberEmail;
     private String memberImageUrl;
     private String memberAddress;
     private Long specialtyCategoryId;

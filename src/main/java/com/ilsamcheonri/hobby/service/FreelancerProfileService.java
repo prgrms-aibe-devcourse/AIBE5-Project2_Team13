@@ -139,10 +139,12 @@ public class FreelancerProfileService {
                 .map(FreelancerProfileAttachmentDto::from)
                 .toList();
 
+        // 2026.04.20 eamil 추가 - 최준열 수정
         return FreelancerProfileDetailResponse.builder()
                 .freelancerId(member.getId())
                 .profileId(profile.getId())
                 .memberName(member.getName())
+                .memberEmail(member.getEmail())
                 .memberImageUrl(member.getImgUrl())
                 .memberAddress(formatAddress(member.getAddr(), member.getAddr2()))
                 .specialtyCategoryId(profile.getSpecialty().getId())

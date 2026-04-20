@@ -26,6 +26,7 @@ import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 import { useNavigate, Link } from 'react-router-dom';
 import MyRequestManage from './MyRequestManage';
 import SafeImage from '../components/SafeImage';
+import FollowingList from '../components/FollowingList';
 
 const REVENUE_DATA = [
   { month: '1월', revenue: 1200000, students: 45 },
@@ -832,42 +833,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   );
 
   const renderFollowing = () => {
-    const followedFreelancers = freelancers.filter(f => followingIds.includes(f.id));
-
-    return (
-      <div className="space-y-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">팔로잉 프리랜서</h2>
-        {followedFreelancers.length === 0 ? (
-          <div className="text-center py-20 bg-white rounded-[32px] border border-coral/10">
-            <p className="text-gray-400">팔로잉 중인 프리랜서가 없습니다.</p>
-            <Link to="/browse" className="text-coral font-bold mt-2 inline-block hover:underline">전문가 찾아보기</Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {followedFreelancers.map(freelancer => (
-              <div key={freelancer.id} className="bg-white rounded-[32px] p-6 border border-coral/10 flex items-center gap-6 shadow-sm group hover:border-coral transition-all">
-                <Link to={`/freelancer/${freelancer.id}`}>
-                  <img src={freelancer.avatar} alt={freelancer.name} className="w-16 h-16 rounded-2xl object-cover" referrerPolicy="no-referrer" />
-                </Link>
-                <div className="flex-1">
-                  <Link to={`/freelancer/${freelancer.id}`}>
-                    <h4 className="font-bold text-gray-900 mb-1 hover:text-coral transition-colors">{freelancer.name}</h4>
-                  </Link>
-                  <p className="text-sm text-gray-500 mb-2">{freelancer.specialty}</p>
-                  <span className="text-xs text-coral font-medium">팔로워 {freelancer.followerCount}명</span>
-                </div>
-                <button 
-                  onClick={() => toggleFollow(freelancer.id)}
-                  className="px-4 py-2 bg-coral/10 text-coral font-bold rounded-xl hover:bg-coral hover:text-white transition-all text-xs flex-shrink-0 whitespace-nowrap"
-                >
-                  팔로잉 중
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    );
+    return <FollowingList />;
   };
 
   const handleClassClick = (classId: string) => {
