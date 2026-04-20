@@ -631,7 +631,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
             {enrollments.filter(e => e.status === 'APPROVED' || e.status === 'CANCEL_REQUESTED').map(e => {
-              const classItem = MOCK_CLASSES.find(c => c.id === e.classId);
+              const classItem = classes.find(c => c.id === e.classId) || MOCK_CLASSES.find(c => c.id === e.classId);
               return classItem ? (
                 <div key={e.id} className="flex flex-col gap-4">
                   <ExplorerItemCard
@@ -677,7 +677,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
             {enrollments.filter(e => e.status === 'PENDING').map(e => {
-              const classItem = MOCK_CLASSES.find(c => c.id === e.classId);
+              const classItem = classes.find(c => c.id === e.classId) || MOCK_CLASSES.find(c => c.id === e.classId);
               return classItem ? (
                 <div key={e.id} className="flex flex-col gap-4">
                   <ExplorerItemCard

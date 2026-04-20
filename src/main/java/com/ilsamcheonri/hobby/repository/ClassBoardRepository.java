@@ -1,7 +1,9 @@
 package com.ilsamcheonri.hobby.repository;
 
 import com.ilsamcheonri.hobby.entity.ClassBoard;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -66,4 +68,9 @@ public interface ClassBoardRepository extends JpaRepository<ClassBoard, Long> {
             "AND cb.isDeleted = false " +
             "ORDER BY cb.createdAt DESC")
     List<ClassBoard> findMyClassesWithAttachments(@Param("freelancerId") Long freelancerId);
+
+    // 수강 신청 시 정원 경쟁 조건을 방지하기 위한 비관적 락 조회
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT cb FROM ClassBoard cb WHERE cb.id = :id AND cb.isDeleted = false")
+    Optional<ClassBoard> findByIdForUpdate(@Param("id") Long id);
 }

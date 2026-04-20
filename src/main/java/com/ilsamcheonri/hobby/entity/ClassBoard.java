@@ -57,6 +57,7 @@ public class ClassBoard {
     @Column(name = "end_at", nullable = false)
     private LocalDateTime endAt;
 
+    @Builder.Default
     @Column(length = 20)
     private String status = "OPEN"; // OPEN(열림), CLOSE(닫힘)
 
@@ -79,6 +80,7 @@ public class ClassBoard {
     private LocalDateTime updatedAt;
 
     @Builder.Default
+
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 
@@ -147,5 +149,13 @@ public class ClassBoard {
     // 클래스의 모집 상태(OPEN/CLOSE)를 변경하는 기능
     public void updateStatus(String status) {
         this.status = status;
+    }
+
+    // 수강 신청이 성공하면 현재 신청 인원을 1 증가시킵니다.
+    public void increaseVolume() {
+        if (this.currentVolume == null) {
+            this.currentVolume = 0;
+        }
+        this.currentVolume += 1;
     }
 }
