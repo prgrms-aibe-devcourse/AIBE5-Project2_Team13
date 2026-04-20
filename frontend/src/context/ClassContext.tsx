@@ -45,12 +45,26 @@ interface ClassApiResponse {
   status?: string;
   curriculum?: string;
   location?: string;
+  representativeImageUrl?: string;
+  images?: Array<{
+    fileUrl?: string | null;
+  }>;
   createdAt?: string;
   updatedAt?: string;
 }
 
+//DB의 이미지 url을 가져옵니다
+const getImageUrls = (api: ClassApiResponse): string[] => {
+  const candidates = Array.isArray(api.images) ? api.images : [];
+  return candidates
+    .map((image) => image?.fileUrl)
+    .filter((fileUrl): fileUrl is string => !!fileUrl);
+};
+
 function toClassItem(api: ClassApiResponse): ClassItem {
   const isOnline = api.isOnline ?? (api as any).online ?? false;
+  const imageUrls = getImageUrls(api);
+  const representativeImage = api.representativeImageUrl || imageUrls[0] || `https://picsum.photos/seed/class${api.id}/400/300`;
 
   return {
     id: String(api.id),
@@ -60,7 +74,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     freelancerId: String(api.freelancerId),
     price: api.price,
     category: api.categoryName,
-    image: `https://picsum.photos/seed/class${api.id}/400/300`,
+    image: representativeImage,
     rating: 0,
     reviews: 0,
     isOffline: !isOnline,
@@ -94,7 +108,36 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
   const fetchClasses = async () => {
     try {
       const response = await apiClient.get<ClassApiResponse[]>('/classes');
-      setClasses(response.data.map(toClassItem));
+      const classList = response.data;
+
+      const detailResponses = await Promise.allSettled(
+        classList.map(async (item) => {
+          const detail = await apiClient.get<ClassApiResponse>(`/classes/${item.id}`);
+          return detail.data;
+        })
+      );
+
+      const detailMap = new Map<number, ClassApiResponse>();
+      detailResponses.forEach((result) => {
+        if (result.status === 'fulfilled') {
+          detailMap.set(result.value.id, result.value);
+        }
+      });
+
+      const merged = classList.map((item) => {
+        const detail = detailMap.get(item.id);
+        if (!detail) {
+          return item;
+        }
+
+        return {
+          ...item,
+          representativeImageUrl: detail.representativeImageUrl,
+          images: detail.images,
+        };
+      });
+
+      setClasses(merged.map(toClassItem));
     } catch (err) {
       console.error('클래스 목록 조회 실패:', err);
     }
