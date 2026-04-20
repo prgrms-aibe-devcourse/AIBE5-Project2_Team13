@@ -14,6 +14,19 @@ import java.time.LocalDateTime;
 @Builder
 public class ClassOrder {
 
+    //신청 승인 프로세스
+    public enum ApprovalStatus {
+        PENDING, //승인 대기
+        APPROVED, //승인됨
+        REJECTED //거절됨
+    }
+
+    //클래스 진행 상태
+    public enum ProgressStatus {
+        IN_PROGRESS,//승인 후 수강중
+        COMPLETED //수강완료
+    } //취소 상태 추가?
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -31,14 +44,15 @@ public class ClassOrder {
     @Column(nullable = false)
     private Integer amount;
 
-    // ERD 반영: APPROVED(승인), REJECTED(거절), PENDING(진행중)
-    @Column(name = "approval_status", length = 20)
-    private String approvalStatus;
-
-    // ERD 반영: BEFORE_START, IN_PROGRESS, COMPLETED, DENY
+    @Enumerated(EnumType.STRING)
+    @Column(name = "approval_status", nullable = false, length = 20)
     @Builder.Default
-    @Column(name = "progress_status", length = 20)
-    private String progressStatus = "BEFORE_START";
+    private ApprovalStatus approvalStatus = ApprovalStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "progress_status", nullable = false, length = 20)
+    private ProgressStatus progressStatus = ProgressStatus.IN_PROGRESS;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -48,13 +62,4 @@ public class ClassOrder {
     @Builder.Default
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
-
-    // [비즈니스 로직] 결제 및 신청 승인 처리
-    public void processApproval(String status) {
-        this.approvalStatus = status;
-        // 승인 완료 시 진행 상태를 IN_PROGRESS로 변경할 수 있습니다.
-        if ("APPROVED".equals(status)) {
-            this.progressStatus = "IN_PROGRESS";
-        }
-    }
 }

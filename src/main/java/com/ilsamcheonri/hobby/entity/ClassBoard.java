@@ -148,4 +148,12 @@ public class ClassBoard {
     public void updateStatus(String status) {
         this.status = status;
     }
+
+    // 수강 신청이 성공하면 현재 신청 인원을 1 증가시킵니다.
+    public void increaseVolume() {
+        if (this.currentVolume == null) {
+            this.currentVolume = 0;
+        }
+        this.currentVolume += 1;
+    }
 }

@@ -20,6 +20,7 @@ import { getAccessToken } from '../lib/auth';
 import { useWish } from '../context/WishContext';
 import { useAuth } from '@/src/context/AuthContext';
 import { getMyFreelancerProfile } from '@/src/api/freelancerProfile';
+import { applyClassOrder } from '@/src/api/classOrder';
 
 const TABS = [
   { id: 'description', label: '클래스 소개' },//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
@@ -46,6 +47,7 @@ export default function ClassDetail() {
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
+  const [applyLoading, setApplyLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('description');
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [myFreelancerId, setMyFreelancerId] = useState<number | null>(null);
@@ -230,10 +232,24 @@ export default function ClassDetail() {
     });
   };
 
-  const handleApply = () => {
-    applyForClass(item.id, item.title, item.price);
-    showToast('신청이 완료되었습니다');
-    setTimeout(() => navigate('/profile'), 1500);
+  //클래스 '구매하기' 버튼 눌렀을 때
+  const handleApply = async () => {
+    if (!requireLogin()) return;
+    if (!id || applyLoading) return;
+
+    setApplyLoading(true);
+    try {
+      const orderId = await applyClassOrder({ classBoardId: Number(id) });
+      // 기존 마이페이지 목업 신청 목록과도 UX 일관성을 맞춥니다.
+      applyForClass(item.id, item.title, item.price, String(orderId));
+      showToast('신청이 완료되었습니다');
+      setTimeout(() => navigate('/profile'), 1500);
+    } catch (error: any) {
+      const message = error?.response?.data?.message;
+      showToast(message || '신청 처리 중 오류가 발생했습니다.', 'error');
+    } finally {
+      setApplyLoading(false);
+    }
   };
 
   const handleReport = () => {
@@ -625,9 +641,10 @@ export default function ClassDetail() {
                 <div className="space-y-3">
                   <button 
                     onClick={handleApply}
-                    className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg"
+                    disabled={applyLoading}
+                    className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    구매하기
+                    {applyLoading ? '처리 중...' : '구매하기'}
                   </button>
                   <div className="grid grid-cols-3 gap-2">
                     <button 
