@@ -63,7 +63,7 @@ export default function ExplorerGrid<T>({
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [sortType, setSortType]             = useState('latest');
   const [locationFilter, setLocationFilter] = useState('all');
-  const [onlyRecruiting, setOnlyRecruiting] = useState(false);
+  const [onlyRecruiting, setOnlyRecruiting] = useState(() => type === 'class');
 
   // 필터 변경 시 콜백 호출
   const handleFilterChange = (type: string, value: any) => {
