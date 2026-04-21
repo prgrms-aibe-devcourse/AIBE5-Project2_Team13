@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save } from 'lucide-react';
+import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save, type LucideIcon } from 'lucide-react';
 import { MOCK_CLASSES, UserRole, REGIONS, ReportItem, MOCK_REPORTS, MOCK_REVIEWS, type EnrollmentItem } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import { motion, AnimatePresence } from 'motion/react';
@@ -79,6 +79,126 @@ const mapFreelancerProfileState = (profile: FreelancerProfileMeResponse) => ({
     fileUrl: attachment.fileUrl,
   })),
 });
+
+type AdminNotificationItem = {
+  id: string;
+  title: string;
+  meta: string;
+  badge: string;
+};
+
+type StatCardProps = {
+  title: string;
+  value: string;
+  description?: string;
+  icon: LucideIcon;
+  iconClassName?: string;
+  action?: React.ReactNode;
+  children?: React.ReactNode;
+  className?: string;
+};
+
+function StatCard({
+  title,
+  value,
+  description,
+  icon: Icon,
+  iconClassName,
+  action,
+  children,
+  className,
+}: StatCardProps) {
+  return (
+    <section
+      className={cn(
+        "group rounded-[32px] border border-slate-200/80 bg-white p-8 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.28)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(15,23,42,0.34)]",
+        className
+      )}
+    >
+      <div className="mb-8 flex items-start justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className={cn("rounded-2xl bg-slate-100 p-3 text-slate-700 transition-colors group-hover:bg-slate-900 group-hover:text-white", iconClassName)}>
+            <Icon size={22} />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-500">{title}</p>
+          </div>
+        </div>
+        {action}
+      </div>
+      <div className="space-y-3">
+        <p className="text-4xl font-bold tracking-tight text-slate-950">{value}</p>
+        {description && <p className="text-sm text-slate-500">{description}</p>}
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function ActiveClassCard({ activeClasses }: { activeClasses: { general: number; request: number } }) {
+  return (
+    <StatCard
+      title="현재 활성화된 클래스"
+      value={`${activeClasses.general + activeClasses.request}건`}
+      description="현재 운영 중인 클래스 현황"
+      icon={BookOpen}
+      iconClassName="bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white"
+    >
+      <div className="mt-6 grid grid-cols-1 overflow-hidden rounded-[24px] border border-slate-200 md:grid-cols-2">
+        <div className="bg-slate-50 px-6 py-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">일반 클래스</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{activeClasses.general}건</p>
+        </div>
+        <div className="border-t border-slate-200 bg-white px-6 py-5 md:border-l md:border-t-0">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">요청</p>
+          <p className="mt-3 text-3xl font-bold text-slate-900">{activeClasses.request}건</p>
+        </div>
+      </div>
+    </StatCard>
+  );
+}
+
+function NotificationSection({ notifications }: { notifications: AdminNotificationItem[] }) {
+  return (
+    <section className="rounded-[32px] border border-slate-200/80 bg-white p-8 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.28)]">
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+            <MessageSquare size={22} />
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-slate-950">알림</h3>
+            <p className="text-sm text-slate-500">최근 활동과 관리자 확인이 필요한 항목</p>
+          </div>
+        </div>
+        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+          {notifications.length}건
+        </span>
+      </div>
+
+      <div className="max-h-[360px] space-y-3 overflow-y-auto pr-2">
+        {notifications.length > 0 ? notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 transition-colors hover:border-slate-300 hover:bg-white"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-slate-900">{notification.title}</p>
+              <p className="mt-1 truncate text-xs text-slate-500">{notification.meta}</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
+              {notification.badge}
+            </span>
+          </div>
+        )) : (
+          <div className="flex h-[220px] items-center justify-center rounded-[24px] border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+            확인할 알림이 없습니다.
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
 
 export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const navigate = useNavigate();
@@ -374,6 +494,26 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const teachingClasses = classes.filter(c => c.freelancerEmail === currentUserEmail);
   const pickedClasses = classes.filter(item => wishedIds.has(item.id));
   const pickedRequests = requests.filter(item => wishedIds.has(item.id));
+  const totalUsers = adminUsers.length;
+  const todayRevenue = 1250000;
+  const activeClasses = {
+    general: classes.filter((classItem) => classItem.status === 'OPEN').length,
+    request: requests.length,
+  };
+  const adminNotifications = [
+    ...pendingFreelancerProfiles.slice(0, 2).map((profile) => ({
+      id: `approval-${profile.profileId}`,
+      title: `${profile.memberName}님의 프리랜서 승인 요청`,
+      meta: profile.specialtyCategoryName || '승인 대기',
+      badge: '승인 요청',
+    })),
+    ...adminReports.slice(0, 2).map((report) => ({
+      id: `report-${report.id}`,
+      title: report.reason,
+      meta: `${report.reportedAt} · ${report.type}`,
+      badge: '신고 접수',
+    })),
+  ].slice(0, 3);
 // 실제 클래스 목록을 우선으로 하고, 부족한 데이터를 MOCK_CLASSES로 보완하여 ID 기반의 통합 조회용 Map 객체를 생성합니다.
   const classLookup = useMemo(() => {
     const lookup = new Map(classes.map((classItem) => [classItem.id, classItem]));
@@ -1734,59 +1874,46 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   };
 
   const renderAdminHome = () => (
-    <div className="space-y-12">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-blue-50 text-blue-500 rounded-2xl">
-              <Users size={24} />
-            </div>
-            <span className="font-bold text-gray-500">전체 사용자 수</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{adminUsers.length}명</p>
-          <p className="text-sm text-gray-400 mt-2">신규 가입 +5명</p>
-        </div>
-        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-green-50 text-green-500 rounded-2xl">
-              <CreditCard size={24} />
-            </div>
-            <span className="font-bold text-gray-500">오늘 결제 금액</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">1,250,000원</p>
-          <p className="text-sm text-green-500 font-bold mt-2">▲ 어제 대비 12%</p>
-        </div>
-        <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-red-50 text-red-500 rounded-2xl">
-              <AlertCircle size={24} />
-            </div>
-            <span className="font-bold text-gray-500">오늘 접수된 신고</span>
-          </div>
-          <p className="text-3xl font-bold text-gray-900">{adminReports.length}건</p>
-          <p className="text-sm text-red-500 font-bold mt-2">긴급 처리 필요 2건</p>
-        </div>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <StatCard
+          title="전체 사용자 수"
+          value={`${totalUsers}명`}
+          description="현재 플랫폼에 가입한 전체 회원 수"
+          icon={Users}
+          iconClassName="bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white"
+        />
+
+        <StatCard
+          title="오늘 결제 금액"
+          value={`${todayRevenue.toLocaleString('ko-KR')}원`}
+          description="어제 대비 12% 증가"
+          icon={CreditCard}
+          iconClassName="bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white"
+        />
+
+        <ActiveClassCard activeClasses={activeClasses} />
+
+        <StatCard
+          title="프리랜서 승인 요청 건수"
+          value={`${pendingFreelancerProfiles.length}건`}
+          description="현재 검토 대기 중인 승인 요청"
+          icon={BadgeCheck}
+          iconClassName="bg-amber-50 text-amber-600 group-hover:bg-amber-500 group-hover:text-white"
+          action={(
+            <button
+              type="button"
+              onClick={() => handleMenuChange('admin_approvals')}
+              className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
+            >
+              승인하러 가기
+              <ChevronRight size={16} />
+            </button>
+          )}
+        />
       </div>
 
-      <div className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm">
-        <h3 className="text-xl font-bold text-gray-900 mb-8">최근 활동 요약</h3>
-        <div className="space-y-4">
-          {adminReports.slice(0, 3).map(report => (
-            <div key={report.id} className="flex items-center justify-between p-4 bg-ivory/50 rounded-2xl border border-coral/5">
-              <div className="flex items-center gap-4">
-                <div className="p-2 bg-white rounded-xl text-coral">
-                  <Shield size={18} />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 text-sm">{report.reason}</p>
-                  <p className="text-xs text-gray-400">{report.reportedAt} · {report.type}</p>
-                </div>
-              </div>
-              <span className="px-3 py-1 bg-coral/10 text-coral text-[10px] font-bold rounded-full">처리 대기</span>
-            </div>
-          ))}
-        </div>
-      </div>
+      <NotificationSection notifications={adminNotifications} />
     </div>
   );
 
