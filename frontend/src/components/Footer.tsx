@@ -47,9 +47,13 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 mb-6">
-              <div className="w-10 h-10 bg-coral rounded-xl flex items-center justify-center shadow-md">
-                <span className="text-white font-bold text-lg">포</span>
+            <Link to="/" className="flex items-center gap-2 mr-6 shrink-0 mb-[15px]">
+              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center shadow-md border border-coral/10 overflow-hidden">
+                <img
+                    src="https://github.com/lei-3m/AIBE5/blob/main/img/pogeunLogo.png?raw=true"
+                    alt="Pogeun Logo"
+                    className="w-full h-full object-contain p-1"
+                />
               </div>
               <span className="text-2xl font-bold text-coral tracking-tight">포근</span>
             </Link>
