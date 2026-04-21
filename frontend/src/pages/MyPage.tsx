@@ -111,24 +111,24 @@ function StatCard({
   return (
     <section
       className={cn(
-        "group rounded-[32px] border border-slate-200/80 bg-white p-8 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.28)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(15,23,42,0.34)]",
+        "group rounded-[32px] border border-coral/10 bg-white p-8 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:border-coral/20 hover:shadow-md",
         className
       )}
     >
       <div className="mb-8 flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className={cn("rounded-2xl bg-slate-100 p-3 text-slate-700 transition-colors group-hover:bg-slate-900 group-hover:text-white", iconClassName)}>
+          <div className={cn("rounded-2xl bg-ivory p-3 text-gray-600 transition-colors group-hover:bg-coral group-hover:text-white", iconClassName)}>
             <Icon size={22} />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-500">{title}</p>
+            <p className="text-sm font-bold text-gray-500">{title}</p>
           </div>
         </div>
         {action}
       </div>
       <div className="space-y-3">
-        <p className="text-4xl font-bold tracking-tight text-slate-950">{value}</p>
-        {description && <p className="text-sm text-slate-500">{description}</p>}
+        <p className="text-4xl font-bold tracking-tight text-gray-900">{value}</p>
+        {description && <p className="text-sm text-gray-400">{description}</p>}
         {children}
       </div>
     </section>
@@ -144,14 +144,14 @@ function ActiveClassCard({ activeClasses }: { activeClasses: { general: number; 
       icon={BookOpen}
       iconClassName="bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white"
     >
-      <div className="mt-6 grid grid-cols-1 overflow-hidden rounded-[24px] border border-slate-200 md:grid-cols-2">
-        <div className="bg-slate-50 px-6 py-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">일반 클래스</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">{activeClasses.general}건</p>
+      <div className="mt-6 grid grid-cols-1 overflow-hidden rounded-[24px] border border-coral/10 md:grid-cols-2">
+        <div className="bg-ivory/60 px-6 py-5">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400">일반 클래스</p>
+          <p className="mt-3 text-3xl font-bold text-gray-900">{activeClasses.general}건</p>
         </div>
-        <div className="border-t border-slate-200 bg-white px-6 py-5 md:border-l md:border-t-0">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">요청</p>
-          <p className="mt-3 text-3xl font-bold text-slate-900">{activeClasses.request}건</p>
+        <div className="border-t border-coral/10 bg-white px-6 py-5 md:border-l md:border-t-0">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400">요청</p>
+          <p className="mt-3 text-3xl font-bold text-gray-900">{activeClasses.request}건</p>
         </div>
       </div>
     </StatCard>
@@ -160,18 +160,18 @@ function ActiveClassCard({ activeClasses }: { activeClasses: { general: number; 
 
 function NotificationSection({ notifications }: { notifications: AdminNotificationItem[] }) {
   return (
-    <section className="rounded-[32px] border border-slate-200/80 bg-white p-8 shadow-[0_16px_40px_-24px_rgba(15,23,42,0.28)]">
+    <section className="rounded-[32px] border border-coral/10 bg-white p-8 shadow-sm">
       <div className="mb-6 flex items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="rounded-2xl bg-slate-100 p-3 text-slate-700">
+          <div className="rounded-2xl bg-ivory p-3 text-coral">
             <MessageSquare size={22} />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-slate-950">알림</h3>
-            <p className="text-sm text-slate-500">최근 활동과 관리자 확인이 필요한 항목</p>
+            <h3 className="text-xl font-bold text-gray-900">알림</h3>
+            <p className="text-sm text-gray-500">최근 활동과 관리자 확인이 필요한 항목</p>
           </div>
         </div>
-        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+        <span className="rounded-full bg-ivory px-3 py-1 text-xs font-bold text-coral">
           {notifications.length}건
         </span>
       </div>
@@ -180,18 +180,18 @@ function NotificationSection({ notifications }: { notifications: AdminNotificati
         {notifications.length > 0 ? notifications.map((notification) => (
           <div
             key={notification.id}
-            className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4 transition-colors hover:border-slate-300 hover:bg-white"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-coral/10 bg-ivory/40 px-5 py-4 transition-colors hover:bg-ivory/70"
           >
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-slate-900">{notification.title}</p>
-              <p className="mt-1 truncate text-xs text-slate-500">{notification.meta}</p>
+              <p className="truncate text-sm font-bold text-gray-900">{notification.title}</p>
+              <p className="mt-1 truncate text-xs text-gray-400">{notification.meta}</p>
             </div>
-            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-slate-600 ring-1 ring-slate-200">
+            <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[11px] font-bold text-coral border border-coral/10">
               {notification.badge}
             </span>
           </div>
         )) : (
-          <div className="flex h-[220px] items-center justify-center rounded-[24px] border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-500">
+          <div className="flex h-[220px] items-center justify-center rounded-[24px] border border-dashed border-coral/10 bg-ivory/40 text-sm text-gray-400">
             확인할 알림이 없습니다.
           </div>
         )}
@@ -1875,6 +1875,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
   const renderAdminHome = () => (
     <div className="space-y-8">
+      <h2 className="text-2xl font-bold text-gray-900">관리자 홈</h2>
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <StatCard
           title="전체 사용자 수"
@@ -1904,7 +1905,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             <button
               type="button"
               onClick={() => handleMenuChange('admin_approvals')}
-              className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-slate-700"
+              className="inline-flex items-center gap-2 rounded-full bg-coral px-4 py-2 text-sm font-bold text-white transition-all hover:bg-coral/90 shadow-lg shadow-coral/20"
             >
               승인하러 가기
               <ChevronRight size={16} />
