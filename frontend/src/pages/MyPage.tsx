@@ -581,6 +581,11 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   };
 
   const renderEnrollmentButton = (enrollment: any) => {
+
+    //데이터가 실제로 어떻게 생겼는지 눈으로 확인
+    //신청 취소가 안되는 문제 해결 위해 추가
+    console.log("현재 enrollment 데이터:", enrollment);
+    
     if (enrollment.status === 'PENDING') {
       return (
         <button 

@@ -102,6 +102,10 @@ public class ClassOrderService {
         // 상태 업데이트
         classOrder.updateStatus(ClassOrder.ApprovalStatus.CANCELLED, ClassOrder.ProgressStatus.CANCELLED);
 
+        //클래스 신청취소 시 오류 해결을 위해 추가
+        //'신청 취소' = '신청 삭제'로 처리
+        classOrder.markDeleted();
+
         // 클래스 인원 감소
         ClassBoard classBoard = classOrder.getClassBoard();
         classBoard.decreaseVolume();

@@ -11,6 +11,10 @@ import java.util.Optional;
 public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
     Optional<ClassOrder> findByStudentIdAndClassBoardIdAndIsDeletedFalse(Long studentId, Long classBoardId);
 
+    // 취소되지 않은 데이터 중에서만 찾아라
+    //클래스 취소 후 재신청 시 생기는 오류 해결 위해 추가
+    boolean existsByStudentIdAndClassBoardIdAndIsDeletedFalse(Long studentId, Long classBoardId);
+
     @EntityGraph(attributePaths = {"classBoard"})
     List<ClassOrder> findByStudentIdAndIsDeletedFalseOrderByCreatedAtDesc(Long studentId);
 }
