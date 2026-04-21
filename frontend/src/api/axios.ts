@@ -38,6 +38,15 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       const message = error.response?.data?.message;
 
+      // "인증이 필요합니다"라는 메시지라도,
+      // 신청 관련 API(/api/class-orders)에서 온 거라면 로그아웃시키지 않도록 예외 처리
+      const isClassOrderApi = error.config.url?.includes('/class-orders');
+
+      if (isClassOrderApi) {
+        console.warn("신청 API에서 401 발생 - 로그아웃 방지");
+        return Promise.reject(error); // 로그아웃 로직 타지 않음
+      }
+
       // 만약 토큰 만료 메시지라면 로그아웃 처리
       if (message && (message.includes('expired') || message.includes('만료') || message.includes('인증'))) {
         clearAccessToken();
