@@ -49,7 +49,7 @@ export default function AICounseling() {
     try {
       const categoryNames = categories.map(c => `'${c.name}'`).join(', ');
       const response = await (genAI as any).models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash-lite",  // 가격 대비 성능 최적 — 전체 화면 상담에 적합
         contents: [
           {
             parts: [{ text: `사용자의 고민이나 상황: "${input}". 당신은 '포근'이라는 서비스의 따뜻하고 친절한 상담사 캐릭터 '포근이'입니다.

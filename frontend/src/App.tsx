@@ -24,7 +24,7 @@ import { RequestProvider } from './context/RequestContext';
 import { CategoryProvider } from './context/CategoryContext';
 import { EnrollmentProvider } from './context/EnrollmentContext';
 import { ReportProvider } from './context/ReportContext';
-import { AIChatProvider, ChatHistoryManager } from './context/AIChatContext';
+import { AIChatProvider } from './context/AIChatContext';
 import { ClassProvider } from './context/ClassContext';
 import { FreelancerProvider } from './context/FreelancerContext';
 import { FollowProvider } from './context/FollowContext';
@@ -42,7 +42,6 @@ export default function App() {
                   <ReportProvider>
                     <EnrollmentProvider>
                       <RequestProvider>
-                        <ChatHistoryManager />
                         <div className="min-h-screen bg-ivory flex flex-col">
                           <Header />
                           <main className="flex-1">

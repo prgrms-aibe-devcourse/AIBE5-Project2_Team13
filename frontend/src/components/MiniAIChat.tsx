@@ -4,6 +4,7 @@ import { Send, Sparkles, User, Loader2, Cat, X, Maximize2, Trash2 } from 'lucide
 import { GoogleGenAI } from "@google/genai";
 import { useNavigate } from 'react-router-dom';
 import { useAIChat, Message } from '../context/AIChatContext';
+import { useCategories } from '../context/CategoryContext';
 
 const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY });
 
@@ -19,6 +20,7 @@ interface MiniAIChatProps {
 
 export default function MiniAIChat({ onClose }: MiniAIChatProps) {
   const { messages, addMessage, clearMessages } = useAIChat();
+  const { categories } = useCategories(); // ✅ AICounseling과 동일하게 카테고리 목록 사용
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [loadingMessageIndex, setLoadingMessageIndex] = useState(0);
@@ -50,11 +52,17 @@ export default function MiniAIChat({ onClose }: MiniAIChatProps) {
     setIsTyping(true);
 
     try {
+      // ✅ AICounseling과 동일한 프롬프트 — 서비스 카테고리 기반 추천
+      const categoryNames = categories.map(c => `'${c.name}'`).join(', ');
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-2.5-flash-lite",  // 미니 채팅 — 빠른 응답 우선
         contents: [
           {
-            parts: [{ text: `사용자의 고민이나 상황: "${input}". 당신은 '포근'이라는 서비스의 따뜻하고 친절한 상담사 캐릭터 '포근이'입니다. 사용자의 고민을 공감해주고, 그에 어울리는 취미나 활동을 짧고 다정하게 제안해주세요. 한국어로 답변해주세요.` }]
+            parts: [{ text: `사용자의 고민이나 상황: "${input}". 당신은 '포근'이라는 서비스의 따뜻하고 친절한 상담사 캐릭터 '포근이'입니다.
+                사용자의 고민을 깊이 공감하고 위로해주세요.
+                그리고 다음 제공된 우리 서비스의 클래스 카테고리 [${categoryNames}] 중에서 사용자의 상황에 가장 잘 어울리는 취미 카테고리를 1~2개 추천해주세요.
+                반드시 제공된 카테고리 이름만 사용해야 하며, 추천해드린 카테고리로 클래스를 검색해 보도록 자연스럽게 유도해주세요.
+                한국어로 답변하고, 말투는 매우 다정하고 포근하게 해주세요.` }]
           }
         ],
       });
