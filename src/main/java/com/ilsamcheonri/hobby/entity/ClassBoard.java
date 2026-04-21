@@ -158,4 +158,11 @@ public class ClassBoard {
         }
         this.currentVolume += 1;
     }
+
+    // 수강 신청이 취소되면 현재 신청 인원을 1 감소시킵니다.
+    public void decreaseVolume() {
+        if (this.currentVolume != null && this.currentVolume > 0) {
+            this.currentVolume -= 1;
+        }
+    }
 }

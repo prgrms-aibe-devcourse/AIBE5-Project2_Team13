@@ -22,34 +22,40 @@ public class ClassOrderService {
     private final ClassBoardRepository classBoardRepository;
     private final MemberRepository memberRepository;
 
-    /**
-     * 수강 신청 처리
-     * 1) 클래스 조회/잠금 2) 정원 체크 3) 주문 저장 4) 클래스 인원 증가
-     */
+    //수강 신청 처리
     @Transactional
     public Long applyClass(String studentEmail, ClassOrderRequest request) {
+        // 1. 먼저 데이터를 가져옵니다. (조회 우선!)
         Member student = memberRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         ClassBoard classBoard = classBoardRepository.findByIdForUpdate(request.getClassBoardId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
 
+        // 2. 이제 가져온 student와 classBoard의 ID를 사용해서 중복 검증을 합니다.
+        List<ClassOrder.ApprovalStatus> activeStatuses = List.of(
+                ClassOrder.ApprovalStatus.PENDING,
+                ClassOrder.ApprovalStatus.APPROVED
+        );
+
+        // PENDING(대기)이나 APPROVED(승인)인 내역이 있으면 신청 불가!
+        if (classOrderRepository.existsByStudentIdAndClassBoardIdAndApprovalStatusIn(
+                student.getId(), classBoard.getId(), activeStatuses)) {
+            throw new IllegalStateException("이미 진행 중인 수강 신청 내역이 있습니다.");
+        }
+
+        // 3. 기존에 있던 마감 체크 로직
         if ("CLOSE".equalsIgnoreCase(classBoard.getStatus())) {
             throw new IllegalStateException("이미 모집이 마감된 클래스입니다.");
         }
 
+        // 4. 정원 체크 및 신청 진행
         int currentVolume = classBoard.getCurrentVolume() == null ? 0 : classBoard.getCurrentVolume();
         int maxCapacity = classBoard.getMaxCapacity() == null ? 0 : classBoard.getMaxCapacity();
         if (currentVolume >= maxCapacity) {
-            // 정원이 이미 차있는데 상태만 OPEN인 경우를 대비해 여기서도 상태 업데이트를 시도합니다.
             classBoard.updateStatus("CLOSE");
             throw new IllegalStateException("정원이 마감된 클래스입니다.");
         }
-
-        classOrderRepository.findByStudentIdAndClassBoardIdAndIsDeletedFalse(student.getId(), classBoard.getId())
-                .ifPresent(order -> {
-                    throw new IllegalStateException("이미 신청한 클래스입니다.");
-                });
 
         ClassOrder classOrder = ClassOrder.builder()
                 .student(student)
@@ -62,7 +68,7 @@ public class ClassOrderService {
         ClassOrder saved = classOrderRepository.save(classOrder);
         classBoard.increaseVolume();
 
-        // 정원이 꽉 찼는지 체크하여 상태 변경
+        // 5. 인원 증가 후 정원 마감 체크
         if (classBoard.getCurrentVolume() >= classBoard.getMaxCapacity()) {
             classBoard.updateStatus("CLOSE");
         }
@@ -79,5 +85,40 @@ public class ClassOrderService {
                 .stream()
                 .map(ClassOrderSummaryResponse::from)
                 .toList();
+    }
+
+    /**
+     * 수강 신청 취소
+     * 1) 주문 조회 2) 본인 확인 3) 상태 변경 4) 클래스 인원 감소
+     */
+    @Transactional
+    public void cancelClassOrder(String studentEmail, Long orderId) {
+        ClassOrder classOrder = classOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));
+
+        if (!classOrder.getStudent().getEmail().equals(studentEmail)) {
+            throw new IllegalStateException("본인의 수강 신청만 취소할 수 있습니다.");
+        }
+
+        if (classOrder.getApprovalStatus() == ClassOrder.ApprovalStatus.CANCELLED) {
+            throw new IllegalStateException("이미 취소된 수강 신청입니다.");
+        }
+
+        // 상태 업데이트
+        classOrder.updateStatus(ClassOrder.ApprovalStatus.CANCELLED, ClassOrder.ProgressStatus.CANCELLED);
+
+        //클래스 신청취소 시 오류 해결을 위해 추가
+        //'신청 취소' = '신청 삭제'로 처리
+        classOrder.markDeleted();
+
+        // 클래스 인원 감소
+        ClassBoard classBoard = classOrder.getClassBoard();
+        classBoard.decreaseVolume();
+
+        // 정원이 여유가 생겼으므로 다시 OPEN으로 변경 (기존에 정원 마감으로 CLOSE 되었을 경우)
+        if ("CLOSE".equalsIgnoreCase(classBoard.getStatus()) &&
+            classBoard.getCurrentVolume() < classBoard.getMaxCapacity()) {
+            classBoard.updateStatus("OPEN");
+        }
     }
 }

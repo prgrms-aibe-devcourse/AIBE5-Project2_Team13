@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { EnrollmentItem, EnrollmentStatus } from '../constants';
-import { getMyClassOrders } from '@/src/api/classOrder';
+import { getMyClassOrders, cancelClassOrder as cancelOrderApi } from '@/src/api/classOrder';
 import { getAccessToken } from '@/src/lib/auth';
 import { useAuth } from './AuthContext';
 
@@ -8,6 +8,7 @@ interface EnrollmentContextType {
   enrollments: EnrollmentItem[];
   applyForClass: (classId: string, classTitle: string, price: number, orderId?: string) => void;
   updateEnrollmentStatus: (enrollmentId: string, status: EnrollmentStatus, reason?: string) => void;
+  cancelOrder: (enrollmentId: string) => Promise<void>;
   refreshEnrollments: () => Promise<void>;
 }
 
@@ -62,8 +63,19 @@ export function EnrollmentProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  //프론트엔드(React/TypeScript) 환경에서 '수강 신청 취소' 기능을 실행
+  const cancelOrder = async (enrollmentId: string) => {
+    try {
+      await cancelOrderApi(enrollmentId);
+      updateEnrollmentStatus(enrollmentId, 'CANCELLED');
+    } catch (error) {
+      console.error('수강 신청 취소 실패:', error);
+      throw error;
+    }
+  };
+
   return (
-    <EnrollmentContext.Provider value={{ enrollments, applyForClass, updateEnrollmentStatus, refreshEnrollments }}>
+    <EnrollmentContext.Provider value={{ enrollments, applyForClass, updateEnrollmentStatus, cancelOrder, refreshEnrollments }}>
       {children}
     </EnrollmentContext.Provider>
   );

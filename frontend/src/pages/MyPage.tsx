@@ -83,7 +83,7 @@ const mapFreelancerProfileState = (profile: FreelancerProfileMeResponse) => ({
 export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const navigate = useNavigate();
   const { user, loading: authLoading, logout, refreshCurrentUser } = useAuth();
-  const { enrollments, updateEnrollmentStatus } = useEnrollments();
+  const { enrollments, updateEnrollmentStatus, cancelOrder, refreshEnrollments } = useEnrollments();
   const { reports } = useReports();
   const { classes, deleteClass, toggleStatus } = useClasses();
   const { freelancers } = useFreelancers();
@@ -122,6 +122,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string, type: 'success' | 'error' } | null>(null);
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
+  const [pendingCancelEnrollmentIds, setPendingCancelEnrollmentIds] = useState<Set<string>>(new Set());
   const [rejectReason, setRejectReason] = useState('');
   const [studentCancelReason, setStudentCancelReason] = useState('');
   const [selectedCity, setSelectedCity] = useState('');
@@ -583,10 +584,28 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     setProfileImage(DEFAULT_PROFILE_IMAGE_URL);
   };
 
-  const handleCancelApplication = (id: string) => {
+  //사용자의 '취소 의사'를 확인 -> 실제 서버 작업 수행 -> 결과를 알림(피드백)으로 보여주는 과정을 담당하는 이벤트 핸들러(Event Handler) 함수
+  const handleCancelApplication = async (id: string) => {
     if (window.confirm('신청을 취소하시겠습니까?')) {
-      updateEnrollmentStatus(id, 'CANCELLED');
-      alert('신청이 취소되었습니다.');
+      try {
+        // 1. 서버에 취소 요청
+        setPendingCancelEnrollmentIds((prev) => new Set(prev).add(id));
+        await cancelOrder(id);
+
+        // 2. 피드백
+        showToast('신청이 취소되었습니다.');
+
+        // 취소 성공 후 목록을 다시 불러와 화면을 최신 상태로 맞춘다.
+        await refreshEnrollments();
+
+      } catch (error) {
+        setPendingCancelEnrollmentIds((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+        showToast('신청 취소 중 오류가 발생했습니다.', 'error');
+      }
     }
   };
 
@@ -605,6 +624,11 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   };
 
   const renderEnrollmentButton = (enrollment: any) => {
+
+    //데이터가 실제로 어떻게 생겼는지 눈으로 확인
+    //신청 취소가 안되는 문제 해결 위해 추가
+    console.log("현재 enrollment 데이터:", enrollment);
+    
     if (enrollment.status === 'PENDING') {
       return (
         <button 
@@ -679,6 +703,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                       <>
                         <button 
                           onClick={() => {
+
                             setSelectedEnrollmentId(e.id);
                             setIsCancelRequestModalOpen(true);
                           }}
@@ -705,7 +730,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             exit={{ opacity: 0, y: -10 }}
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
-            {enrollments.filter(e => e.status === 'PENDING').map(e => {
+            {enrollments.filter(e => e.status === 'PENDING' && !pendingCancelEnrollmentIds.has(e.id)).map(e => {
               const classItem = classes.find(c => c.id === e.classId) || MOCK_CLASSES.find(c => c.id === e.classId);
               return classItem ? (
                 <div key={e.id} className="flex flex-col gap-4">
@@ -719,6 +744,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     personLabel="프리랜서"
                     category={classItem.category}
                     categoryName="승인 대기"
+                    status={classItem.status}
                   />
                   {renderEnrollmentButton(e)}
                 </div>
