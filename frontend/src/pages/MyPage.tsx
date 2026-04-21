@@ -558,8 +558,17 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const handleCancelApplication = async (id: string) => {
     if (window.confirm('신청을 취소하시겠습니까?')) {
       try {
+        // 1. 서버에 취소 요청
         await cancelOrder(id);
+
+        // 2. 피드백
         showToast('신청이 취소되었습니다.');
+
+        // 💡 핵심: 취소가 성공했으니, 다시 목록을 불러와서 화면을 최신화합니다!
+        // 'fetchEnrollmentList'는 레이의 프로젝트에서 목록을 불러오는 함수 이름입니다.
+        // (만약 다른 이름이라면 그 함수를 넣어주세요.)
+        await fetchEnrollmentList();
+
       } catch (error) {
         showToast('신청 취소 중 오류가 발생했습니다.', 'error');
       }

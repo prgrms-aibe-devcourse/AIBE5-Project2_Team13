@@ -22,29 +22,34 @@ public class ClassOrderService {
     private final ClassBoardRepository classBoardRepository;
     private final MemberRepository memberRepository;
 
-    /**
-     * 수강 신청 처리
-     * 1) 클래스 조회/잠금 2) 정원 체크 3) 주문 저장 4) 클래스 인원 증가
-     */
+    //수강 신청 처리
     @Transactional
     public Long applyClass(String studentEmail, ClassOrderRequest request) {
+        // 1. 먼저 데이터를 가져옵니다. (조회 우선!)
         Member student = memberRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         ClassBoard classBoard = classBoardRepository.findByIdForUpdate(request.getClassBoardId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
 
+        // 2. 이제 가져온 student와 classBoard의 ID를 사용해서 중복 검증을 합니다.
+        List<ClassOrder.ApprovalStatus> activeStatuses = List.of(
+                ClassOrder.ApprovalStatus.PENDING,
+                ClassOrder.ApprovalStatus.APPROVED
+        );
+
+        // PENDING(대기)이나 APPROVED(승인)인 내역이 있으면 신청 불가!
+        if (classOrderRepository.existsByStudentIdAndClassBoardIdAndApprovalStatusIn(
+                student.getId(), classBoard.getId(), activeStatuses)) {
+            throw new IllegalStateException("이미 진행 중인 수강 신청 내역이 있습니다.");
+        }
+
+        // 3. 기존에 있던 마감 체크 로직
         if ("CLOSE".equalsIgnoreCase(classBoard.getStatus())) {
             throw new IllegalStateException("이미 모집이 마감된 클래스입니다.");
         }
 
-        //중복 신청을 방지하기 위한 검증(Validation)
-        classOrderRepository.findByStudentIdAndClassBoardIdAndIsDeletedFalse(student.getId(), classBoard.getId())
-                .ifPresent(order -> {
-                    throw new IllegalStateException("이미 신청한 클래스입니다.");
-                });
-
-        // 1. 주문 저장 전, 현재 인원이 정원과 같으면 모집 마감으로 간주 (마지막 자리 신청 가능하게 하기 위해)
+        // 4. 정원 체크 및 신청 진행
         int currentVolume = classBoard.getCurrentVolume() == null ? 0 : classBoard.getCurrentVolume();
         int maxCapacity = classBoard.getMaxCapacity() == null ? 0 : classBoard.getMaxCapacity();
         if (currentVolume >= maxCapacity) {
@@ -63,7 +68,7 @@ public class ClassOrderService {
         ClassOrder saved = classOrderRepository.save(classOrder);
         classBoard.increaseVolume();
 
-        // 2. 인원 증가 후 정원이 꽉 찼는지 체크하여 상태 변경
+        // 5. 인원 증가 후 정원 마감 체크
         if (classBoard.getCurrentVolume() >= classBoard.getMaxCapacity()) {
             classBoard.updateStatus("CLOSE");
         }

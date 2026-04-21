@@ -27,7 +27,7 @@ public class ClassOrder {
         BEFORE_START,   // 수강 전
         IN_PROGRESS,//승인 후 수강중
         COMPLETED, //수강완료
-        DENY,  // (프리랜서가) 수강거절
+        REJECTED,  // (프리랜서가) 수강거절(DENY->REJECTED로 변경)
         CANCELLED // 취소됨
     }
 
