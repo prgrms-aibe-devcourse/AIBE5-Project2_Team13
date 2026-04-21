@@ -26,39 +26,40 @@ export default function Home() {
             
             {/* Content Overlay - Using pointer-events-none so users can still interact with Spline if they click the background, but buttons remain clickable */}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 bg-black/5 pointer-events-none">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, delay: 0.2 }}
-                className="pointer-events-auto"
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur-md text-white font-bold rounded-full text-xs md:text-sm mb-6 border border-white/30 shadow-lg">
-                  <span>✨</span> 안경 너머로 찾은 나만의 포근함
-                </div>
-                <h1 className="text-4xl md:text-7xl font-bold text-white leading-[1.2] mb-6 drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]">
-                  당신의 취미가 <br />
-                  <span className="text-coral">특별해지는 순간</span>
-                </h1>
-                <p className="text-base md:text-2xl text-white/95 mb-12 max-w-2xl mx-auto leading-relaxed drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] font-medium">
-                  검증된 전문가와 함께 <br />
-                  당신의 일상을 다채롭게 채워보세요.
-                </p>
-                <div className="flex justify-center">
-                  <Link
-                    to="/browse"
-                    className="px-12 py-5 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-xl shadow-coral/30 text-lg md:text-2xl hover:scale-105 active:scale-95"
-                  >
-                    클래스 찾아보기
-                  </Link>
-                </div>
-              </motion.div>
-            </div>
+                          <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.8, delay: 0.2 }}
+                            className="pointer-events-none -translate-y-22"
+                          >
+                            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/20 backdrop-blur-md text-white font-bold rounded-full text-xs md:text-sm mb-6 border border-white/30 shadow-lg">
+                              <span>✨</span> 안경 너머로 찾은 나만의 포근함
+                            </div>
+                            <h1 className="text-4xl md:text-7xl font-bold text-white leading-[1.2] mb-6 drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)]">
+                              당신의 취미가 <br />
+                              <span className="text-coral">특별해지는 순간</span>
+                            </h1>
+                            <p className="text-base md:text-2xl text-white/95 mb-12 max-w-2xl mx-auto leading-relaxed drop-shadow-[0_2px_4px_rgba(0,0,0,0.6)] font-medium">
+                              검증된 전문가와 함께 <br />
+                              당신의 일상을 다채롭게 채워보세요.
+                            </p>
+                            <div className="flex justify-center">
+	                              <Link
+	                                to="/browse"
+	                                className="pointer-events-auto px-12 py-5 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-xl shadow-coral/30 text-lg md:text-2xl hover:scale-105 active:scale-95"
+	                              >
+                                클래스 찾아보기
+                              </Link>
+                            </div>
+                          </motion.div>
+                        </div>
           </div>
         </div>
       </section>
 
       {/* Categories Section */}
-      <section className="py-20 bg-white">
+	      {/* hero 줄이는 부분 */}
+      <section className="relative z-20 -mt-28 md:-mt-36 pt-20 pb-20 bg-white rounded-t-[40px] shadow-[0_-18px_40px_rgba(0,0,0,0.08)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10">
             <h2 className="text-2xl font-bold text-gray-900">어떤 취미를 배우고 싶나요?</h2>
