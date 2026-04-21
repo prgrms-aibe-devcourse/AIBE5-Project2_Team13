@@ -22,6 +22,7 @@ interface ExplorerItemCardProps {
   rating?: number;
   reviews?: number;
   status?: string;
+  enrollmentStatus?: string;
   isWished?: boolean; // 찜 여부 — 목록에서 하트 표시용
   compact?: boolean;
   onWishToggle?: () => void | Promise<void>;
@@ -77,10 +78,13 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
   rating,
   reviews,
   status,
+  enrollmentStatus,
   isWished = false,
   compact = false,
   onWishToggle,
 }) => {
+  const isEnrolled = enrollmentStatus && enrollmentStatus !== 'CANCELLED';
+
   return (
     <motion.div
       whileHover={{ y: -8 }}
@@ -126,14 +130,15 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
             </div>
           </div>
 
-          {/* 모집 상태 뱃지 (우측 상단) - 모집마감일 때만 노출 */}
-          {type === 'class' && status !== 'OPEN' && (
+          {/* 모집 상태 뱃지 (우측 상단) */}
+          {type === 'class' && (isEnrolled || status !== 'OPEN') && (
             <div className={cn(
-              "absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm w-fit flex-shrink-0 whitespace-nowrap bg-gray-400 text-white",
+              "absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm w-fit flex-shrink-0 whitespace-nowrap text-white",
+              isEnrolled ? "bg-green-500" : "bg-gray-400",
               compact && "px-2.5 py-0.5 text-[10px]",
               isWished && "right-14" // 하트 아이콘이 있을 경우 왼쪽으로 이동
             )}>
-              모집마감
+              {isEnrolled ? '신청 완료' : '모집마감'}
             </div>
           )}
 

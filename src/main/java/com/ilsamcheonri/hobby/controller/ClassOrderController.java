@@ -39,4 +39,14 @@ public class ClassOrderController {
     ) {
         return ResponseEntity.ok(classOrderService.getMyClassOrders(email));
     }
+
+    // 수강 신청을 취소합니다.
+    @org.springframework.web.bind.annotation.PatchMapping("/{orderId}/cancel")
+    public ResponseEntity<Void> cancelClassOrder(
+            @AuthenticationPrincipal String email,
+            @org.springframework.web.bind.annotation.PathVariable Long orderId
+    ) {
+        classOrderService.cancelClassOrder(email, orderId);
+        return ResponseEntity.ok().build();
+    }
 }

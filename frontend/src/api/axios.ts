@@ -15,20 +15,16 @@ const apiClient = axios.create({
 
 // 요청 인터셉터 — 모든 API 호출 직전에 실행됩니다.
 apiClient.interceptors.request.use((config) => {
-  // 로그인 방식에 따라 session/local storage 어디에 있든 읽습니다.
   const token = getAccessToken();
 
+  // 💡 아래 로그를 반드시 확인하세요!
+  console.log("🔍 [인터셉터] 확인된 토큰:", token);
+
   if (token) {
-    // "Authorization: Bearer [토큰값]" 형태로 헤더에 추가
-    // → Spring Security의 JwtFilter가 이 헤더를 읽어서 인증 처리합니다.
-    if (typeof config.headers?.set === 'function') {
-      config.headers.set('Authorization', `Bearer ${token}`);
-    } else {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
-      };
-    }
+    config.headers.set('Authorization', `Bearer ${token}`);
+  } else {
+    // 💡 토큰이 없는데도 요청을 보낸다면 여기서 경고가 뜰 거예요!
+    console.warn("⚠️ [인터셉터] 주의: 토큰이 없습니다. 인증 없이 요청이 나갑니다.");
   }
 
   return config;

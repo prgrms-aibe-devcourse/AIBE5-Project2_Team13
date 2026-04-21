@@ -66,4 +66,13 @@ public class ClassOrder {
     @Builder.Default
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
+
+    public void updateStatus(ApprovalStatus approvalStatus, ProgressStatus progressStatus) {
+        this.approvalStatus = approvalStatus;
+        this.progressStatus = progressStatus;
+    }
+
+    public void markDeleted() {
+        this.isDeleted = true;
+    }
 }

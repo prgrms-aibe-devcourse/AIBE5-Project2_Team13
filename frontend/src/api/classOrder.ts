@@ -15,7 +15,7 @@ interface ClassOrderSummaryResponse {
   classId: number;
   classTitle: string;
   price: number;
-  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED';
+  approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED'| 'CANCELLED';
   appliedAt: string;
   studentName: string;
   studentEmail: string;
@@ -24,13 +24,14 @@ interface ClassOrderSummaryResponse {
 export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
   const response = await apiClient.get<ClassOrderSummaryResponse[]>('/class-orders/me');
   return response.data.map((order) => {
-    const mappedStatus: EnrollmentStatus =
-      order.approvalStatus === 'APPROVED'
-        ? 'APPROVED'
-        : order.approvalStatus === 'REJECTED'
-          ? 'CANCELLED'
-          : 'PENDING';
-
+    let mappedStatus: EnrollmentStatus = 'PENDING';
+    
+    if (order.approvalStatus === 'APPROVED') {
+      mappedStatus = 'APPROVED';
+    } else if (order.approvalStatus === 'REJECTED' || order.approvalStatus === 'CANCELLED') {
+      mappedStatus = 'CANCELLED';
+    }
+    
     return {
       id: String(order.orderId),
       classId: String(order.classId),
@@ -42,4 +43,8 @@ export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
       price: order.price ?? 0,
     };
   });
+}
+
+export async function cancelClassOrder(orderId: string): Promise<void> {
+  await apiClient.patch(`/class-orders/${orderId}/cancel`);
 }

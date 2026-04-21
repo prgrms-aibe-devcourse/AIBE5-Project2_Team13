@@ -83,7 +83,7 @@ const mapFreelancerProfileState = (profile: FreelancerProfileMeResponse) => ({
 export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const navigate = useNavigate();
   const { user, loading: authLoading, logout, refreshCurrentUser } = useAuth();
-  const { enrollments, updateEnrollmentStatus } = useEnrollments();
+  const { enrollments, updateEnrollmentStatus, cancelOrder } = useEnrollments();
   const { reports } = useReports();
   const { classes, deleteClass, toggleStatus } = useClasses();
   const { freelancers } = useFreelancers();
@@ -554,10 +554,15 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     setProfileImage(DEFAULT_PROFILE_IMAGE_URL);
   };
 
-  const handleCancelApplication = (id: string) => {
+  //사용자의 '취소 의사'를 확인 -> 실제 서버 작업 수행 -> 결과를 알림(피드백)으로 보여주는 과정을 담당하는 이벤트 핸들러(Event Handler) 함수
+  const handleCancelApplication = async (id: string) => {
     if (window.confirm('신청을 취소하시겠습니까?')) {
-      updateEnrollmentStatus(id, 'CANCELLED');
-      alert('신청이 취소되었습니다.');
+      try {
+        await cancelOrder(id);
+        showToast('신청이 취소되었습니다.');
+      } catch (error) {
+        showToast('신청 취소 중 오류가 발생했습니다.', 'error');
+      }
     }
   };
 
@@ -650,6 +655,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                       <>
                         <button 
                           onClick={() => {
+
                             setSelectedEnrollmentId(e.id);
                             setIsCancelRequestModalOpen(true);
                           }}

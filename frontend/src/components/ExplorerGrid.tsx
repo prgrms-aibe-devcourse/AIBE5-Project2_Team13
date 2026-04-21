@@ -4,6 +4,7 @@ import { cn } from '@/src/lib/utils';
 import ExplorerItemCard from './ExplorerItemCard';
 import { useCategories } from '../context/CategoryContext';
 import { useWish } from '../context/WishContext';
+import { useEnrollments } from '../context/EnrollmentContext';
 
 /**
  * 카테고리 이름 → 아이콘 매핑 함수
@@ -55,6 +56,7 @@ export default function ExplorerGrid<T>({
   // ✅ DB에서 가져온 실제 카테고리 목록 사용
   const { categories, loading: catLoading } = useCategories();
   const { toggleWish } = useWish();
+  const { enrollments } = useEnrollments();
 
   // selectedCategory: 'all' 또는 DB의 카테고리 name 값 (예: "미술·공예")
   const [searchQuery, setSearchQuery]       = useState('');
@@ -227,30 +229,34 @@ export default function ExplorerGrid<T>({
             </div>
           ))
         ) : filteredAndSortedItems.length > 0 ? (
-          filteredAndSortedItems.map((item: any) => (
-            <ExplorerItemCard
-              key={item.id}
-              id={item.id}
-              image={item.image}
-              title={item.title}
-              value={type === 'class' ? item.price : item.reward}
-              valueLabel={type === 'class' ? '수강료' : '희망 금액'}
-              personName={type === 'class' ? item.freelancer : item.author}
-              personLabel={type === 'class' ? '프리랜서' : '요청자'}
-              personId={type === 'class' ? item.freelancerId : undefined}
-              category={item.category}
-              categoryName={item.category}
-              type={type}
-              location={item.location}
-              timeSlot={item.timeSlot}
-              lessonType={item.lessonType}
-              rating={item.rating}
-              reviews={item.reviews}
-              status={type === 'request' ? '요청 중' : item.status}
-              isWished={wishedIds.has(item.id)}
-              onWishToggle={wishedIds.has(item.id) ? () => toggleWish(item.id) : undefined}
-            />
-          ))
+          filteredAndSortedItems.map((item: any) => {
+            const currentEnrollment = enrollments.find(e => e.classId === item.id);
+            return (
+              <ExplorerItemCard
+                key={item.id}
+                id={item.id}
+                image={item.image}
+                title={item.title}
+                value={type === 'class' ? item.price : item.reward}
+                valueLabel={type === 'class' ? '수강료' : '희망 금액'}
+                personName={type === 'class' ? item.freelancer : item.author}
+                personLabel={type === 'class' ? '프리랜서' : '요청자'}
+                personId={type === 'class' ? item.freelancerId : undefined}
+                category={item.category}
+                categoryName={item.category}
+                type={type}
+                location={item.location}
+                timeSlot={item.timeSlot}
+                lessonType={item.lessonType}
+                rating={item.rating}
+                reviews={item.reviews}
+                status={type === 'request' ? '요청 중' : item.status}
+                enrollmentStatus={currentEnrollment?.status}
+                isWished={wishedIds.has(item.id)}
+                onWishToggle={wishedIds.has(item.id) ? () => toggleWish(item.id) : undefined}
+              />
+            );
+          })
         ) : (
           <div className="col-span-full py-20 text-center">
             <p className="text-gray-sub text-lg">검색 결과가 없습니다. 다른 조건으로 찾아보세요!</p>
