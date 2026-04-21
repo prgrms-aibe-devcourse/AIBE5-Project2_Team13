@@ -66,10 +66,11 @@ export function EnrollmentProvider({ children }: { children: ReactNode }) {
   //프론트엔드(React/TypeScript) 환경에서 '수강 신청 취소' 기능을 실행
   const cancelOrder = async (enrollmentId: string) => {
     try {
-      await cancelOrderApi(enrollmentId);
       updateEnrollmentStatus(enrollmentId, 'CANCELLED');
+      await cancelOrderApi(enrollmentId);
     } catch (error) {
       console.error('수강 신청 취소 실패:', error);
+      await refreshEnrollments();
       throw error;
     }
   };

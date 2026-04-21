@@ -72,7 +72,4 @@ public class ClassOrder {
         this.progressStatus = progressStatus;
     }
 
-    public void markDeleted() {
-        this.isDeleted = true;
-    }
 }

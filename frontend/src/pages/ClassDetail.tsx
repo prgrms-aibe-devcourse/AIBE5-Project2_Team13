@@ -34,7 +34,7 @@ export default function ClassDetail() {
     const {id} = useParams();
     const navigate = useNavigate();
     const {user} = useAuth();
-    const {enrollments, applyForClass} = useEnrollments();
+    const {enrollments, applyForClass, refreshEnrollments} = useEnrollments();
     const {addReport} = useReports();
     const {classes} = useClasses();
     const {toggleFollow, isFollowing: checkFollowing, followLoading} = useFollow();
@@ -269,11 +269,11 @@ export default function ClassDetail() {
             // applyClassOrder 내부에서 apiClient를 쓰도록 고쳐야 합니다.
 
             // 방법 A: apiClient를 직접 사용 (가장 안전함)
-            const response = await apiClient.post('/class-orders', { classBoardId: Number(id) });
-            const orderId = response.data.orderId; // 서버에서 받은 ID
+            const orderId = await applyClassOrder({classBoardId: Number(id)});
 
             // 3. 기존 로직 그대로 유지
             applyForClass(item.id, item.title, item.price, String(orderId));
+            await refreshEnrollments();
             showToast('신청이 완료되었습니다');
             setTimeout(() => navigate('/profile'), 1500);
 
