@@ -137,15 +137,15 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
           </div>
 
           {/* 모집 상태 뱃지 (우측 상단) */}
-          {type === 'class' && (isEnrolled || status !== 'OPEN') && (
-            <div className={cn(
-              "absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm w-fit flex-shrink-0 whitespace-nowrap text-white",
-              isEnrolled ? "bg-green-500" : "bg-gray-400",
-              compact && "px-2.5 py-0.5 text-[10px]",
-              isWished && "right-14" // 하트 아이콘이 있을 경우 왼쪽으로 이동
-            )}>
-              {isEnrolled ? '신청 완료' : '모집마감'}
-            </div>
+          {type === 'class' && (status !== 'OPEN') && (
+              <div className={cn(
+                  "absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm w-fit flex-shrink-0 whitespace-nowrap text-white",
+                  "bg-gray-400", // '신청 완료'배지 없앰. 클래스 카드가 깔끔하게 보이게 하려고 수정
+                  compact && "px-2.5 py-0.5 text-[10px]",
+                  isWished && "right-14"
+              )}>
+                {'모집마감'}
+              </div>
           )}
 
           {/* 찜 하트 아이콘 — 찜한 클래스에만 표시 */}
