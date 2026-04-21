@@ -90,6 +90,7 @@ function toRequestItem(api: RequestClassApiResponse): RequestItem {
     startAt: formatDate(api.startAt),
     endAt: formatDate(api.endAt),
     requesterEmail: api.requesterEmail ?? '',
+    requesterId: api.requesterId ? String(api.requesterId) : undefined,
   };
 }
 

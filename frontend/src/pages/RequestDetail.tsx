@@ -301,8 +301,10 @@ export default function RequestDetail() {
                       if (!requireLogin()) return;
                       if (item.requesterEmail && currentUserEmail && item.requesterEmail === currentUserEmail) {
                         setIsSelfModalOpen(true);
+                      } else if (item.requesterId) {
+                        navigate(`/chat?targetMemberId=${item.requesterId}`);
                       } else {
-                        alert('채팅 기능은 현재 구현 중입니다.');
+                        showToast('요청자 정보를 확인할 수 없습니다. 잠시 후 다시 시도해주세요.', 'error');
                       }
                     }}
                     className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg"
