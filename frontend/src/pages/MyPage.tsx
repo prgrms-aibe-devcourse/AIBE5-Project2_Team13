@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save } from 'lucide-react';
 import { MOCK_CLASSES, UserRole, REGIONS, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
@@ -373,6 +373,18 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const teachingClasses = classes.filter(c => c.freelancerEmail === currentUserEmail);
   const pickedClasses = classes.filter(item => wishedIds.has(item.id));
   const pickedRequests = requests.filter(item => wishedIds.has(item.id));
+// 실제 클래스 목록을 우선으로 하고, 부족한 데이터를 MOCK_CLASSES로 보완하여 ID 기반의 통합 조회용 Map 객체를 생성합니다.
+  const classLookup = useMemo(() => {
+    const lookup = new Map(classes.map((classItem) => [classItem.id, classItem]));
+
+    MOCK_CLASSES.forEach((classItem) => {
+      if (!lookup.has(classItem.id)) {
+        lookup.set(classItem.id, classItem);
+      }
+    });
+
+    return lookup;
+  }, [classes]);
 
   useEffect(() => {
     if (activeMenu !== 'pick') return;
@@ -684,7 +696,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
             {enrollments.filter(e => e.status === 'APPROVED' || e.status === 'CANCEL_REQUESTED').map(e => {
-              const classItem = classes.find(c => c.id === e.classId) || MOCK_CLASSES.find(c => c.id === e.classId);
+              const classItem = classLookup.get(e.classId);
               return classItem ? (
                 <div key={e.id} className="flex flex-col gap-4">
                   <ExplorerItemCard
@@ -731,7 +743,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             className="grid grid-cols-1 md:grid-cols-2 gap-8"
           >
             {enrollments.filter(e => e.status === 'PENDING' && !pendingCancelEnrollmentIds.has(e.id)).map(e => {
-              const classItem = classes.find(c => c.id === e.classId) || MOCK_CLASSES.find(c => c.id === e.classId);
+              const classItem = classLookup.get(e.classId);
               return classItem ? (
                 <div key={e.id} className="flex flex-col gap-4">
                   <ExplorerItemCard
@@ -745,6 +757,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     category={classItem.category}
                     categoryName="승인 대기"
                     status={classItem.status}
+                    imageLoading="eager"
                   />
                   {renderEnrollmentButton(e)}
                 </div>

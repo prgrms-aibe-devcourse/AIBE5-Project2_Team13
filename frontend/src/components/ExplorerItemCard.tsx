@@ -3,6 +3,7 @@ import { Star, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Ute
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
+import SafeImage from './SafeImage';
 
 interface ExplorerItemCardProps {
   id: string;
@@ -25,6 +26,7 @@ interface ExplorerItemCardProps {
   enrollmentStatus?: string;
   isWished?: boolean; // 찜 여부 — 목록에서 하트 표시용
   compact?: boolean;
+  imageLoading?: 'eager' | 'lazy';
   onWishToggle?: () => void | Promise<void>;
 }
 
@@ -81,6 +83,7 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
   enrollmentStatus,
   isWished = false,
   compact = false,
+  imageLoading = 'lazy',
   onWishToggle,
 }) => {
   const isEnrolled = enrollmentStatus && enrollmentStatus !== 'CANCELLED';
@@ -112,9 +115,12 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
             </div>
           ) : (
             // 일반 클래스: 기존 이미지 그대로
-            <img
+            <SafeImage
               src={image}
               alt={title}
+              loading={imageLoading}
+              decoding="async"
+              sizes={compact ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw'}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               referrerPolicy="no-referrer"
             />
@@ -211,4 +217,4 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
   );
 };
 
-export default ExplorerItemCard;
+export default React.memo(ExplorerItemCard);

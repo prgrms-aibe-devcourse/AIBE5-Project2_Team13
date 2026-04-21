@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Search, ChevronDown, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal, Check } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, ChevronDown, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 import ExplorerItemCard from './ExplorerItemCard';
 import { useCategories } from '../context/CategoryContext';
@@ -7,24 +7,25 @@ import { useWish } from '../context/WishContext';
 import { useEnrollments } from '../context/EnrollmentContext';
 
 /**
- * 카테고리 이름 → 아이콘 매핑 함수
+ * 카테고리 이름별 아이콘 매핑 함수
  *
  * DB의 카테고리 이름(name)을 기준으로 아이콘을 결정합니다.
- * 하드코딩된 id('art', 'music' 등) 대신 실제 DB 이름으로 매칭하므로
+ * 하드코딩된 id가 아니라 실제 DB 이름으로 매칭하므로
  * DB 데이터가 바뀌어도 이 함수만 수정하면 됩니다.
  */
+// [기능: 카테고리별 아이콘 매핑] [이유: DB 카테고리 이름에 맞는 시각 요소를 안정적으로 표시하기 위해]
 const getCategoryIcon = (categoryName: string) => {
   switch (categoryName) {
-    case '뷰티·패션':   return <Sparkles size={18} />;
-    case '음악·악기':   return <Music size={18} />;
-    case '미술·공예':   return <Palette size={18} />;
-    case '댄스·연기':   return <Drama size={18} />;
-    case '어학·교육':   return <Languages size={18} />;
+    case '뷰티·패션': return <Sparkles size={18} />;
+    case '음악·악기': return <Music size={18} />;
+    case '미술·공예': return <Palette size={18} />;
+    case '연기·무용': return <Drama size={18} />;
+    case '어학·교육': return <Languages size={18} />;
     case '스포츠·레저': return <Trophy size={18} />;
-    case '게임':        return <Gamepad2 size={18} />;
+    case '게임': return <Gamepad2 size={18} />;
     case '라이프·요리': return <Utensils size={18} />;
-    case '기타':        return <MoreHorizontal size={18} />;
-    default:            return null;
+    case '기타': return <MoreHorizontal size={18} />;
+    default: return null;
   }
 };
 
@@ -38,9 +39,10 @@ interface ExplorerGridProps<T> {
   sortFn: (a: T, b: T, sortType: string) => number;
   wishedIds?: Set<string>;
   loading?: boolean;
-  onFilterChange?: () => void; // 필터 변경 시 호출될 콜백 (API 재호출용)
+  onFilterChange?: () => void; // 필터 변경 시 호출할 콜백 (API 재호출용)
 }
 
+// [기능: 클래스/요청 탐색 목록 렌더링] [이유: 모집중 토글과 결과 상태 문구를 포함한 탐색 UI를 일관되게 제공하기 위해]
 export default function ExplorerGrid<T>({
   items,
   type,
@@ -53,26 +55,27 @@ export default function ExplorerGrid<T>({
   onFilterChange,
 }: ExplorerGridProps<T>) {
 
-  // ✅ DB에서 가져온 실제 카테고리 목록 사용
+  // DB에서 가져온 실제 카테고리 목록 사용
   const { categories, loading: catLoading } = useCategories();
   const { toggleWish } = useWish();
   const { enrollments } = useEnrollments();
 
   // selectedCategory: 'all' 또는 DB의 카테고리 name 값 (예: "미술·공예")
-  const [searchQuery, setSearchQuery]       = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortType, setSortType]             = useState('latest');
+  const [sortType, setSortType] = useState('latest');
   const [locationFilter, setLocationFilter] = useState('all');
-  const [onlyRecruiting, setOnlyRecruiting] = useState(false);
+  const [onlyRecruiting, setOnlyRecruiting] = useState(() => type === 'class');
 
-  // 필터 변경 시 콜백 호출
-  const handleFilterChange = (type: string, value: any) => {
-    if (type === 'search') setSearchQuery(value);
-    if (type === 'category') setSelectedCategory(value);
-    if (type === 'sort') setSortType(value);
-    if (type === 'location') setLocationFilter(value);
-    if (type === 'recruiting') setOnlyRecruiting(value);
-    
+  // 필터 변경 콜백 호출
+  // [기능: 탐색 필터 상태 변경] [이유: 토글 스위치와 검색 조건 변경 시 목록 필터링을 즉시 반영하기 위해]
+  const handleFilterChange = (filterType: string, value: any) => {
+    if (filterType === 'search') setSearchQuery(value);
+    if (filterType === 'category') setSelectedCategory(value);
+    if (filterType === 'sort') setSortType(value);
+    if (filterType === 'location') setLocationFilter(value);
+    if (filterType === 'recruiting') setOnlyRecruiting(value);
+
     // API 재호출 트리거
     onFilterChange?.();
   };
@@ -85,6 +88,17 @@ export default function ExplorerGrid<T>({
       .sort((a, b) => sortFn(a, b, sortType));
   }, [items, searchQuery, selectedCategory, sortType, locationFilter, onlyRecruiting, filterFn, sortFn]);
 
+  // [기능: 현재 클래스 필터링 결과 문구 생성] [이유: 사용자가 모집중 필터 적용 여부와 결과 개수를 즉시 인지할 수 있도록 하기 위해]
+  const resultStatusText = useMemo(() => {
+    if (type !== 'class') {
+      return `전체 ${filteredAndSortedItems.length}개를 보고 있어요`;
+    }
+
+    return onlyRecruiting
+      ? `현재 모집 중인 클래스 ${filteredAndSortedItems.length}개를 보고 있어요`
+      : `전체 클래스 ${filteredAndSortedItems.length}개를 보고 있어요`;
+  }, [filteredAndSortedItems.length, onlyRecruiting, type]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="mb-12">
@@ -94,81 +108,105 @@ export default function ExplorerGrid<T>({
 
       {/* 검색 & 필터 영역 */}
       <div className="space-y-8 mb-12">
-        <div className="flex flex-col lg:flex-row items-center gap-6 bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
-
-          {/* 검색 입력창 */}
-          <div className="w-full lg:flex-1 relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-            <input
-              type="text"
-              placeholder={type === 'class' ? '클래스명, 프리랜서명을 검색해보세요' : '요청 제목을 검색해보세요'}
-              value={searchQuery}
-              onChange={(e) => handleFilterChange('search', e.target.value)}
-              className="w-full pl-12 pr-6 py-3.5 bg-ivory/50 border-2 border-transparent focus:border-coral rounded-2xl outline-none transition-all"
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-6 w-full lg:w-auto">
-            {/* 온/오프라인 필터 (칩 스타일) — 일반 클래스 전용 */}
-            {type === 'class' && (
-              <div className="flex bg-ivory/50 p-1.5 rounded-2xl border border-gray-100">
-                {[
-                  { id: 'all', label: '전체' },
-                  { id: 'online', label: '온라인' },
-                  { id: 'offline', label: '오프라인' }
-                ].map((chip) => (
-                  <button
-                    key={chip.id}
-                    onClick={() => handleFilterChange('location', chip.id)}
-                    className={cn(
-                      "px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
-                      locationFilter === chip.id
-                        ? "bg-white text-coral shadow-sm"
-                        : "text-gray-500 hover:text-coral"
-                    )}
-                  >
-                    {chip.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* 정렬 필터 */}
-            <div className="relative min-w-[140px]">
-              <select
-                value={sortType}
-                onChange={(e) => handleFilterChange('sort', e.target.value)}
-                className="w-full appearance-none pl-5 pr-10 py-3.5 bg-ivory/50 border-2 border-transparent focus:border-coral rounded-2xl outline-none transition-all font-bold text-gray-700 text-sm cursor-pointer"
-              >
-                <option value="latest">최신순</option>
-                <option value="priceLow">가격 낮은 순</option>
-                <option value="priceHigh">가격 높은 순</option>
-                <option value="rating">평점순</option>
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
-            </div>
-
-            {/* 모집중 체크박스 — 일반 클래스 전용 */}
-            {type === 'class' && (
-              <label className="flex items-center gap-3 cursor-pointer group select-none whitespace-nowrap">
-                <div className="relative flex items-center">
+        <div className="flex flex-col gap-6 bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
+          {type === 'class' && (
+            <div className="flex flex-col gap-3 rounded-[24px] bg-ivory/50 px-5 py-4 border border-coral/10">
+              <span className="text-sm font-semibold text-gray-500">{resultStatusText}</span>
+              <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-gray-900">모집중인 클래스만 보기</p>
+                  <p className="text-xs text-gray-500">
+                    {onlyRecruiting ? '지금 신청 가능한 클래스만 보여드려요' : '모든 클래스를 함께 보여드려요'}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    "text-xs font-bold transition-colors",
+                    onlyRecruiting ? "text-coral" : "text-gray-400"
+                  )}>
+                    {onlyRecruiting ? 'ON' : 'OFF'}
+                  </span>
                   <input
                     type="checkbox"
                     checked={onlyRecruiting}
                     onChange={(e) => handleFilterChange('recruiting', e.target.checked)}
-                    className="peer sr-only"
+                    className="sr-only"
                   />
-                  <div className="w-6 h-6 border-2 border-gray-200 rounded-lg bg-white transition-all peer-checked:bg-coral peer-checked:border-coral group-hover:border-coral/50 flex items-center justify-center">
-                    <Check size={16} className="text-white opacity-0 peer-checked:opacity-100 transition-opacity" />
-                  </div>
+                  <span
+                    className={cn(
+                      "relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-300",
+                      onlyRecruiting ? "bg-coral shadow-lg shadow-coral/20" : "bg-gray-300"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300",
+                        onlyRecruiting ? "translate-x-7" : "translate-x-1"
+                      )}
+                    />
+                  </span>
                 </div>
-                <span className="text-sm font-bold text-gray-600 group-hover:text-coral transition-colors">모집중인 클래스만 보기</span>
               </label>
-            )}
+            </div>
+          )}
+
+          <div className="flex flex-col lg:flex-row items-center gap-6">
+            {/* 검색 입력창 */}
+            <div className="w-full lg:flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
+              <input
+                type="text"
+                placeholder={type === 'class' ? '클래스명, 프리랜서명을 검색해보세요' : '요청 제목을 검색해보세요'}
+                value={searchQuery}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                className="w-full pl-12 pr-6 py-3.5 bg-ivory/50 border-2 border-transparent focus:border-coral rounded-2xl outline-none transition-all"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-6 w-full lg:w-auto">
+              {/* 온라인/오프라인 필터 (클래스일 때만 사용) */}
+              {type === 'class' && (
+                <div className="flex bg-ivory/50 p-1.5 rounded-2xl border border-gray-100">
+                  {[
+                    { id: 'all', label: '전체' },
+                    { id: 'online', label: '온라인' },
+                    { id: 'offline', label: '오프라인' }
+                  ].map((chip) => (
+                    <button
+                      key={chip.id}
+                      onClick={() => handleFilterChange('location', chip.id)}
+                      className={cn(
+                        "px-5 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap",
+                        locationFilter === chip.id
+                          ? "bg-white text-coral shadow-sm"
+                          : "text-gray-500 hover:text-coral"
+                      )}
+                    >
+                      {chip.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* 정렬 필터 */}
+              <div className="relative min-w-[140px]">
+                <select
+                  value={sortType}
+                  onChange={(e) => handleFilterChange('sort', e.target.value)}
+                  className="w-full appearance-none pl-5 pr-10 py-3.5 bg-ivory/50 border-2 border-transparent focus:border-coral rounded-2xl outline-none transition-all font-bold text-gray-700 text-sm cursor-pointer"
+                >
+                  <option value="latest">최신순</option>
+                  <option value="priceLow">가격 낮은 순</option>
+                  <option value="priceHigh">가격 높은 순</option>
+                  <option value="rating">평점순</option>
+                </select>
+                <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" size={18} />
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* ✅ 카테고리 탭 — DB에서 가져온 실제 카테고리로 렌더링 */}
+        {/* 카테고리 칩은 DB에서 가져온 실제 카테고리로만 렌더링 */}
         <div className="flex flex-wrap gap-3">
 
           {/* 전체 버튼 */}
@@ -193,7 +231,7 @@ export default function ExplorerGrid<T>({
               />
             ))
           ) : (
-            // ✅ DB 카테고리 name을 selectedCategory 키로 사용
+            // DB 카테고리 name을 selectedCategory 값으로 사용
             categories.map(cat => (
               <button
                 key={cat.id}
@@ -216,7 +254,7 @@ export default function ExplorerGrid<T>({
       {/* 카드 그리드 */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {loading ? (
-          // 카테고리 탭은 이미 보이는 상태, 카드만 스켈레톤으로 표시
+          // 카테고리 등은 이미 보이는 상태, 카드만 스켈레톤으로 표시
           Array.from({ length: 8 }).map((_, i) => (
             <div key={i} className="bg-white rounded-[32px] overflow-hidden animate-pulse">
               <div className="aspect-[4/3] bg-gray-100" />
@@ -238,7 +276,7 @@ export default function ExplorerGrid<T>({
                 image={item.image}
                 title={item.title}
                 value={type === 'class' ? item.price : item.reward}
-                valueLabel={type === 'class' ? '수강료' : '희망 금액'}
+                valueLabel={type === 'class' ? '수강료' : '보상 금액'}
                 personName={type === 'class' ? item.freelancer : item.author}
                 personLabel={type === 'class' ? '프리랜서' : '요청자'}
                 personId={type === 'class' ? item.freelancerId : undefined}
@@ -259,7 +297,7 @@ export default function ExplorerGrid<T>({
           })
         ) : (
           <div className="col-span-full py-20 text-center">
-            <p className="text-gray-sub text-lg">검색 결과가 없습니다. 다른 조건으로 찾아보세요!</p>
+            <p className="text-gray-sub text-lg">검색 결과가 없습니다. 다른 조건으로 찾아보세요.</p>
           </div>
         )}
       </div>
