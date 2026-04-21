@@ -22,35 +22,29 @@ public class ClassOrderService {
     private final ClassBoardRepository classBoardRepository;
     private final MemberRepository memberRepository;
 
-    //수강 신청 처리
     // [기능: 수강 신청 생성 처리] [이유: 신청 생성 시 class_order와 class_board의 진행 상태를 모두 BEFORE_START로 맞추기 위해]
     @Transactional
     public Long applyClass(String studentEmail, ClassOrderRequest request) {
-        // 1. 먼저 데이터를 가져옵니다. (조회 우선!)
         Member student = memberRepository.findByEmail(studentEmail)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         ClassBoard classBoard = classBoardRepository.findByIdForUpdate(request.getClassBoardId())
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
 
-        // 2. 이제 가져온 student와 classBoard의 ID를 사용해서 중복 검증을 합니다.
         List<ClassOrder.ApprovalStatus> activeStatuses = List.of(
                 ClassOrder.ApprovalStatus.PENDING,
                 ClassOrder.ApprovalStatus.APPROVED
         );
 
-        // PENDING(대기)이나 APPROVED(승인)인 내역이 있으면 신청 불가!
         if (classOrderRepository.existsByStudentIdAndClassBoardIdAndApprovalStatusIn(
                 student.getId(), classBoard.getId(), activeStatuses)) {
             throw new IllegalStateException("이미 진행 중인 수강 신청 내역이 있습니다.");
         }
 
-        // 3. 기존에 있던 마감 체크 로직
         if ("CLOSE".equalsIgnoreCase(classBoard.getStatus())) {
             throw new IllegalStateException("이미 모집이 마감된 클래스입니다.");
         }
 
-        // 4. 정원 체크 및 신청 진행
         int currentVolume = classBoard.getCurrentVolume() == null ? 0 : classBoard.getCurrentVolume();
         int maxCapacity = classBoard.getMaxCapacity() == null ? 0 : classBoard.getMaxCapacity();
         if (currentVolume >= maxCapacity) {
@@ -70,7 +64,6 @@ public class ClassOrderService {
         classBoard.updateProgressStatus(ClassBoard.ProgressStatus.BEFORE_START);
         classBoard.increaseVolume();
 
-        // 5. 인원 증가 후 정원 마감 체크
         if (classBoard.getCurrentVolume() >= classBoard.getMaxCapacity()) {
             classBoard.updateStatus("CLOSE");
         }
@@ -78,6 +71,7 @@ public class ClassOrderService {
         return saved.getId();
     }
 
+    // [기능: 학생 본인 수강 신청 내역 조회] [이유: 마이페이지 수강 관리 탭에 로그인한 학생의 신청 이력을 보여주기 위해]
     @Transactional(readOnly = true)
     public List<ClassOrderSummaryResponse> getMyClassOrders(String studentEmail) {
         Member student = memberRepository.findByEmail(studentEmail)
@@ -89,34 +83,70 @@ public class ClassOrderService {
                 .toList();
     }
 
-    /**
-     * 수강 신청 취소
-     * 1) 주문 조회 2) 본인 확인 3) 상태 변경 4) 클래스 인원 감소
-     */
+    // [기능: 프리랜서 본인 클래스 신청 내역 조회] [이유: 마이페이지 수강생 관리 탭에서 본인 클래스 신청 이력을 보여주기 위해]
+    @Transactional(readOnly = true)
+    public List<ClassOrderSummaryResponse> getFreelancerClassOrders(String freelancerEmail) {
+        Member freelancer = memberRepository.findByEmail(freelancerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        return classOrderRepository.findByClassBoardFreelancerIdAndApprovalStatusNotAndIsDeletedFalseOrderByCreatedAtDesc(
+                        freelancer.getId(),
+                        ClassOrder.ApprovalStatus.CANCELLED
+                )
+                .stream()
+                .map(ClassOrderSummaryResponse::from)
+                .toList();
+    }
+
+    // [기능: 프리랜서 수강 신청 승인 처리] [이유: 수강생 관리 탭의 승인 버튼으로 approval_status와 progress_status를 함께 갱신하기 위해]
+    @Transactional
+    public void approveClassOrder(String freelancerEmail, Long orderId) {
+        ClassOrder classOrder = classOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));
+
+        validateFreelancerOwnership(freelancerEmail, classOrder);
+        classOrder.updateStatus(ClassOrder.ApprovalStatus.APPROVED, ClassOrder.ProgressStatus.IN_PROGRESS);
+    }
+
+    // [기능: 프리랜서 수강 신청 거절 처리] [이유: 수강생 관리 탭의 거절 버튼으로 approval_status와 progress_status를 함께 갱신하기 위해]
+    @Transactional
+    public void rejectClassOrder(String freelancerEmail, Long orderId) {
+        ClassOrder classOrder = classOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));
+
+        validateFreelancerOwnership(freelancerEmail, classOrder);
+        classOrder.updateStatus(ClassOrder.ApprovalStatus.REJECTED, ClassOrder.ProgressStatus.REJECTED);
+    }
+
+    // [기능: 수강 신청 취소 처리] [이유: 학생 본인이 신청 취소 시 주문 상태와 클래스 인원을 함께 갱신하기 위해]
     @Transactional
     public void cancelClassOrder(String studentEmail, Long orderId) {
         ClassOrder classOrder = classOrderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));
 
         if (!classOrder.getStudent().getEmail().equals(studentEmail)) {
-            throw new IllegalStateException("본인의 수강 신청만 취소할 수 있습니다.");
+            throw new IllegalStateException("본인 수강 신청만 취소할 수 있습니다.");
         }
 
         if (classOrder.getApprovalStatus() == ClassOrder.ApprovalStatus.CANCELLED) {
             throw new IllegalStateException("이미 취소된 수강 신청입니다.");
         }
 
-        // 상태 업데이트
         classOrder.updateStatus(ClassOrder.ApprovalStatus.CANCELLED, ClassOrder.ProgressStatus.CANCELLED);
 
-        // 클래스 인원 감소
         ClassBoard classBoard = classOrder.getClassBoard();
         classBoard.decreaseVolume();
 
-        // 정원이 여유가 생겼으므로 다시 OPEN으로 변경 (기존에 정원 마감으로 CLOSE 되었을 경우)
         if ("CLOSE".equalsIgnoreCase(classBoard.getStatus()) &&
             classBoard.getCurrentVolume() < classBoard.getMaxCapacity()) {
             classBoard.updateStatus("OPEN");
+        }
+    }
+
+    // [기능: 프리랜서 소유 클래스 검증] [이유: 본인 클래스 신청 건에 대해서만 승인·거절이 가능하도록 제한하기 위해]
+    private void validateFreelancerOwnership(String freelancerEmail, ClassOrder classOrder) {
+        if (!classOrder.getClassBoard().getFreelancer().getEmail().equals(freelancerEmail)) {
+            throw new IllegalStateException("본인 클래스 신청 건만 처리할 수 있습니다.");
         }
     }
 }

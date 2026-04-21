@@ -19,6 +19,7 @@ public class ClassOrderSummaryResponse {
     private String classTitle;
     private Integer price;
     private String approvalStatus;
+    private String progressStatus;
     private String appliedAt;
     private String studentName;
     private String studentEmail;
@@ -30,6 +31,7 @@ public class ClassOrderSummaryResponse {
                 .classTitle(order.getClassBoard().getTitle())
                 .price(order.getAmount())
                 .approvalStatus(order.getApprovalStatus().name())
+                .progressStatus(order.getProgressStatus().name())
                 .appliedAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : null)
                 .studentName(order.getStudent().getName())
                 .studentEmail(order.getStudent().getEmail())

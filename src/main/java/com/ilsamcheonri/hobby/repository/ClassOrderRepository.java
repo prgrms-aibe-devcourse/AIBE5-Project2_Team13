@@ -18,6 +18,13 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
     @EntityGraph(attributePaths = {"classBoard"})
     List<ClassOrder> findByStudentIdAndIsDeletedFalseOrderByCreatedAtDesc(Long studentId);
 
+    // [기능 설명: 특정 프리랜서의 클래스 주문 중 지정된 승인 상태가 아니며 삭제되지 않은 항목들을 생성일 내림차순으로 조회합니다.] [작성 이유: 클래스 주문 관리 대시보드에서 관련 엔티티를 한 번에 효율적으로 조회하여 N+1 문제를 방지하기 위해 작성함]
+    @EntityGraph(attributePaths = {"classBoard", "student"})
+    List<ClassOrder> findByClassBoardFreelancerIdAndApprovalStatusNotAndIsDeletedFalseOrderByCreatedAtDesc(
+            Long freelancerId,
+            ClassOrder.ApprovalStatus approvalStatus
+    );
+
     // 승인 상태가 PENDING(대기) 또는 APPROVED(승인)인 데이터가 있는지 확인
     boolean existsByStudentIdAndClassBoardIdAndApprovalStatusIn(
             Long studentId,
