@@ -23,6 +23,7 @@ public class ClassOrderService {
     private final MemberRepository memberRepository;
 
     //수강 신청 처리
+    // [기능: 수강 신청 생성 처리] [이유: 신청 생성 시 class_order와 class_board의 진행 상태를 모두 BEFORE_START로 맞추기 위해]
     @Transactional
     public Long applyClass(String studentEmail, ClassOrderRequest request) {
         // 1. 먼저 데이터를 가져옵니다. (조회 우선!)
@@ -62,10 +63,11 @@ public class ClassOrderService {
                 .classBoard(classBoard)
                 .amount(classBoard.getPrice())
                 .approvalStatus(ClassOrder.ApprovalStatus.PENDING)
-                .progressStatus(ClassOrder.ProgressStatus.IN_PROGRESS)
+                .progressStatus(ClassOrder.ProgressStatus.BEFORE_START)
                 .build();
 
         ClassOrder saved = classOrderRepository.save(classOrder);
+        classBoard.updateProgressStatus(ClassBoard.ProgressStatus.BEFORE_START);
         classBoard.increaseVolume();
 
         // 5. 인원 증가 후 정원 마감 체크
