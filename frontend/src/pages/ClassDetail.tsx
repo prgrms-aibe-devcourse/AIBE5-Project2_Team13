@@ -197,7 +197,10 @@ export default function ClassDetail() {
 
     const item = detailItem;
     const isOwnClassInquiryTarget = myFreelancerId !== null && Number(item.freelancerId) === myFreelancerId;
-    const currentEnrollment = enrollments.find(e => e.classId === item.id && e.status !== 'CANCELLED');
+// [기능 설명: 특정 클래스 ID와 일치하며, 취소되거나 거절되지 않은 유효한 수강 신청 내역을 찾습니다.] [작성 이유: 이미 수강 중이거나 신청 중인 클래스를 식별하여 중복 신청을 방지하거나 UI 상태를 동기화하기 위해 작성함]
+    const currentEnrollment = enrollments.find(
+        e => e.classId === item.id && e.status !== 'CANCELLED' && e.status !== 'REJECTED'
+    );
     const status = currentEnrollment?.status;
     const isClosed = item.status === 'CLOSE'; //모집마감
 
