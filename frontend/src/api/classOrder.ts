@@ -24,11 +24,11 @@ interface ClassOrderSummaryResponse {
 export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
   const response = await apiClient.get<ClassOrderSummaryResponse[]>('/class-orders/me');
 
-  //  서버에서 받은 원본 데이터가 어떻게 생겼는지 확인
+  // 서버에서 진짜 데이터가 어떻게 오는지 눈으로 확인
   console.log("🔍 [디버깅] 서버 응답 데이터 구조:", response.data);
 
   return response.data.map((order) => {
-    //  매핑되는 개별 객체도 확인
+    // 개별 데이터 확인
     console.log("🔍 [디버깅] 매핑 중인 order 객체:", order);
 
     let mappedStatus: EnrollmentStatus = 'PENDING';
@@ -40,10 +40,14 @@ export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
     }
 
     return {
-      // 🚨 여기서 order.orderId가 undefined로 나오면 범인은 서버 데이터입니다
-      id: String(order.orderId),
+      id: String(order.orderId), // 🚨 만약 이게 undefined라면 order.id 인지 확인하세요
       classId: String(order.classId),
-      // ... 나머지는 동일
+      classTitle: order.classTitle,
+      studentName: order.studentName,
+      studentEmail: order.studentEmail,
+      status: mappedStatus,
+      appliedAt: order.appliedAt?.split('T')[0] ?? '',
+      price: order.price ?? 0,
     };
   });
 }
