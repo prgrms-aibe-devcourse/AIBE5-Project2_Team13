@@ -17,6 +17,14 @@ import java.util.List;
 @Builder
 public class ClassBoard {
 
+    // 작업의 진행 상태를 나타내는 네 가지 단계(시작 전, 진행 중, 완료, 취소)를 정의한 열거형입니다.
+    public enum ProgressStatus {
+        BEFORE_START,
+        IN_PROGRESS,
+        COMPLETED,
+        CANCELLED
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -60,6 +68,12 @@ public class ClassBoard {
     @Builder.Default
     @Column(length = 20)
     private String status = "OPEN"; // OPEN(열림), CLOSE(닫힘)
+
+    // 데이터베이스에 문자열 형태의 열거형으로 매핑하며, 빌더 패턴 사용 시 기본값을 BEFORE_START로 설정합니다.
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "progress_status", nullable = false, length = 20)
+    private ProgressStatus progressStatus = ProgressStatus.BEFORE_START;
 
     @Column(columnDefinition = "TEXT")
     private String curriculum;
@@ -149,6 +163,11 @@ public class ClassBoard {
     // 클래스의 모집 상태(OPEN/CLOSE)를 변경하는 기능
     public void updateStatus(String status) {
         this.status = status;
+    }
+
+    // [기능: 클래스 진행 상태 변경] [이유: 수강 신청 시 class_board.progress_status를 BEFORE_START로 유지하기 위해]
+    public void updateProgressStatus(ProgressStatus progressStatus) {
+        this.progressStatus = progressStatus;
     }
 
     // 수강 신청이 성공하면 현재 신청 인원을 1 증가시킵니다.

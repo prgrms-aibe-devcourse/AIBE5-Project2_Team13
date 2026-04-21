@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Heart, CheckCircle, ChevronRight, User, Settings, LogOut, Star, LayoutDashboard, MessageSquare, CreditCard, TrendingUp, Users, BookOpen, Edit2, BadgeCheck, X, Shield, AlertCircle, UserCheck, Plus, Calendar, MapPin, Search, Filter, ArrowUpDown, MoreVertical, Trash2, Check, Ban, Save } from 'lucide-react';
-import { MOCK_CLASSES, UserRole, REGIONS, ReportItem, MOCK_REPORTS, MOCK_REVIEWS } from '@/src/constants';
+import { MOCK_CLASSES, UserRole, REGIONS, ReportItem, MOCK_REPORTS, MOCK_REVIEWS, type EnrollmentItem } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
@@ -22,7 +22,7 @@ import { useCategories } from '../context/CategoryContext';
 import axios from 'axios';
 import { formatPhoneNumber, stripPhoneNumber } from '@/src/lib/phone';
 import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
-
+import { approveFreelancerClassOrder, getMyFreelancerClassOrders, rejectFreelancerClassOrder } from '@/src/api/classOrder';
 import { useNavigate, Link } from 'react-router-dom';
 import MyRequestManage from './MyRequestManage';
 import SafeImage from '../components/SafeImage';
@@ -98,6 +98,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
   const [reviewMode, setReviewMode] = useState<'create' | 'edit'>('create');
   const [selectedReviewData, setSelectedReviewData] = useState<Partial<ReviewItem>>({});
   const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
+  const [freelancerEnrollments, setFreelancerEnrollments] = useState<EnrollmentItem[]>([]);
 
   // Load reviews from localStorage
   useEffect(() => {
@@ -392,6 +393,35 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     fetchRequests();
     fetchWishedIds();
   }, [activeMenu, fetchRequests, fetchWishedIds]);
+
+  useEffect(() => {
+    if (authLoading || userRole !== 'ROLE_FREELANCER' || activeMenu !== 'freelancer_students') {
+      return;
+    }
+
+    let isMounted = true;
+
+    // [기능: 프리랜서 수강 신청 목록 조회] [이유: 수강생 관리 탭에서 본인 클래스 신청 내역을 서버 기준으로 보여주기 위해]
+    const loadFreelancerEnrollments = async () => {
+      try {
+        const orders = await getMyFreelancerClassOrders();
+
+        if (isMounted) {
+          setFreelancerEnrollments(orders);
+        }
+      } catch (error) {
+        if (isMounted) {
+          showToast('수강 신청 목록을 불러오지 못했습니다.', 'error');
+        }
+      }
+    };
+
+    loadFreelancerEnrollments();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeMenu, authLoading, userRole]);
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -952,23 +982,26 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     setIsReviewModalOpen(false);
   };
 
-  const handleApprove = (id: string) => {
-    updateEnrollmentStatus(id, 'APPROVED');
+// [기능 설명: 특정 클래스 주문을 승인하고, 상태를 '승인됨/진행 중'으로 변경하여 UI에 즉시 반영합니다.] [작성 이유: API 호출 결과를 로컬 상태와 동기화하여 별도의 데이터 새로고침 없이 사용자에게 승인 결과를 보여주기 위해 작성함]
+  const handleApprove = async (id: string) => {
+    try { await approveFreelancerClassOrder(id); setFreelancerEnrollments((prev) => prev.map((enrollment) => enrollment.id === id ? { ...enrollment, status: 'APPROVED', progressStatus: 'IN_PROGRESS' } : enrollment)); alert('수강 신청이 승인되었습니다. 유저 상태가 수강자로 변경되었습니다.'); return; } catch (error) { showToast('수강 신청 승인 중 오류가 발생했습니다.', 'error'); return; }
     alert('수강 신청이 승인되었습니다. 유저 상태가 수강자로 변경되었습니다.');
   };
 
+// [기능 설명: 거절 사유를 입력받을 모달을 띄우기 위해 선택된 주문 ID를 설정합니다.] [작성 이유: 거절 프로세스를 버튼 클릭과 모달 확정으로 분리하여 사용자 경험을 개선하고 의도치 않은 거절을 방지하기 위해 작성함]
   const handleRejectClick = (id: string) => {
     setSelectedEnrollmentId(id);
     setIsRejectModalOpen(true);
   };
 
-  const handleConfirmReject = () => {
+// [기능 설명: 입력된 거절 사유를 검증한 후 서버에 거절 요청을 보내고, UI의 상태를 거절 상태로 업데이트합니다.] [작성 이유: 사유 입력을 필수로 하여 거절 프로세스를 명확히 하고, 서버와 로컬 상태를 일치시키기 위해 작성함]
+  const handleConfirmReject = async () => {
     if (!rejectReason.trim()) {
       alert('거절 사유를 입력해주세요.');
       return;
     }
     if (selectedEnrollmentId) {
-      updateEnrollmentStatus(selectedEnrollmentId, 'REJECTED', rejectReason);
+      try { await rejectFreelancerClassOrder(selectedEnrollmentId); setFreelancerEnrollments((prev) => prev.map((enrollment) => enrollment.id === selectedEnrollmentId ? { ...enrollment, status: 'REJECTED', progressStatus: 'REJECTED', cancelReason: rejectReason } : enrollment)); alert('수강 신청이 거절되었습니다.'); setIsRejectModalOpen(false); setRejectReason(''); setSelectedEnrollmentId(null); return; } catch (error) { showToast('수강 신청 거절 중 오류가 발생했습니다.', 'error'); return; }
       alert('수강 신청이 거절되었습니다.');
       setIsRejectModalOpen(false);
       setRejectReason('');
@@ -981,6 +1014,31 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     navigate('/chat');
   };
 
+  // [기능: 프리랜서 수강 신청 승인 상태 반영] [이유: 수강생 관리 탭에서 승인 결과를 실제 신청 목록에 즉시 반영하기 위해]
+  const handleFreelancerApprove = (id: string) => { handleApprove(id);
+    alert('수강 신청이 승인되었습니다. 유저 상태가 수강자로 변경되었습니다.');
+
+  // [기능: 프리랜서 수강 신청 거절 상태 반영] [이유: 수강생 관리 탭에서 거절 결과를 실제 신청 목록에 즉시 반영하기 위해]
+  };
+
+  const handleFreelancerReject = () => {
+    if (!rejectReason.trim()) {
+      alert('거절 사유를 입력해주세요.');
+      return;
+    }
+
+    if (selectedEnrollmentId) {
+      setFreelancerEnrollments((prev) =>
+        prev.map((enrollment) =>
+          enrollment.id === selectedEnrollmentId
+            ? { ...enrollment, status: 'REJECTED', cancelReason: rejectReason }
+            : enrollment
+        )
+      );
+    }
+  };
+
+  // [기능: 프리랜서 수강생 관리 테이블 렌더링] [이유: 본인 클래스에 신청한 회원 목록을 마이페이지에서 바로 확인할 수 있게 하기 위해]
   const renderEnrollmentManagement = () => (
     <div className="space-y-8">
       <h2 className="text-2xl font-bold text-gray-900 mb-8">수강 신청 관리</h2>
@@ -996,7 +1054,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
             </tr>
           </thead>
           <tbody>
-            {enrollments.map((e) => (
+            {freelancerEnrollments.map((e) => (
               <tr key={e.id} className="border-b border-coral/5 hover:bg-ivory/30 transition-colors">
                 <td className="px-6 py-4">
                   <p className="font-bold text-gray-900 text-sm">{e.classTitle}</p>
@@ -1026,7 +1084,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     {e.status === 'PENDING' && (
                       <>
                         <button 
-                          onClick={() => handleApprove(e.id)}
+                          onClick={() => handleFreelancerApprove(e.id)}
                           className="px-3 py-1.5 bg-coral text-white text-xs font-bold rounded-lg hover:bg-coral/90 transition-all"
                         >
                           승인
@@ -1049,6 +1107,13 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                 </td>
               </tr>
             ))}
+            {freelancerEnrollments.length === 0 && (
+              <tr>
+                <td colSpan={5} className="px-6 py-16 text-center text-sm text-gray-400">
+                  아직 신청한 수강생이 없습니다.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

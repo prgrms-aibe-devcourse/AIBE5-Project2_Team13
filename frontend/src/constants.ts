@@ -618,7 +618,7 @@ export const MOCK_CLASSES: ClassItem[] = [
 
 // ✅ MOCK_REQUESTS 제거 완료 — 실제 API(/api/request-classes)에서 데이터를 가져옵니다.
 
-export type EnrollmentStatus = 'PENDING' | 'APPROVED' | 'CANCEL_REQUESTED' | 'CANCELLED';
+export type EnrollmentStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCEL_REQUESTED' | 'CANCELLED';
 
 export interface EnrollmentItem {
   id: string;
@@ -627,6 +627,7 @@ export interface EnrollmentItem {
   studentName: string;
   studentEmail: string;
   status: EnrollmentStatus;
+  progressStatus?: string;
   appliedAt: string;
   price: number;
   cancelReason?: string;
