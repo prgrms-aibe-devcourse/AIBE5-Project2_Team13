@@ -451,6 +451,35 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
     }
   };
 
+  const resetSettingsDraft = () => {
+    if (profileImage?.startsWith('blob:')) {
+      URL.revokeObjectURL(profileImage);
+    }
+
+    setSettingsForm({
+      name: myDetail?.name || user?.name || '',
+      email: myDetail?.email || user?.email || '',
+      phone: formatPhoneNumber(myDetail?.phone || ''),
+    });
+    setSelectedCity(myDetail?.addr || '');
+    setSelectedDistrict(myDetail?.addr2 || '');
+    setProfileImage(myDetail?.imgUrl || null);
+    setPendingProfileImageFile(null);
+    setIsPendingDefaultProfileImage(false);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleMenuChange = (nextMenu: MenuType) => {
+    if (activeMenu === 'settings' && nextMenu !== 'settings') {
+      resetSettingsDraft();
+    }
+
+    setActiveMenu(nextMenu);
+  };
+
   const resetPasswordForm = () => {
     setPasswordForm({
       currentPassword: '',
@@ -1748,7 +1777,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                         "text-[10px] font-bold",
                         u.isDeleted ? "text-red-500" : "text-green-500"
                       )}>
-                        {u.isDeleted ? `탈퇴 (${u.quitAt})` : '정상'}
+                        {u.isDeleted ? (u.quitAt && u.quitAt !== 'null' ? `탈퇴 (${u.quitAt})` : '탈퇴') : '정상'}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -2106,7 +2135,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                   {learningItems.map((item) => (
                     <button
                       key={item.id}
-                      onClick={() => setActiveMenu(item.id as MenuType)}
+                      onClick={() => handleMenuChange(item.id as MenuType)}
                       className={cn(
                         "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
                         activeMenu === item.id 
@@ -2132,7 +2161,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     {teachingItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => setActiveMenu(item.id as MenuType)}
+                        onClick={() => handleMenuChange(item.id as MenuType)}
                         className={cn(
                           "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
                           activeMenu === item.id 
@@ -2159,7 +2188,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
                     {adminItems.map((item) => (
                       <button
                         key={item.id}
-                        onClick={() => setActiveMenu(item.id as MenuType)}
+                        onClick={() => handleMenuChange(item.id as MenuType)}
                         className={cn(
                           "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
                           activeMenu === item.id 
@@ -2180,7 +2209,7 @@ export default function MyPage({ initialMenu }: { initialMenu?: MenuType }) {
 
               <div className="pt-2 border-t border-coral/5">
                 <button
-                  onClick={() => setActiveMenu('settings')}
+                  onClick={() => handleMenuChange('settings')}
                   className={cn(
                     "w-full flex items-center justify-between p-4 rounded-2xl transition-all group",
                     activeMenu === 'settings' 

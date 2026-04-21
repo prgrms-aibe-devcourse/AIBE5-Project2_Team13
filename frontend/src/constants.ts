@@ -37,6 +37,7 @@ export interface RequestItem {
   startAt?: string;       // 희망 시작 일시
   endAt?: string;         // 희망 종료 일시
   requesterEmail?: string; // 본인 글 여부 판단용
+  requesterId?: string;    // 요청자와 채팅방을 열 때 사용하는 회원 ID
 }
 
 export const REGIONS = [
