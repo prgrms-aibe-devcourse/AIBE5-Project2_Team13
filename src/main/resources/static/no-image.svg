@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">
+  <!-- 배경 -->
+  <rect width="400" height="300" rx="16" fill="#F5F0EB"/>
+
+  <!-- 사진 프레임 아이콘 -->
+  <rect x="140" y="90" width="120" height="90" rx="10" fill="none" stroke="#C8BDB5" stroke-width="4"/>
+
+  <!-- 산 모양 -->
+  <polyline points="148,168 172,138 192,158 212,130 252,168"
+            fill="none" stroke="#C8BDB5" stroke-width="4"
+            stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- 태양 원 -->
+  <circle cx="220" cy="112" r="9" fill="none" stroke="#C8BDB5" stroke-width="4"/>
+
+  <!-- 사선 (이미지 없음 표시) -->
+  <line x1="148" y1="88" x2="252" y2="182"
+        stroke="#C8BDB5" stroke-width="3.5"
+        stroke-linecap="round" opacity="0.7"/>
+
+  <!-- 텍스트 -->
+  <text x="200" y="215"
+        font-family="'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif"
+        font-size="14" font-weight="600"
+        fill="#B0A49C" text-anchor="middle">
+    이미지 없음
+  </text>
+</svg>

@@ -3,7 +3,7 @@ import { Star } from 'lucide-react';
 import { ClassItem, CATEGORIES } from '@/src/constants';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
-
+import SafeImage from '../components/SafeImage';
 interface ClassCardProps {
   item: ClassItem;
 }
@@ -18,7 +18,7 @@ const ClassCard: React.FC<ClassCardProps> = ({ item }) => {
     >
       <Link to={`/class/${item.id}`}>
         <div className="relative aspect-[4/3] overflow-hidden">
-          <img
+          <SafeImage
             src={item.image}
             alt={item.title}
             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

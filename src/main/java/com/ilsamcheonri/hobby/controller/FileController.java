@@ -4,8 +4,10 @@ import com.ilsamcheonri.hobby.dto.file.FileUploadResponse;
 import com.ilsamcheonri.hobby.enums.FileTargetType;
 import com.ilsamcheonri.hobby.service.FileService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -133,8 +135,13 @@ public class FileController {
     // ✅ 파일 다운로드
     // GET /api/files/download/{savedFileName}
     //
-    // 파일이 없으면 500 대신 404를 반환합니다.
-    // 프론트에서 onError로 기본 이미지 처리를 권장합니다.
+    // 파일이 없으면 404 대신 no-image.svg를 200으로 반환합니다.
+    //
+    // 왜 404 대신 200으로 반환하나요?
+    // - 브라우저는 <img> 태그가 404를 받으면 콘솔에 빨간 에러를 자동으로 출력합니다.
+    // - JavaScript(onError 핸들러)로는 이 콘솔 에러를 막을 수 없습니다.
+    // - 파일이 없을 때 no-image.svg를 200으로 내려주면 브라우저 입장에서 성공이므로
+    //   콘솔 에러가 전혀 생기지 않습니다.
     // =========================================================
     @GetMapping("/download/{savedFileName}")
     public ResponseEntity<Resource> download(
@@ -147,17 +154,57 @@ public class FileController {
             String encodedFileName = URLEncoder.encode(savedFileName, StandardCharsets.UTF_8)
                     .replace("+", "%20");
 
+            // 파일 확장자로 Content-Type 결정
+            MediaType mediaType = resolveMediaType(savedFileName);
+
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION,
-                            "attachment; filename=\"" + encodedFileName + "\"")
+                            "inline; filename=\"" + encodedFileName + "\"")
+                    .contentType(mediaType)
                     .body(resource);
 
         } catch (IllegalArgumentException e) {
-            // 파일이 없는 경우 404 응답
-            return ResponseEntity.notFound().build();
+            // 파일이 없는 경우 → 404 대신 no-image.svg를 200으로 반환
+            // → 브라우저가 성공으로 인식하므로 콘솔에 빨간 에러가 쌓이지 않음
+            return noImageResponse();
+
         } catch (SecurityException e) {
-            // 잘못된 경로 접근 시 400 응답
-            return ResponseEntity.badRequest().build();
+            // 잘못된 경로 접근 시에도 no-image.svg 반환
+            return noImageResponse();
         }
+    }
+
+    /**
+     * 파일이 없을 때 no-image.svg를 200으로 반환합니다.
+     * static/no-image.svg 를 classpath에서 읽어서 응답합니다.
+     */
+    private ResponseEntity<Resource> noImageResponse() {
+        try {
+            // frontend/public/no-image.svg를 Spring Boot static 리소스로도 서빙하기 위해
+            // src/main/resources/static/no-image.svg 에 복사해두면 classpath에서 읽을 수 있습니다.
+            Resource noImage = new ClassPathResource("static/no-image.svg");
+            if (noImage.exists()) {
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType("image/svg+xml"))
+                        .body(noImage);
+            }
+        } catch (Exception ignored) { }
+
+        // static/no-image.svg도 없으면 204 No Content (빈 응답) — 콘솔 에러 없음
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 파일 확장자로 Content-Type을 결정합니다.
+     * 브라우저가 이미지를 인라인으로 올바르게 표시하기 위해 필요합니다.
+     */
+    private MediaType resolveMediaType(String fileName) {
+        String lower = fileName.toLowerCase();
+        if (lower.endsWith(".png"))  return MediaType.IMAGE_PNG;
+        if (lower.endsWith(".gif"))  return MediaType.IMAGE_GIF;
+        if (lower.endsWith(".svg"))  return MediaType.parseMediaType("image/svg+xml");
+        if (lower.endsWith(".webp")) return MediaType.parseMediaType("image/webp");
+        // jpg, jpeg 및 기타 → 기본 image/jpeg
+        return MediaType.IMAGE_JPEG;
     }
 }
