@@ -8,6 +8,7 @@ import axios from 'axios';
 import { findEmail, resetPassword, verifyResetPasswordIdentity } from '@/src/api/auth';
 import DatePicker from '@/src/components/DatePicker';
 import { formatPhoneNumber } from '@/src/lib/phone';
+import { setAccessToken } from '@/src/lib/auth';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -39,11 +40,64 @@ export default function Login() {
 
 const [isSocialLoading, setIsSocialLoading] = useState(false);
 
+const buildSocialAuthUrl = (provider: 'naver' | 'kakao' | 'google') => {
+  const backendOrigin = window.location.port === '5173'
+    ? `${window.location.protocol}//${window.location.hostname}:8080`
+    : window.location.origin;
+
+  return `${backendOrigin}/api/auth/${provider}`;
+};
+
   useEffect(() => {
-  }, [location]);
+    const params = new URLSearchParams(location.search);
+    const token = params.get('token');
+    const error = params.get('error');
+
+    if (!token && !error) {
+      return;
+    }
+
+    if (error) {
+      alert(error);
+      navigate('/login', { replace: true });
+      return;
+    }
+
+    let isMounted = true;
+
+    (async () => {
+      try {
+        setIsSocialLoading(true);
+        setAccessToken(token!);
+        await refreshCurrentUser();
+        if (isMounted) {
+          navigate('/', { replace: true });
+        }
+      } catch {
+        if (isMounted) {
+          alert('소셜 로그인 처리 중 오류가 발생했습니다.');
+          navigate('/login', { replace: true });
+        }
+      } finally {
+        if (isMounted) {
+          setIsSocialLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.search, navigate]);
 
 const handleSocialLogin = (provider: string) => {
-  alert(`${provider} 소셜 로그인은 현재 준비 중입니다.`);
+  const normalizedProvider =
+    provider === '네이버' ? 'naver' :
+    provider === '카카오' ? 'kakao' :
+    'google';
+
+  setIsSocialLoading(true);
+  window.location.assign(buildSocialAuthUrl(normalizedProvider));
 };
 
   const showToast = (message: string) => {
@@ -76,7 +130,7 @@ const handleSocialLogin = (provider: string) => {
     setIsFindPasswordVerified(false);
   };
 
-  const { login } = useAuth();
+  const { login, refreshCurrentUser } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

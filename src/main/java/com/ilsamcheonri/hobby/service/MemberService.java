@@ -22,6 +22,8 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -44,13 +46,13 @@ public class MemberService {
     public Long signUp(MemberSignUpRequestDto dto) {
 
         if (memberRepository.existsByEmail(dto.getEmail())) {
-            throw new IllegalStateException("이미 가입된 이메일입니다.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "이미 가입된 이메일입니다. 로그인하거나 다른 이메일을 사용해주세요.");
         }
 
         String encodedPassword = passwordEncoder.encode(dto.getPassword());
 
         RoleCode role = roleCodeRepository.findByRoleCode("U")
-                .orElseThrow(() -> new IllegalStateException("기본 권한을 찾을 수 없습니다."));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "기본 권한을 찾을 수 없습니다."));
 
         Member member = Member.builder()
                 .email(dto.getEmail())
@@ -79,6 +81,24 @@ public class MemberService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "비밀번호가 일치하지 않습니다.");
         }
         System.out.println("LOGIN SUCCESS");
+
+        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail());
+        String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
+
+        return new LoginResponseDto(accessToken, refreshToken);
+    }
+
+    @Transactional
+    public LoginResponseDto loginWithSocial(String email, String name) {
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        String normalizedName = name == null ? "" : name.trim();
+
+        Member member = memberRepository.findByEmail(normalizedEmail)
+                .orElseGet(() -> createSocialMember(normalizedEmail, normalizedName));
+
+        if (member.isDeleted()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴한 계정입니다.");
+        }
 
         String accessToken = jwtTokenProvider.createAccessToken(member.getEmail());
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
@@ -423,6 +443,22 @@ public class MemberService {
             return addr;
         }
         return addr + " " + addr2;
+    }
+
+    private Member createSocialMember(String email, String name) {
+        RoleCode role = roleCodeRepository.findByRoleCode("U")
+                .orElseThrow(() -> new IllegalStateException("기본 권한을 찾을 수 없습니다."));
+
+        String resolvedName = name == null || name.isBlank() ? email.split("@")[0] : name;
+
+        Member member = Member.builder()
+                .email(email)
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .name(resolvedName)
+                .roleCode(role)
+                .build();
+
+        return memberRepository.save(member);
     }
 
 }
