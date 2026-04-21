@@ -25,6 +25,10 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
             ClassOrder.ApprovalStatus approvalStatus
     );
 
+    // [기능 설명: 삭제되지 않은 모든 클래스 주문 내역을 생성일 기준 최신순으로 조회하며, 관련된 클래스 정보와 학생 정보를 즉시 로딩합니다.] [작성 이유: 관리자 대시보드 등에서 전체 주문 현황을 성능 저하 없이 한 번에 조회하고 N+1 문제를 방지하기 위해 작성함]
+    @EntityGraph(attributePaths = {"classBoard", "student"})
+    List<ClassOrder> findByIsDeletedFalseOrderByCreatedAtDesc();
+
     // 승인 상태가 PENDING(대기) 또는 APPROVED(승인)인 데이터가 있는지 확인
     boolean existsByStudentIdAndClassBoardIdAndApprovalStatusIn(
             Long studentId,

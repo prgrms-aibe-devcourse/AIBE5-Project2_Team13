@@ -9,8 +9,10 @@ import com.ilsamcheonri.hobby.repository.ClassBoardRepository;
 import com.ilsamcheonri.hobby.repository.ClassOrderRepository;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -98,6 +100,17 @@ public class ClassOrderService {
                 .toList();
     }
 
+    // [기능 설명: 관리자 권한을 검증한 후 삭제되지 않은 모든 클래스 주문 내역을 조회하여 DTO 리스트로 변환합니다.] [작성 이유: 관리자 페이지에서 전체 주문 현황을 모니터링하고 관리할 수 있도록 기능을 제공하기 위해 작성함]
+    @Transactional(readOnly = true)
+    public List<ClassOrderSummaryResponse> getAdminClassOrders(String adminEmail) {
+        validateAdmin(adminEmail);
+
+        return classOrderRepository.findByIsDeletedFalseOrderByCreatedAtDesc()
+                .stream()
+                .map(ClassOrderSummaryResponse::from)
+                .toList();
+    }
+
     // [기능: 프리랜서 수강 신청 승인 처리] [이유: 수강생 관리 탭의 승인 버튼으로 approval_status와 progress_status를 함께 갱신하기 위해]
     @Transactional
     public void approveClassOrder(String freelancerEmail, Long orderId) {
@@ -155,6 +168,15 @@ public class ClassOrderService {
     private void validateFreelancerOwnership(String freelancerEmail, ClassOrder classOrder) {
         if (!classOrder.getClassBoard().getFreelancer().getEmail().equals(freelancerEmail)) {
             throw new IllegalStateException("본인 클래스 신청 건만 처리할 수 있습니다.");
+        }
+    }
+    // [기능 설명: 제공된 이메일로 회원을 조회하고, 해당 회원의 역할 코드가 'A'(관리자)인지 확인하여 접근 권한을 검증합니다.] [작성 이유: 관리자 전용 API 및 기능에 대한 비인가 접근을 차단하고 보안성을 강화하기 위해 작성함]
+    private void validateAdmin(String email) {
+        Member admin = memberRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        if (!"A".equals(admin.getRoleCode().getRoleCode())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리자만 접근할 수 있습니다.");
         }
     }
 }

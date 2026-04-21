@@ -62,6 +62,11 @@ export async function getMyFreelancerClassOrders(): Promise<EnrollmentItem[]> {
 }
 
 // [기능 설명: 프리랜서가 특정 클래스 주문을 승인하는 요청을 서버로 전송합니다.] [작성 이유: 수강 신청 승인 기능을 구현하여 프리랜서가 학생의 신청을 최종 확정할 수 있도록 하기 위해 작성함]
+export async function getAdminClassOrders(): Promise<EnrollmentItem[]> {
+  const response = await apiClient.get<ClassOrderSummaryResponse[]>('/class-orders/admin');
+  return response.data.map(mapClassOrderToEnrollment);
+}
+
 export async function approveFreelancerClassOrder(orderId: string): Promise<void> {
   await apiClient.patch(`/class-orders/${orderId}/approve`);
 }

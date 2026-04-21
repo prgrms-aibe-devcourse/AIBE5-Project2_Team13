@@ -51,6 +51,13 @@ public class ClassOrderController {
     }
 
     // [기능: 프리랜서 수강 신청 승인 API] [이유: 수강생 관리 탭에서 승인 버튼으로 신청 상태를 APPROVED/IN_PROGRESS로 변경하기 위해]
+    @GetMapping("/admin")
+    public ResponseEntity<List<ClassOrderSummaryResponse>> getAdminClassOrders(
+            @AuthenticationPrincipal String email
+    ) {
+        return ResponseEntity.ok(classOrderService.getAdminClassOrders(email));
+    }
+
     @PatchMapping("/{orderId}/approve")
     public ResponseEntity<Void> approveClassOrder(
             @AuthenticationPrincipal String email,
