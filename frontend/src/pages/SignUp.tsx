@@ -32,6 +32,14 @@ export default function SignUp() {
   const [isSocialLoading, setIsSocialLoading] = useState(false);
   const [showPassPopup, setShowPassPopup] = useState(false);
 
+  const buildSocialAuthUrl = (provider: 'naver' | 'kakao' | 'google') => {
+    const backendOrigin = window.location.port === '5173'
+      ? `${window.location.protocol}//${window.location.hostname}:8080`
+      : window.location.origin;
+
+    return `${backendOrigin}/api/auth/${provider}`;
+  };
+
   const validateEmail = (email: string) => {
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return re.test(email);
@@ -68,35 +76,14 @@ export default function SignUp() {
   };
 
   useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      // Validate origin
-      if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) {
-        return;
-      }
-
-      if (event.data?.type === 'KAKAO_AUTH_SUCCESS') {
-        handleCustomTokenSignUp(event.data.token);
-      } else if (event.data?.type === 'KAKAO_AUTH_ERROR') {
-        alert('카카오 가입에 실패했습니다.');
-        setIsSocialLoading(false);
-      }
-    };
-
-    window.addEventListener('message', handleMessage);
-
     const params = new URLSearchParams(location.search);
-    const token = params.get('token');
     const error = params.get('error');
 
-    if (token) {
-      handleCustomTokenSignUp(token);
-    } else if (error) {
-      alert('가입 중 오류가 발생했습니다. 다시 시도해주세요.');
+    if (error) {
+      alert(error);
       navigate('/signup', { replace: true });
     }
-
-    return () => window.removeEventListener('message', handleMessage);
-  }, [location]);
+  }, [location.search, navigate]);
 
 
 
@@ -111,9 +98,14 @@ export default function SignUp() {
   };
 
 
-//소셜 로그인 임시 alert
 const handleSocialSignUp = (provider: string) => {
-  alert(`${provider} 소셜 회원가입은 준비 중입니다.`);
+  const normalizedProvider =
+    provider === 'naver' ? 'naver' :
+    provider === 'kakao' ? 'kakao' :
+    'google';
+
+  setIsSocialLoading(true);
+  window.location.assign(buildSocialAuthUrl(normalizedProvider));
 };
 
 const handleSubmit = async (e: React.FormEvent) => {
@@ -147,7 +139,22 @@ const handleSubmit = async (e: React.FormEvent) => {
     navigate("/login");
   } catch (error: any) {
     console.error("회원가입 실패:", error);
-    alert(error.response?.data?.message || "회원가입 중 오류 발생");
+    const serverMessage =
+      typeof error?.response?.data === 'string'
+        ? error.response.data
+        : error?.response?.data?.message;
+
+    if (serverMessage) {
+      alert(serverMessage);
+      return;
+    }
+
+    if (error?.response?.status === 409) {
+      alert("이미 가입된 이메일입니다. 로그인하거나 다른 이메일을 사용해주세요.");
+      return;
+    }
+
+    alert("회원가입 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
   }
 };
   return (
