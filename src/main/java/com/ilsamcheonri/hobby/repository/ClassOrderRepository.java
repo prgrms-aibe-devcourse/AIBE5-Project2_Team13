@@ -3,6 +3,8 @@ package com.ilsamcheonri.hobby.repository;
 import com.ilsamcheonri.hobby.entity.ClassOrder;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -17,6 +19,21 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
 
     @EntityGraph(attributePaths = {"classBoard"})
     List<ClassOrder> findByStudentIdAndIsDeletedFalseOrderByCreatedAtDesc(Long studentId);
+
+    // [기능 설명: 특정 학생의 ID와 진행 상태를 기반으로, 삭제되지 않은 클래스 주문 내역을 생성일 최신순으로 조회하며 관련 엔티티(classBoard, student)를 즉시 로딩합니다.] [작성 이유: 특정 상태(예: 수업 완료)의 수강 내역을 성능 저하 없이 효율적으로 조회하여 마이페이지 등에 표시하고 N+1 문제를 방지하기 위해 작성함]
+    @EntityGraph(attributePaths = {"classBoard", "student"})
+    @Query("""
+            select classOrder
+            from ClassOrder classOrder
+            where classOrder.student.id = :studentId
+              and classOrder.progressStatus = :progressStatus
+              and classOrder.isDeleted = false
+            order by classOrder.createdAt desc
+            """)
+    List<ClassOrder> findByStudentIdAndProgressStatusAndIsDeletedFalseOrderByCreatedAtDesc(
+            @Param("studentId") Long studentId,
+            @Param("progressStatus") ClassOrder.ProgressStatus progressStatus
+    );
 
     // [기능 설명: 특정 프리랜서의 클래스 주문 중 지정된 승인 상태가 아니며 삭제되지 않은 항목들을 생성일 내림차순으로 조회합니다.] [작성 이유: 클래스 주문 관리 대시보드에서 관련 엔티티를 한 번에 효율적으로 조회하여 N+1 문제를 방지하기 위해 작성함]
     @EntityGraph(attributePaths = {"classBoard", "student"})

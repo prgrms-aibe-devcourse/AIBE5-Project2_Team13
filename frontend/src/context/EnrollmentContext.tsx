@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { EnrollmentItem, EnrollmentStatus } from '../constants';
-import { getMyClassOrders, cancelClassOrder as cancelOrderApi } from '@/src/api/classOrder';
+import { getMyClassOrders, getMyCompletedClassOrders, cancelClassOrder as cancelOrderApi } from '@/src/api/classOrder';
 import { getAccessToken } from '@/src/lib/auth';
 import { useAuth } from './AuthContext';
 
 interface EnrollmentContextType {
   enrollments: EnrollmentItem[];
+  completedEnrollments: EnrollmentItem[];
   applyForClass: (classId: string, classTitle: string, price: number, orderId?: string) => void;
   updateEnrollmentStatus: (enrollmentId: string, status: EnrollmentStatus, reason?: string) => void;
   cancelOrder: (enrollmentId: string) => Promise<void>;
@@ -16,17 +17,23 @@ const EnrollmentContext = createContext<EnrollmentContextType | undefined>(undef
 
 export function EnrollmentProvider({ children }: { children: ReactNode }) {
   const [enrollments, setEnrollments] = useState<EnrollmentItem[]>([]);
+  const [completedEnrollments, setCompletedEnrollments] = useState<EnrollmentItem[]>([]);
   const { user } = useAuth();
 
   //마이페이지 데이터 갱신
   const refreshEnrollments = async () => {
     if (!getAccessToken()) { //비로그인
       setEnrollments([]);
+      setCompletedEnrollments([]);
       return;
     }
     try {
-      const myOrders = await getMyClassOrders();
+      const [myOrders, myCompletedOrders] = await Promise.all([
+        getMyClassOrders(),
+        getMyCompletedClassOrders(),
+      ]);
       setEnrollments(myOrders);
+      setCompletedEnrollments(myCompletedOrders);
     } catch (error) {
       console.error('내 수강 신청 목록 조회 실패:', error);
     }
@@ -76,7 +83,7 @@ export function EnrollmentProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <EnrollmentContext.Provider value={{ enrollments, applyForClass, updateEnrollmentStatus, cancelOrder, refreshEnrollments }}>
+    <EnrollmentContext.Provider value={{ enrollments, completedEnrollments, applyForClass, updateEnrollmentStatus, cancelOrder, refreshEnrollments }}>
       {children}
     </EnrollmentContext.Provider>
   );

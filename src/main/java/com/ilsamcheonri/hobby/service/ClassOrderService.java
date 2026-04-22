@@ -100,6 +100,21 @@ public class ClassOrderService {
                 .toList();
     }
 
+    // [기능 설명: 학생의 이메일을 기반으로 회원을 조회하고, 해당 학생의 '수업 완료' 상태인 모든 주문 내역을 생성일 내림차순으로 조회하여 DTO 리스트로 변환합니다.] [작성 이유: 사용자가 마이페이지에서 수강 완료한 클래스 목록을 확인하고 리뷰를 작성할 수 있도록 데이터를 제공하기 위해 작성함]
+    @Transactional(readOnly = true)
+    public List<ClassOrderSummaryResponse> getMyCompletedClassOrders(String studentEmail) {
+        Member student = memberRepository.findByEmail(studentEmail)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        return classOrderRepository.findByStudentIdAndProgressStatusAndIsDeletedFalseOrderByCreatedAtDesc(
+                        student.getId(),
+                        ClassOrder.ProgressStatus.COMPLETED
+                )
+                .stream()
+                .map(ClassOrderSummaryResponse::from)
+                .toList();
+    }
+
     // [기능 설명: 관리자 권한을 검증한 후 삭제되지 않은 모든 클래스 주문 내역을 조회하여 DTO 리스트로 변환합니다.] [작성 이유: 관리자 페이지에서 전체 주문 현황을 모니터링하고 관리할 수 있도록 기능을 제공하기 위해 작성함]
     @Transactional(readOnly = true)
     public List<ClassOrderSummaryResponse> getAdminClassOrders(String adminEmail) {
