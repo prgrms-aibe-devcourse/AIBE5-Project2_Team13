@@ -141,6 +141,48 @@ public class ClassOrderService {
 
     // [기능: 수강 신청 취소 처리] [이유: 학생 본인이 신청 취소 시 주문 상태와 클래스 인원을 함께 갱신하기 위해]
     @Transactional
+    public void completeClassOrder(String freelancerEmail, Long orderId) {
+        ClassOrder classOrder = classOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));
+
+        validateFreelancerOwnership(freelancerEmail, classOrder);
+
+        if (classOrder.getApprovalStatus() != ClassOrder.ApprovalStatus.APPROVED) {
+            throw new IllegalStateException("승인된 수강 신청만 완료 처리할 수 있습니다.");
+        }
+
+        if (classOrder.getProgressStatus() == ClassOrder.ProgressStatus.COMPLETED) {
+            throw new IllegalStateException("이미 완료 처리된 수강 신청입니다.");
+        }
+
+        classOrder.updateStatus(ClassOrder.ApprovalStatus.APPROVED, ClassOrder.ProgressStatus.COMPLETED);
+    }
+
+    // [기능 설명: 수강생을 클래스에서 제외 처리하고, 수강 인원을 차감한 후 정원 여유가 생기면 모집 상태를 'OPEN'으로 변경합니다.] [작성 이유: 수강생 제외 시 관련 비즈니스 로직(인원 관리, 상태 변경)을 처리하여 데이터 정합성을 유지하기 위해 작성함]
+    @Transactional
+    public void excludeClassOrder(String freelancerEmail, Long orderId) {
+        ClassOrder classOrder = classOrderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));
+
+        validateFreelancerOwnership(freelancerEmail, classOrder);
+
+        if (classOrder.getApprovalStatus() != ClassOrder.ApprovalStatus.APPROVED) {
+            throw new IllegalStateException("승인된 수강 신청만 수강 제외할 수 있습니다.");
+        }
+
+        classOrder.updateStatus(ClassOrder.ApprovalStatus.CANCELLED, ClassOrder.ProgressStatus.CANCELLED);
+
+        // 수강 인원 차감 및 모집 상태 확인
+        ClassBoard classBoard = classOrder.getClassBoard();
+        classBoard.decreaseVolume();
+
+        if ("CLOSE".equalsIgnoreCase(classBoard.getStatus()) &&
+                classBoard.getCurrentVolume() < classBoard.getMaxCapacity()) {
+            classBoard.updateStatus("OPEN");
+        }
+    }
+
+    @Transactional
     public void cancelClassOrder(String studentEmail, Long orderId) {
         ClassOrder classOrder = classOrderRepository.findById(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 수강 신청 내역입니다."));

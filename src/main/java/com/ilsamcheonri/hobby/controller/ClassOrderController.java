@@ -78,6 +78,25 @@ public class ClassOrderController {
     }
 
     // [기능: 수강 신청 취소 API] [이유: 학생이 마이페이지에서 본인 신청을 취소할 수 있게 하기 위해]
+    @PatchMapping("/{orderId}/complete")
+    public ResponseEntity<Void> completeClassOrder(
+            @AuthenticationPrincipal String email,
+            @PathVariable Long orderId
+    ) {
+        classOrderService.completeClassOrder(email, orderId);
+        return ResponseEntity.ok().build();
+    }
+
+    // [기능 설명: 특정 클래스 주문을 제외(exclude) 처리하기 위한 API 엔드포인트입니다.] [작성 이유: 프리랜서가 특정 수강생을 클래스에서 제외할 수 있도록 외부 요청을 서비스 계층으로 전달하기 위해 작성함]
+    @PatchMapping("/{orderId}/exclude")
+    public ResponseEntity<Void> excludeClassOrder(
+            @AuthenticationPrincipal String email,
+            @PathVariable Long orderId
+    ) {
+        classOrderService.excludeClassOrder(email, orderId);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<Void> cancelClassOrder(
             @AuthenticationPrincipal String email,
