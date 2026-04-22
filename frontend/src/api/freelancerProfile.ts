@@ -7,6 +7,44 @@ export type FreelancerProfileAttachment = {
   fileUrl: string;
 };
 
+export type FreelancerProfileClass = {
+  id: number;
+  title: string;
+  description: string | null;
+  categoryName: string;
+  freelancerName: string;
+  freelancerEmail: string;
+  freelancerId: number;
+  price: number;
+  isOnline: boolean;
+  startAt: string | null;
+  endAt: string | null;
+  maxCapacity: number | null;
+  status: string | null;
+  curriculum: string | null;
+  location: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  representativeImageUrl: string | null;
+  rating: number;
+  reviews: number;
+  attachments: Array<{
+    fileUrl?: string | null;
+  }>;
+};
+
+export type FreelancerProfileReview = {
+  id: number;
+  orderId: number;
+  classId: number;
+  className: string;
+  author: string;
+  userId: number;
+  rating: number;
+  content: string;
+  createdAt: string | null;
+};
+
 export type FileUploadResponse = {
   // 공통 파일 모듈 응답 구조를 그대로 사용해 프리랜서 포트폴리오 업로드 결과를 재사용합니다.
   fileId: number;
@@ -31,6 +69,9 @@ export type FreelancerProfileMeResponse = {
   approvalStatusCode: string | null;
   approvalStatusName: string | null;
   attachments: FreelancerProfileAttachment[];
+  activeClasses: FreelancerProfileClass[];
+  allClasses: FreelancerProfileClass[];
+  reviews: FreelancerProfileReview[];
 };
 
 export type FreelancerProfileDetailResponse = {

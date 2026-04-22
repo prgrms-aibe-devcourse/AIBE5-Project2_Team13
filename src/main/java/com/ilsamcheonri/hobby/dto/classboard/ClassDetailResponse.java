@@ -39,8 +39,19 @@ public class ClassDetailResponse {
 
     // 대표 이미지 URL
     private String representativeImageUrl;
+    private Double rating;
+    private Long reviews;
 
     public static ClassDetailResponse from(ClassBoard classBoard, List<ClassAttachmentResponse> images) {
+        return from(classBoard, images, 0.0, 0L);
+    }
+
+    public static ClassDetailResponse from(
+            ClassBoard classBoard,
+            List<ClassAttachmentResponse> images,
+            Double rating,
+            Long reviews
+    ) {
         return ClassDetailResponse.builder()
                 .id(classBoard.getId())
                 .title(classBoard.getTitle())
@@ -65,6 +76,8 @@ public class ClassDetailResponse {
                         .findFirst()
                         .map(ClassAttachmentResponse::getFileUrl)
                         .orElse(null))
+                .rating(rating)
+                .reviews(reviews)
                 .build();
     }
 }
