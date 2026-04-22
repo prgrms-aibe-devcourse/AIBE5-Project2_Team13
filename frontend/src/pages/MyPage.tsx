@@ -140,6 +140,24 @@ type MenuType =
     | 'pick'
     | 'following';
 
+const PROFILE_MENU_PATHS: Record<MenuType, string> = {
+    activity: '/profile/activity',
+    my_requests: '/profile/my-requests',
+    reviews: '/profile/reviews',
+    pick: '/profile/pick',
+    following: '/profile/following',
+    freelancer_dashboard: '/profile/freelancer/dashboard',
+    freelancer_classes: '/profile/freelancer/classes',
+    freelancer_students: '/profile/freelancer/students',
+    freelancer_profile: '/profile/freelancer/profile',
+    admin_home: '/profile/admin/home',
+    admin_users: '/profile/admin/users',
+    admin_reports: '/profile/admin/reports',
+    admin_approvals: '/profile/admin/approvals',
+    admin: '/profile/admin/home',
+    settings: '/profile/settings',
+};
+
 const toRoleCode = (role?: string): UserRole => {
     if (role === 'ADMIN' || role === 'ROLE_ADMIN' || role === 'A') return 'ROLE_ADMIN';
     if (role === 'FREELANCER' || role === 'ROLE_FREELANCER' || role === 'F') return 'ROLE_FREELANCER';
@@ -786,6 +804,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
         }
 
         setActiveMenu(nextMenu);
+        navigate(PROFILE_MENU_PATHS[nextMenu]);
     };
 
     const resetPasswordForm = () => {

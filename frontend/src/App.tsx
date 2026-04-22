@@ -59,6 +59,20 @@ export default function App() {
                               <Route path="/class/:id" element={<ClassDetail />} />
                               <Route path="/request/:id" element={<RequestDetail />} />
                               <Route path="/profile" element={<MyPage />} />
+                              <Route path="/profile/activity" element={<MyPage initialMenu="activity" />} />
+                              <Route path="/profile/my-requests" element={<MyPage initialMenu="my_requests" />} />
+                              <Route path="/profile/reviews" element={<MyPage initialMenu="reviews" />} />
+                              <Route path="/profile/pick" element={<MyPage initialMenu="pick" />} />
+                              <Route path="/profile/following" element={<MyPage initialMenu="following" />} />
+                              <Route path="/profile/freelancer/dashboard" element={<MyPage initialMenu="freelancer_dashboard" />} />
+                              <Route path="/profile/freelancer/classes" element={<MyPage initialMenu="freelancer_classes" />} />
+                              <Route path="/profile/freelancer/students" element={<MyPage initialMenu="freelancer_students" />} />
+                              <Route path="/profile/freelancer/profile" element={<MyPage initialMenu="freelancer_profile" />} />
+                              <Route path="/profile/admin/home" element={<MyPage initialMenu="admin_home" />} />
+                              <Route path="/profile/admin/users" element={<MyPage initialMenu="admin_users" />} />
+                              <Route path="/profile/admin/reports" element={<MyPage initialMenu="admin_reports" />} />
+                              <Route path="/profile/admin/approvals" element={<MyPage initialMenu="admin_approvals" />} />
+                              <Route path="/profile/settings" element={<MyPage initialMenu="settings" />} />
                               <Route path="/mypage/profile-edit" element={<MyPage initialMenu="freelancer_profile" />} />
                               <Route path="/chat" element={<Chat />} />
                               <Route path="/signup" element={<SignUp />} />

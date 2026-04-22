@@ -100,7 +100,7 @@ public class FreelancerProfileService {
                 member.getId(),
                 member.getName(),
                 "FREELANCER_APPLY",
-                "/profile"
+                "/profile/admin/approvals"
         );
 
         return profile.getId();
