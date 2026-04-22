@@ -21,6 +21,7 @@ public class ClassOrderSummaryResponse {
     private String approvalStatus;
     private String progressStatus;
     private String appliedAt;
+    private Long studentId;
     private String studentName;
     private String studentEmail;
 
@@ -33,6 +34,7 @@ public class ClassOrderSummaryResponse {
                 .approvalStatus(order.getApprovalStatus().name())
                 .progressStatus(order.getProgressStatus().name())
                 .appliedAt(order.getCreatedAt() != null ? order.getCreatedAt().toString() : null)
+                .studentId(order.getStudent().getId())
                 .studentName(order.getStudent().getName())
                 .studentEmail(order.getStudent().getEmail())
                 .build();

@@ -14,6 +14,7 @@ interface ClassOrderSummaryResponse {
   approvalStatus: 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
   progressStatus: 'BEFORE_START' | 'IN_PROGRESS' | 'COMPLETED' | 'REJECTED' | 'CANCELLED';
   appliedAt: string;
+  studentId: number;
   studentName: string;
   studentEmail: string;
 }
@@ -34,6 +35,7 @@ function mapClassOrderToEnrollment(order: ClassOrderSummaryResponse): Enrollment
     id: String(order.orderId),
     classId: String(order.classId),
     classTitle: order.classTitle,
+    studentId: order.studentId != null ? String(order.studentId) : undefined,
     studentName: order.studentName,
     studentEmail: order.studentEmail,
     status: mappedStatus,

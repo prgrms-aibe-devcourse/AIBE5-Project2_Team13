@@ -624,6 +624,7 @@ export interface EnrollmentItem {
   id: string;
   classId: string;
   classTitle: string;
+  studentId?: string;
   studentName: string;
   studentEmail: string;
   status: EnrollmentStatus;
