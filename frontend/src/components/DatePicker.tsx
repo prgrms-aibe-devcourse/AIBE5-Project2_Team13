@@ -11,6 +11,7 @@ type DatePickerProps = {
   placeholder?: string;
   disabled?: boolean;
   disableFuture?: boolean;
+  minDate?: string;
   placement?: 'top' | 'bottom';
   panelClassName?: string;
   className?: string;
@@ -82,6 +83,7 @@ export default function DatePicker({
   placeholder = '날짜를 선택해주세요',
   disabled = false,
   disableFuture = false,
+  minDate,
   placement = 'bottom',
   panelClassName,
   className,
@@ -89,6 +91,7 @@ export default function DatePicker({
   const [isOpen, setIsOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
+  const minSelectableDate = useMemo(() => parseDateValue(minDate ?? ''), [minDate]);
   const [viewMonth, setViewMonth] = useState<Date | undefined>(selectedDate);
 
   useEffect(() => {
@@ -153,9 +156,12 @@ export default function DatePicker({
             }}
             showOutsideDays
             captionLayout="dropdown"
-            startMonth={new Date(1950, 0)}
+            startMonth={minSelectableDate ?? new Date(1950, 0)}
             endMonth={disableFuture ? new Date() : new Date(2100, 11)}
-            disabled={disableFuture ? { after: new Date() } : undefined}
+            disabled={{
+              ...(disableFuture ? { after: new Date() } : {}),
+              ...(minSelectableDate ? { before: minSelectableDate } : {}),
+            }}
             classNames={{
               root: 'w-full',
               months: 'flex justify-center',

@@ -7,6 +7,7 @@ import { useCategories } from '../context/CategoryContext';
 import { useAuth } from '../context/AuthContext';
 import { cn } from '@/src/lib/utils';
 import apiClient from '../api/axios';
+import DatePicker from '@/src/components/DatePicker';
 
 type EditableImageItem = {
   id: number | null;
@@ -428,25 +429,23 @@ export default function ClassFormPage() {
                 <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-1">
                   <Calendar size={14} /> 시작일
                 </label>
-                <input 
-                  type="date" 
-                  required
+                <DatePicker
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                  onChange={setStartDate}
+                  placeholder="시작일을 선택해주세요"
+                  className="w-full"
                 />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-bold text-gray-700 ml-1 flex items-center gap-1">
                   <Calendar size={14} /> 종료일
                 </label>
-                <input 
-                  type="date" 
-                  required
+                <DatePicker
                   value={endDate}
-                  min={startDate || undefined}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                  onChange={setEndDate}
+                  placeholder="종료일을 선택해주세요"
+                  minDate={startDate}
+                  className="w-full"
                 />
               </div>
             </div>
