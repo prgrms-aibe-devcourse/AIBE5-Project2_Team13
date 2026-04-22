@@ -1430,9 +1430,13 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
         }
     };
 
-    const handleChatSimulation = (studentName: string) => {
-        alert(`${studentName}님과의 1:1 대화방으로 이동합니다.`);
-        navigate('/chat');
+    const handleOpenStudentChat = (enrollment: EnrollmentItem) => {
+        if (!enrollment.studentId) {
+            showToast('수강생 회원 정보를 찾을 수 없습니다.', 'error');
+            return;
+        }
+
+        navigate(`/chat?targetMemberId=${enrollment.studentId}`);
     };
 
     // [기능 설명: 수강 신청의 상태와 진행 상황을 바탕으로 UI에 표시할 배지 스타일과 라벨을 결정합니다.] [작성 이유: 수강 신청의 다양한 상태 조합에 따른 UI 표시 로직을 중앙화하여 코드 중복을 방지하고 유지보수성을 높이기 위해 작성함]
@@ -1608,7 +1612,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                         </button>
                                     )}
                                     <button
-                                        onClick={() => handleChatSimulation(e.studentName)}
+                                        onClick={() => handleOpenStudentChat(e)}
                                         className="px-3 py-1.5 border border-coral text-coral text-xs font-bold rounded-lg hover:bg-coral/5 transition-all"
                                     >
                                         1:1 대화
