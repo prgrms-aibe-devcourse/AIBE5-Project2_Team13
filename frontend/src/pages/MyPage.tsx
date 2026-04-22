@@ -1073,7 +1073,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                         exit={{opacity: 0, y: -10}}
                         className="grid grid-cols-1 md:grid-cols-2 gap-8"
                     >
-                        {enrollments.filter(e => e.status === 'APPROVED' || e.status === 'CANCEL_REQUESTED').map(e => {
+                        {enrollments.filter(e => (e.status === 'APPROVED' || e.status === 'CANCEL_REQUESTED') && e.progressStatus !== 'COMPLETED').map(e => {
                             const classItem = classLookup.get(e.classId);
                             return classItem ? (
                                 <div key={e.id} className="flex flex-col gap-4">
