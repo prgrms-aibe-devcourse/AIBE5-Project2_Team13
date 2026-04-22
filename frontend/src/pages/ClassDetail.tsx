@@ -151,7 +151,7 @@ export default function ClassDetail() {
                     freelancerId: String(apiClass.freelancerId),
                     price: apiClass.price,
                     category: apiClass.categoryName,
-                    image: apiClass.representativeImageUrl || detailImages[0] || `https://picsum.photos/seed/class${apiClass.id}/400/300`,
+                    image: apiClass.representativeImageUrl || detailImages[0] || '/pogeun.png',
                     rating: apiClass.rating ?? 0,
                     reviews: apiClass.reviews ?? 0,
                     isOffline: !apiClass.isOnline,

@@ -76,7 +76,7 @@ function toClassItem(api: ClassApiResponse): ClassItem {
     const isOnline = api.isOnline ?? (api as { online?: boolean }).online ?? false;
     const imageUrls = getImageUrls(api);
     const representativeImage =
-        api.representativeImageUrl || imageUrls[0] || `https://picsum.photos/seed/class${api.id}/400/300`;
+        api.representativeImageUrl || imageUrls[0] || '/pogeun.png';
 
     return {
         id: String(api.id),
