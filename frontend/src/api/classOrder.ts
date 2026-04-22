@@ -55,6 +55,12 @@ export async function getMyClassOrders(): Promise<EnrollmentItem[]> {
   return response.data.map(mapClassOrderToEnrollment);
 }
 
+export async function getMyCompletedClassOrders(): Promise<EnrollmentItem[]> {
+  const response = await apiClient.get<ClassOrderSummaryResponse[]>('/class-orders/me/completed');
+  return response.data.map(mapClassOrderToEnrollment);
+}
+
+
 // [기능 설명: 로그인한 프리랜서가 받은 클래스 주문 내역을 조회하여 EnrollmentItem 리스트로 매핑합니다.] [작성 이유: 프리랜서 대시보드에서 들어온 수강 신청들을 확인하고 관리하기 위해 작성함]
 export async function getMyFreelancerClassOrders(): Promise<EnrollmentItem[]> {
   const response = await apiClient.get<ClassOrderSummaryResponse[]>('/class-orders/freelancer/me');

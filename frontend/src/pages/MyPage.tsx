@@ -33,7 +33,6 @@ import {
     type LucideIcon
 } from 'lucide-react';
 import {
-    MOCK_CLASSES,
     UserRole,
     REGIONS,
     ReportItem,
@@ -303,7 +302,7 @@ function NotificationSection({notifications}: { notifications: AdminNotification
 export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     const navigate = useNavigate();
     const {user, loading: authLoading, logout, refreshCurrentUser} = useAuth();
-    const {enrollments, updateEnrollmentStatus, cancelOrder, refreshEnrollments} = useEnrollments();
+    const {enrollments, completedEnrollments, updateEnrollmentStatus, cancelOrder, refreshEnrollments} = useEnrollments();
     const {reports} = useReports();
     const {classes, deleteClass, toggleStatus} = useClasses();
     const {freelancers} = useFreelancers();
@@ -640,15 +639,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     ].slice(0, 3);
 // 실제 클래스 목록을 우선으로 하고, 부족한 데이터를 MOCK_CLASSES로 보완하여 ID 기반의 통합 조회용 Map 객체를 생성합니다.
     const classLookup = useMemo(() => {
-        const lookup = new Map(classes.map((classItem) => [classItem.id, classItem]));
-
-        MOCK_CLASSES.forEach((classItem) => {
-            if (!lookup.has(classItem.id)) {
-                lookup.set(classItem.id, classItem);
-            }
-        });
-
-        return lookup;
+        return new Map(classes.map((classItem) => [classItem.id, classItem]));
     }, [classes]);
 
     useEffect(() => {
@@ -948,6 +939,88 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
         return null;
     };
 
+    // [기능 설명: 수강 완료된 클래스 목록을 렌더링하며, 클래스 정보 부재 시 대비한 폴백(fallback) 로직을 포함합니다. 각 수업별로 기존 리뷰 유무를 파악하여 '리뷰 작성' 또는 '리뷰 수정' 버튼을 조건부로 렌더링하고, 리뷰가 있을 경우 해당 내용을 미리 보여줍니다.] [작성 이유: 마이페이지에서 사용자가 완료한 수강 내역을 시각화하고, 리뷰 관리 기능을 직관적으로 접근할 수 있도록 UI를 구성하기 위해 작성함]
+    const renderCompletedActivity = () => {
+        if (completedEnrollments.length === 0) {
+            return (
+                <div className="bg-white rounded-[32px] p-8 border border-coral/10 text-center text-gray-400 shadow-sm">
+                    완료된 수업이 없습니다
+                </div>
+            );
+        }
+
+        return completedEnrollments.map((enrollment) => {
+            const classItem = classLookup.get(enrollment.classId);
+            const reviewTarget = {
+                id: enrollment.classId,
+                title: classItem?.title ?? enrollment.classTitle,
+                date: enrollment.appliedAt,
+                image: classItem?.image ?? '',
+            };
+            const existingReview = allReviews.find((review) => review.classId === enrollment.classId);
+
+            return (
+                <div
+                    key={enrollment.id}
+                    className="bg-white rounded-[32px] p-6 border border-coral/10 flex flex-col gap-6 shadow-sm"
+                >
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="flex items-center gap-6 w-full md:w-auto">
+                            {classItem?.image ? (
+                                <img
+                                    src={classItem.image}
+                                    alt={classItem.title ?? enrollment.classTitle}
+                                    className="w-20 h-20 rounded-2xl object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                                    referrerPolicy="no-referrer"
+                                    onClick={() => handleClassClick(enrollment.classId)}
+                                />
+                            ) : (
+                                <div className="w-20 h-20 rounded-2xl bg-ivory border border-coral/10 flex items-center justify-center text-xs text-gray-400 text-center px-2">
+                                    수강 완료
+                                </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <h4
+                                    className="font-bold text-gray-900 mb-1 cursor-pointer hover:text-coral transition-colors line-clamp-1"
+                                    onClick={() => handleClassClick(enrollment.classId)}
+                                >
+                                    {classItem?.title ?? enrollment.classTitle}
+                                </h4>
+                                <p className="text-sm text-gray-400">수강 완료일 {enrollment.appliedAt}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => existingReview ? handleEditReview(existingReview) : handleCreateReview(reviewTarget)}
+                            className={cn(
+                                "w-full md:w-auto px-8 py-3 font-bold rounded-2xl transition-all shadow-lg flex-shrink-0 whitespace-nowrap",
+                                existingReview
+                                    ? "bg-white text-coral border border-coral hover:bg-coral/5 shadow-coral/10"
+                                    : "bg-coral text-white hover:bg-coral/90 shadow-coral/20"
+                            )}
+                        >
+                            {existingReview ? '리뷰 수정하기' : '리뷰 작성하기'}
+                        </button>
+                    </div>
+
+                    {existingReview && (
+                        <div className="mt-2 p-4 bg-ivory/50 rounded-2xl border border-coral/5">
+                            <div className="flex gap-1 mb-2">
+                                {[...Array(5)].map((_, i) => (
+                                    <Star
+                                        key={i}
+                                        size={14}
+                                        className={cn(i < existingReview.rating ? "text-coral fill-coral" : "text-gray-200")}
+                                    />
+                                ))}
+                            </div>
+                            <p className="text-sm text-gray-600 line-clamp-2">{existingReview.content}</p>
+                        </div>
+                    )}
+                </div>
+            );
+        });
+    };
+
     const renderActivity = () => (
         <div className="space-y-8">
             <div className="flex flex-wrap gap-4 p-1 bg-ivory rounded-2xl w-fit">
@@ -1067,6 +1140,9 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                         exit={{opacity: 0, y: -10}}
                         className="space-y-4"
                     >
+                        {renderCompletedActivity()}
+                        {false && (
+                            <>
                         {/* Mock finished classes */}
                         {[
                             {
@@ -1132,6 +1208,8 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                 </div>
                             );
                         })}
+                            </>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
