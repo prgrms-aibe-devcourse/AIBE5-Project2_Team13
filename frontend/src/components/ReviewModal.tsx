@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, Star, Plus, Camera, Loader2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Star, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { ReviewItem } from '@/src/constants';
@@ -7,7 +7,7 @@ import { ReviewItem } from '@/src/constants';
 interface ReviewModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (review: Partial<ReviewItem>) => void;
+  onSave: (review: Partial<ReviewItem>) => void | Promise<void>;
   mode: 'create' | 'edit';
   initialData?: Partial<ReviewItem>;
 }
@@ -15,30 +15,18 @@ interface ReviewModalProps {
 export default function ReviewModal({ isOpen, onClose, onSave, mode, initialData }: ReviewModalProps) {
   const [rating, setRating] = useState(initialData?.rating || 0);
   const [content, setContent] = useState(initialData?.content || '');
-  const [image, setImage] = useState<string | undefined>(initialData?.image);
   const [hoverRating, setHoverRating] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
       setRating(initialData?.rating || 0);
       setContent(initialData?.content || '');
-      setImage(initialData?.image);
+      setIsSubmitting(false);
     }
   }, [isOpen, initialData]);
 
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (rating === 0) {
       alert('별점을 선택해주세요.');
       return;
@@ -48,11 +36,15 @@ export default function ReviewModal({ isOpen, onClose, onSave, mode, initialData
       return;
     }
 
-    onSave({
-      rating,
-      content,
-      image,
-    });
+    try {
+      setIsSubmitting(true);
+      await onSave({
+        rating,
+        content,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -115,42 +107,6 @@ export default function ReviewModal({ isOpen, onClose, onSave, mode, initialData
                 </p>
               </div>
 
-              {/* Image Upload */}
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-4">사진 첨부 (선택)</label>
-                <div className="grid grid-cols-1 gap-4">
-                  {image ? (
-                    <div className="relative aspect-video rounded-3xl overflow-hidden group border-2 border-coral/10">
-                      <img src={image} alt="Review" className="w-full h-full object-cover" />
-                      <button 
-                        onClick={() => setImage(undefined)}
-                        className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-full aspect-video border-2 border-dashed border-coral/20 rounded-3xl flex flex-col items-center justify-center text-gray-400 hover:bg-coral/5 hover:border-coral/40 transition-all group"
-                    >
-                      <div className="p-4 bg-ivory rounded-2xl mb-3 group-hover:scale-110 transition-transform">
-                        <Camera size={32} className="text-coral/40 group-hover:text-coral" />
-                      </div>
-                      <span className="text-sm font-bold">사진을 추가해주세요</span>
-                      <span className="text-xs mt-1">최대 1장, 5MB 이내</span>
-                    </button>
-                  )}
-                  <input 
-                    type="file" 
-                    ref={fileInputRef}
-                    onChange={handleImageChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                </div>
-              </div>
-              
               {/* Review Text */}
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-4">상세 리뷰</label>
@@ -171,9 +127,15 @@ export default function ReviewModal({ isOpen, onClose, onSave, mode, initialData
                 </button>
                 <button 
                   onClick={handleSubmit}
+                  disabled={isSubmitting}
                   className="flex-[2] py-5 bg-coral text-white font-bold rounded-3xl hover:bg-coral/90 transition-all shadow-xl shadow-coral/30 text-lg"
                 >
-                  {mode === 'create' ? '등록하기' : '수정 완료'}
+                  {isSubmitting ? (
+                    <span className="inline-flex items-center justify-center gap-2">
+                      <Loader2 size={20} className="animate-spin" />
+                      저장 중
+                    </span>
+                  ) : mode === 'create' ? '등록하기' : '수정 완료'}
                 </button>
               </div>
             </div>

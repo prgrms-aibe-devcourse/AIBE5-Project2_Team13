@@ -33,6 +33,11 @@ public class Review {
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
 
+    public void updateReview(Integer rating, String content) {
+        this.rating = rating;
+        this.content = content;
+    }
+
     public void deleteReview() {
         this.isDeleted = true;
     }

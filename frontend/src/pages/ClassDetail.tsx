@@ -21,6 +21,7 @@ import {useWish} from '../context/WishContext';
 import {useAuth} from '@/src/context/AuthContext';
 import {getMyFreelancerProfile} from '@/src/api/freelancerProfile';
 import {applyClassOrder} from '@/src/api/classOrder';
+import {getClassReviews} from '@/src/api/review';
 
 const TABS = [
     {id: 'description', label: '클래스 소개'},//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
@@ -75,11 +76,32 @@ export default function ClassDetail() {
     const itemFromContext = classes.find(c => c.id === id);
 
     useEffect(() => {
-        const savedReviews = localStorage.getItem('all_reviews');
-        if (savedReviews) {
-            setAllReviews(JSON.parse(savedReviews));
+        if (!id) {
+            setAllReviews([]);
+            return;
         }
-    }, []);
+
+        let isMounted = true;
+
+        const loadReviews = async () => {
+            try {
+                const reviews = await getClassReviews(id);
+                if (isMounted) {
+                    setAllReviews(reviews);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    setAllReviews([]);
+                }
+            }
+        };
+
+        loadReviews();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [id]);
 
     useEffect(() => {
         const observerOptions = {
@@ -382,11 +404,11 @@ export default function ClassDetail() {
         ];
     })();
 
-    // Filter reviews for this class
-    const classReviews = allReviews.filter(r => r.classId === id);
-
-    // Combine real reviews from localStorage with mock reviews
-    const displayReviews = classReviews;
+    const displayReviews = allReviews;
+    const averageRating =
+        displayReviews.length > 0
+            ? (displayReviews.reduce((sum, review) => sum + review.rating, 0) / displayReviews.length).toFixed(1)
+            : '0.0';
 
     return (
         <div className="bg-white min-h-screen pb-20">
@@ -595,7 +617,7 @@ export default function ClassDetail() {
                                 <h2 className="text-2xl font-bold text-gray-900">리뷰({displayReviews.length})</h2>
                                 <div className="flex items-center gap-1 text-coral">
                                     <Star size={20} className="fill-coral"/>
-                                    <span className="font-bold text-lg">{item.rating || 0}</span>
+                                    <span className="font-bold text-lg">{averageRating}</span>
                                 </div>
                             </div>
 
@@ -640,9 +662,9 @@ export default function ClassDetail() {
                                     <h1 className="text-2xl font-bold text-gray-900 mb-2 leading-tight">{item.title}</h1>
                                     <div className="flex items-center gap-1">
                                         <Star size={16} className="fill-coral text-coral"/>
-                                        <span className="font-bold text-gray-900">{item.rating || 0}</span>
+                                        <span className="font-bold text-gray-900">{averageRating}</span>
                                         <span
-                                            className="text-gray-400 text-[15px] ml-1">({item.reviews || 0}개의 평가)</span>
+                                            className="text-gray-400 text-[15px] ml-1">({displayReviews.length}개의 평가)</span>
                                     </div>
                                 </div>
 
@@ -829,7 +851,7 @@ export default function ClassDetail() {
                                             <Star key={i} size={16} className="fill-coral text-coral"/>
                                         ))}
                                     </div>
-                                    <span className="font-bold text-lg">{(item as any).rating || 4.9}</span>
+                                    <span className="font-bold text-lg">{averageRating}</span>
                                     <span
                                         className="text-gray-400 text-sm font-normal">({displayReviews.length}개의 리뷰)</span>
                                 </div>
