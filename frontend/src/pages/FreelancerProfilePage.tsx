@@ -132,7 +132,7 @@ export default function FreelancerProfilePage() {
   const mapProfileClassToClassItem = (classItem: FreelancerProfileClass): ClassItem => {
     const imageUrl = classItem.representativeImageUrl
       || classItem.attachments?.find((attachment) => !!attachment.fileUrl)?.fileUrl
-      || `https://picsum.photos/seed/class${classItem.id}/400/300`;
+      || '/pogeun.png';
 
     return {
       id: String(classItem.id),
