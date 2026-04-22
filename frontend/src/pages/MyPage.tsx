@@ -1107,27 +1107,14 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                         category={classItem.category}
                                         categoryName={e.status === 'APPROVED' ? "수강 중" : "취소 요청 중"}
                                     />
-                                    <div className="flex gap-2">
-                                        {e.status === 'APPROVED' ? (
-                                            <>
-                                                <button
-                                                    onClick={() => {
-
-                                                        setSelectedEnrollmentId(e.id);
-                                                        setIsCancelRequestModalOpen(true);
-                                                    }}
-                                                    className="flex-1 py-3 bg-ivory text-gray-500 font-bold rounded-2xl hover:bg-red-50 hover:text-red-500 transition-all text-sm border border-coral/10 shadow-sm"
-                                                >
-                                                    취소 요청
-                                                </button>
-                                            </>
-                                        ) : (
+                                    {e.status === 'CANCEL_REQUESTED' && (
+                                        <div className="flex gap-2">
                                             <div
                                                 className="w-full py-3 bg-gray-50 text-gray-400 font-bold rounded-2xl text-center text-sm border border-coral/5">
                                                 취소 검토 중
                                             </div>
-                                        )}
-                                    </div>
+                                        </div>
+                                    )}
                                 </div>
                             ) : null;
                         })}
