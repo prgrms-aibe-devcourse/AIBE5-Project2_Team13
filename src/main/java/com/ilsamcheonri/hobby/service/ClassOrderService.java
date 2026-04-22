@@ -77,7 +77,7 @@ public class ClassOrderService {
                 student.getId(),                    // 발신: 신청한 학생
                 "NEW_ORDER",
                 "'" + classBoard.getTitle() + "' 클래스에 새 수강 신청이 들어왔습니다.",
-                "/profile"  // 프리랜서 마이페이지 수강생 관리 탭
+                "/profile/freelancer/students"  // 프리랜서 마이페이지 수강생 관리 탭
         );
 
         return saved.getId();
@@ -151,7 +151,7 @@ public class ClassOrderService {
                 classOrder.getClassBoard().getFreelancer().getId(), // 발신: 프리랜서
                 "ORDER_APPROVED",
                 "'" + classOrder.getClassBoard().getTitle() + "' 클래스 수강 신청이 승인되었습니다.",
-                "/profile"  // 학생 마이페이지 수강 관리 탭
+                "/profile/activity"  // 학생 마이페이지 수강 관리 탭
         );
     }
 
@@ -178,7 +178,7 @@ public class ClassOrderService {
                 classBoard.getFreelancer().getId(),        // 발신: 프리랜서
                 "ORDER_REJECTED",
                 "'" + classBoard.getTitle() + "' 클래스 수강 신청이 거절되었습니다.",
-                "/profile"  // 학생 마이페이지 수강 관리 탭
+                "/profile/activity"  // 학생 마이페이지 수강 관리 탭
         );
     }
 
