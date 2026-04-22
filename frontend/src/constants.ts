@@ -715,6 +715,7 @@ export interface FreelancerProfile {
 
 export interface ReviewItem {
   id: string;
+  orderId?: string;
   author: string;
   rating: number;
   content: string;
@@ -722,7 +723,6 @@ export interface ReviewItem {
   className: string;
   classId: string;
   userId: string;
-  image?: string;
 }
 
 export const MOCK_FREELANCER_PROFILES: FreelancerProfile[] = [

@@ -83,6 +83,7 @@ public class SecurityConfig {
                         // 카테고리 목록 조회 — 로그인 없이 누구나 접근 가능
                         .requestMatchers(HttpMethod.GET, "/api/categories/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/classes/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/classes/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/classes/**").authenticated()
                         .requestMatchers(HttpMethod.POST, "/api/classes/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/request-classes/**").permitAll()

@@ -37,7 +37,6 @@ import {
     REGIONS,
     ReportItem,
     MOCK_REPORTS,
-    MOCK_REVIEWS,
     type EnrollmentItem
 } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
@@ -104,6 +103,12 @@ import {
     getMyFreelancerClassOrders,
     rejectFreelancerClassOrder
 } from '@/src/api/classOrder';
+import {
+    createReview,
+    deleteReview,
+    getMyReviews,
+    updateReview
+} from '@/src/api/review';
 import {useNavigate, Link} from 'react-router-dom';
 import MyRequestManage from './MyRequestManage';
 import SafeImage from '../components/SafeImage';
@@ -319,22 +324,27 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
     const [freelancerEnrollments, setFreelancerEnrollments] = useState<EnrollmentItem[]>([]);
 
-    // Load reviews from localStorage
-    useEffect(() => {
-        const savedReviews = localStorage.getItem('all_reviews');
-        if (savedReviews) {
-            setAllReviews(JSON.parse(savedReviews));
-        } else {
-            // Initialize with mock reviews if empty
-            localStorage.setItem('all_reviews', JSON.stringify(MOCK_REVIEWS));
-            setAllReviews(MOCK_REVIEWS);
+    const refreshReviews = async () => {
+        if (!user) {
+            setAllReviews([]);
+            return;
         }
-    }, []);
 
-    const saveReviewsToStorage = (reviews: ReviewItem[]) => {
-        localStorage.setItem('all_reviews', JSON.stringify(reviews));
-        setAllReviews(reviews);
+        try {
+            const reviews = await getMyReviews();
+            setAllReviews(reviews);
+        } catch (error) {
+            showToast('리뷰 목록을 불러오지 못했습니다.', 'error');
+        }
     };
+
+    useEffect(() => {
+        if (authLoading) {
+            return;
+        }
+
+        refreshReviews();
+    }, [authLoading, user]);
     const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
     const [isCancelRequestModalOpen, setIsCancelRequestModalOpen] = useState(false);
     const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
@@ -953,11 +963,12 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
             const classItem = classLookup.get(enrollment.classId);
             const reviewTarget = {
                 id: enrollment.classId,
+                orderId: enrollment.id,
                 title: classItem?.title ?? enrollment.classTitle,
                 date: enrollment.appliedAt,
                 image: classItem?.image ?? '',
             };
-            const existingReview = allReviews.find((review) => review.classId === enrollment.classId);
+            const existingReview = allReviews.find((review) => review.orderId === enrollment.id);
 
             return (
                 <div
@@ -1303,38 +1314,65 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
         setReviewMode('create');
         setSelectedReviewData({
             classId: classItem.id,
+            orderId: classItem.orderId,
             className: classItem.title,
         });
         setIsReviewModalOpen(true);
     };
 
-    const handleSaveReview = (reviewData: Partial<ReviewItem>) => {
-        const now = new Date().toISOString().split('T')[0];
+    const handleSaveReview = async (reviewData: Partial<ReviewItem>) => {
+        const rating = reviewData.rating || 5;
+        const content = reviewData.content || '';
 
-        if (reviewMode === 'create') {
-            const newReview: ReviewItem = {
-                id: `rv${Date.now()}`,
-                author: '포근사용자', // In real app, get from user context
-                userId: 'u1',
-                rating: reviewData.rating || 5,
-                content: reviewData.content || '',
-                image: reviewData.image,
-                date: now,
-                className: selectedReviewData.className || '',
-                classId: selectedReviewData.classId || '',
-            };
-            saveReviewsToStorage([...allReviews, newReview]);
-            showToast('리뷰가 등록되었습니다!');
-        } else {
-            const updatedReviews = allReviews.map(r =>
-                r.id === selectedReviewData.id
-                    ? {...r, ...reviewData, date: now}
-                    : r
-            );
-            saveReviewsToStorage(updatedReviews);
+        try {
+            if (reviewMode === 'create') {
+                if (!selectedReviewData.orderId) {
+                    showToast('수강 내역을 찾을 수 없습니다.', 'error');
+                    return;
+                }
+
+                const savedReview = await createReview(selectedReviewData.orderId, {rating, content});
+                setAllReviews((prev) => [savedReview, ...prev]);
+                setIsReviewModalOpen(false);
+                showToast('리뷰가 등록되었습니다!');
+                return;
+            }
+
+            if (!selectedReviewData.id) {
+                showToast('수정할 리뷰를 찾을 수 없습니다.', 'error');
+                return;
+            }
+
+            const savedReview = await updateReview(selectedReviewData.id, {rating, content});
+            setAllReviews((prev) => prev.map((review) => review.id === savedReview.id ? savedReview : review));
+            setIsReviewModalOpen(false);
             showToast('리뷰가 수정되었습니다!');
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const responseData = error.response?.data;
+                const message =
+                    typeof responseData === 'string'
+                        ? responseData
+                        : responseData?.message || '리뷰 저장 중 오류가 발생했습니다.';
+                showToast(message, 'error');
+                return;
+            }
+            showToast('리뷰 저장 중 오류가 발생했습니다.', 'error');
         }
-        setIsReviewModalOpen(false);
+    };
+
+    const handleDeleteReview = async (reviewId: string) => {
+        if (!window.confirm('리뷰를 삭제하시겠습니까?')) {
+            return;
+        }
+
+        try {
+            await deleteReview(reviewId);
+            setAllReviews((prev) => prev.filter((review) => review.id !== reviewId));
+            showToast('리뷰가 삭제되었습니다.');
+        } catch (error) {
+            showToast('리뷰 삭제 중 오류가 발생했습니다.', 'error');
+        }
     };
 
 // [기능 설명: 특정 클래스 주문을 승인하고, 상태를 '승인됨/진행 중'으로 변경하여 UI에 즉시 반영합니다.] [작성 이유: API 호출 결과를 로컬 상태와 동기화하여 별도의 데이터 새로고침 없이 사용자에게 승인 결과를 보여주기 위해 작성함]
@@ -1624,23 +1662,13 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                     <Edit2 size={18}/>
                                 </button>
                                 <button
-                                    onClick={() => {
-                                        if (window.confirm('리뷰를 삭제하시겠습니까?')) {
-                                            saveReviewsToStorage(allReviews.filter(r => r.id !== review.id));
-                                            showToast('리뷰가 삭제되었습니다.');
-                                        }
-                                    }}
+                                    onClick={() => handleDeleteReview(review.id)}
                                     className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
                                 >
                                     <Trash2 size={18}/>
                                 </button>
                             </div>
                         </div>
-                        {review.image && (
-                            <div className="mb-4 rounded-2xl overflow-hidden max-w-sm border border-coral/10">
-                                <img src={review.image} alt="Review" className="w-full h-auto"/>
-                            </div>
-                        )}
                         <p className="text-gray-600 leading-relaxed mb-4">{review.content}</p>
                         <span className="text-sm text-gray-400">{review.date}</span>
                     </div>
