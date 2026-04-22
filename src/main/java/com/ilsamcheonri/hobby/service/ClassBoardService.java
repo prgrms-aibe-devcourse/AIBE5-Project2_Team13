@@ -5,6 +5,7 @@ import com.ilsamcheonri.hobby.dto.classboard.ClassBoardCreateRequest;
 import com.ilsamcheonri.hobby.dto.classboard.ClassBoardResponse;
 import com.ilsamcheonri.hobby.dto.classboard.ClassDetailResponse;
 import com.ilsamcheonri.hobby.dto.file.FileUploadResponse;
+import com.ilsamcheonri.hobby.dto.review.ClassReviewStats;
 import com.ilsamcheonri.hobby.entity.*;
 import com.ilsamcheonri.hobby.enums.FileTargetType;
 import com.ilsamcheonri.hobby.repository.*;
@@ -15,6 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,19 +30,30 @@ public class ClassBoardService {
     private final CategoryRepository categoryRepository;
     private final ClassAttachmentRepository classAttachmentRepository;
     private final FileService fileService;
-    private final NotificationService notificationService; // ✅ 알림 공통 모듈
+    private final NotificationService notificationService;
+    private final ReviewRepository reviewRepository;
 
     // 제안된 클래스 목록을 최신순으로 조회합니다.
     public List<ClassBoardResponse> getOfferClassList() {
-        return classBoardRepository.findByBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc("OFFER")
-                .stream()
+        List<ClassBoard> classBoards = classBoardRepository.findByBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc("OFFER");
+        Map<Long, ClassReviewStats> reviewStatsByClassId = getReviewStatsByClassId(
+                classBoards.stream().map(ClassBoard::getId).toList()
+        );
+
+        return classBoards.stream()
                 .map(classBoard -> { //첨부파일 이미지 표시
                     List<ClassAttachmentResponse> attachments = classAttachmentRepository
                             .findAllByClassBoardIdAndIsDeletedFalse(classBoard.getId())
                             .stream()
                             .map(ClassAttachmentResponse::from)
                             .collect(Collectors.toList());
-                    return ClassBoardResponse.from(classBoard, attachments);
+                    ClassReviewStats stats = reviewStatsByClassId.get(classBoard.getId());
+                    return ClassBoardResponse.from(
+                            classBoard,
+                            attachments,
+                            getRoundedAverageRating(stats),
+                            getReviewCount(stats)
+                    );
                 })
                 .collect(Collectors.toList());
     }
@@ -50,7 +64,8 @@ public class ClassBoardService {
                 .findByIdAndBoardTypeAndIsDeletedFalse(id, "OFFER")
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 클래스입니다."));
 
-        return ClassBoardResponse.from(classBoard);
+        ClassReviewStats stats = getReviewStatsByClassId(List.of(id)).get(id);
+        return ClassBoardResponse.from(classBoard, List.of(), getRoundedAverageRating(stats), getReviewCount(stats));
     }
 
     // 클래스 정보와 연결된 첨부 이미지 리스트를 함께 조회합니다.
@@ -65,7 +80,8 @@ public class ClassBoardService {
                 .map(ClassAttachmentResponse::from)
                 .collect(Collectors.toList());
 
-        return ClassDetailResponse.from(classBoard, images);
+        ClassReviewStats stats = getReviewStatsByClassId(List.of(id)).get(id);
+        return ClassDetailResponse.from(classBoard, images, getRoundedAverageRating(stats), getReviewCount(stats));
     }
 
     // 새로운 클래스를 등록하고, 파일 업로드 및 대표 이미지를 설정합니다.
@@ -229,5 +245,27 @@ public class ClassBoardService {
         }
         classAttachmentRepository.resetRepresentativeByClassId(classId);
         classAttachmentRepository.updateRepresentativeById(newRepresentativeId);
+    }
+
+    private Map<Long, ClassReviewStats> getReviewStatsByClassId(List<Long> classIds) {
+        if (classIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return reviewRepository.findReviewStatsByClassIds(classIds)
+                .stream()
+                .collect(Collectors.toMap(ClassReviewStats::getClassId, Function.identity()));
+    }
+
+    private Double getRoundedAverageRating(ClassReviewStats stats) {
+        if (stats == null || stats.getAverageRating() == null) {
+            return 0.0;
+        }
+
+        return Math.round(stats.getAverageRating() * 10.0) / 10.0;
+    }
+
+    private Long getReviewCount(ClassReviewStats stats) {
+        return stats == null || stats.getReviewCount() == null ? 0L : stats.getReviewCount();
     }
 }

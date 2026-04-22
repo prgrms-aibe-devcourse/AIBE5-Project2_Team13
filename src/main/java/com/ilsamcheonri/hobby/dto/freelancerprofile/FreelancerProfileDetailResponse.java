@@ -1,5 +1,7 @@
 package com.ilsamcheonri.hobby.dto.freelancerprofile;
 
+import com.ilsamcheonri.hobby.dto.classboard.ClassBoardResponse;
+import com.ilsamcheonri.hobby.dto.review.ReviewResponse;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -23,4 +25,7 @@ public class FreelancerProfileDetailResponse {
     private String approvalStatusCode;
     private String approvalStatusName;
     private List<FreelancerProfileAttachmentDto> attachments;
+    private List<ClassBoardResponse> activeClasses;
+    private List<ClassBoardResponse> allClasses;
+    private List<ReviewResponse> reviews;
 }

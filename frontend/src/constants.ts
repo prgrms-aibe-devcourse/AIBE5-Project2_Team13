@@ -624,6 +624,7 @@ export interface EnrollmentItem {
   id: string;
   classId: string;
   classTitle: string;
+  studentId?: string;
   studentName: string;
   studentEmail: string;
   status: EnrollmentStatus;
@@ -715,6 +716,7 @@ export interface FreelancerProfile {
 
 export interface ReviewItem {
   id: string;
+  orderId?: string;
   author: string;
   rating: number;
   content: string;
@@ -722,7 +724,6 @@ export interface ReviewItem {
   className: string;
   classId: string;
   userId: string;
-  image?: string;
 }
 
 export const MOCK_FREELANCER_PROFILES: FreelancerProfile[] = [

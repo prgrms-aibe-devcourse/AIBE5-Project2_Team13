@@ -46,6 +46,8 @@ interface ClassApiResponse {
     curriculum?: string;
     location?: string;
     representativeImageUrl?: string;
+    rating?: number;
+    reviews?: number;
     images?: Array<{
         fileUrl?: string | null;
     }>;
@@ -85,8 +87,8 @@ function toClassItem(api: ClassApiResponse): ClassItem {
         price: api.price,
         category: api.categoryName,
         image: representativeImage,
-        rating: 0,
-        reviews: 0,
+        rating: api.rating ?? 0,
+        reviews: api.reviews ?? 0,
         isOffline: !isOnline,
         location: !isOnline ? api.location ?? '오프라인 장소' : undefined,
         status: api.status,

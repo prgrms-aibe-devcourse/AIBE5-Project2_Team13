@@ -42,6 +42,14 @@ public class ClassOrderController {
         return ResponseEntity.ok(classOrderService.getMyClassOrders(email));
     }
 
+    // [기능 설명: 현재 로그인한 학생의 수강 완료된 클래스 주문 내역을 조회하는 API 엔드포인트입니다.] [작성 이유: 마이페이지 등에서 학생이 수강 완료한 클래스 목록을 확인하고 리뷰 작성 등의 추가 액션을 수행할 수 있도록 데이터를 제공하기 위해 작성함]
+    @GetMapping("/me/completed")
+    public ResponseEntity<List<ClassOrderSummaryResponse>> getMyCompletedClassOrders(
+            @AuthenticationPrincipal String email
+    ) {
+        return ResponseEntity.ok(classOrderService.getMyCompletedClassOrders(email));
+    }
+
     // [기능: 프리랜서 본인 클래스 신청 내역 조회 API] [이유: 마이페이지 수강생 관리 탭에서 실제 신청 데이터를 불러오기 위해]
     @GetMapping("/freelancer/me")
     public ResponseEntity<List<ClassOrderSummaryResponse>> getFreelancerClassOrders(
@@ -78,6 +86,25 @@ public class ClassOrderController {
     }
 
     // [기능: 수강 신청 취소 API] [이유: 학생이 마이페이지에서 본인 신청을 취소할 수 있게 하기 위해]
+    @PatchMapping("/{orderId}/complete")
+    public ResponseEntity<Void> completeClassOrder(
+            @AuthenticationPrincipal String email,
+            @PathVariable Long orderId
+    ) {
+        classOrderService.completeClassOrder(email, orderId);
+        return ResponseEntity.ok().build();
+    }
+
+    // [기능 설명: 특정 클래스 주문을 제외(exclude) 처리하기 위한 API 엔드포인트입니다.] [작성 이유: 프리랜서가 특정 수강생을 클래스에서 제외할 수 있도록 외부 요청을 서비스 계층으로 전달하기 위해 작성함]
+    @PatchMapping("/{orderId}/exclude")
+    public ResponseEntity<Void> excludeClassOrder(
+            @AuthenticationPrincipal String email,
+            @PathVariable Long orderId
+    ) {
+        classOrderService.excludeClassOrder(email, orderId);
+        return ResponseEntity.ok().build();
+    }
+
     @PatchMapping("/{orderId}/cancel")
     public ResponseEntity<Void> cancelClassOrder(
             @AuthenticationPrincipal String email,
