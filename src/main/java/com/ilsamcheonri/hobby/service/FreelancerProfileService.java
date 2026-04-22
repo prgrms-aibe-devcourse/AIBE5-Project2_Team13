@@ -28,15 +28,21 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class FreelancerProfileService {
 
-    private final FreelancerProfileRepository freelancerProfileRepository;
-    private final FreelancerProfileAttachmentRepository freelancerProfileAttachmentRepository;
-    private final MemberRepository memberRepository;
-    private final CategoryRepository categoryRepository;
-    private final RoleCodeRepository roleCodeRepository;
+    private final FreelancerProfileRepository             freelancerProfileRepository;
+    private final FreelancerProfileAttachmentRepository   freelancerProfileAttachmentRepository;
+    private final MemberRepository                        memberRepository;
+    private final CategoryRepository                      categoryRepository;
+    private final RoleCodeRepository                      roleCodeRepository;
+    private final NotificationService                     notificationService;
 
+    // =========================================================
+    // ✅ 프리랜서 등록 신청
+    // 신청 완료 후 관리자 전체에게 알림을 발송합니다.
+    // =========================================================
     @Transactional
     public Long applyFreelancerProfile(String email, FreelancerProfileApplyRequest request) {
         Member member = getUserMember(email);
+
         FreelancerProfile existingProfile = freelancerProfileRepository
                 .findByFreelancerIdAndIsDeletedFalse(member.getId())
                 .orElse(null);
@@ -52,7 +58,7 @@ public class FreelancerProfileService {
 
         FreelancerProfile profile;
         if (existingProfile != null) {
-            // 반려된 기존 프로필은 재신청으로 재사용하고, 링크가 비어도 null 저장이 가능하도록 정규화합니다.
+            // 반려된 기존 프로필은 재신청으로 재사용합니다.
             existingProfile.resubmitProfile(
                     specialty,
                     normalizeOptionalText(request.getSnsLink()),
@@ -76,9 +82,22 @@ public class FreelancerProfileService {
             );
         }
 
+        // ✅ 관리자 전체에게 알림 발송
+        // - 관리자가 여러 명이어도 모두에게 발송됩니다.
+        // - relatedLink: 관리자 마이페이지 프리랜서 승인 탭으로 이동
+        notificationService.sendToAdmins(
+                member.getId(),
+                member.getName(),
+                "FREELANCER_APPLY",
+                "/profile"
+        );
+
         return profile.getId();
     }
 
+    // =========================================================
+    // ✅ 프리랜서 신청 상태 조회
+    // =========================================================
     public FreelancerApplicationStatusResponse getMyApplicationStatus(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."));
@@ -94,6 +113,9 @@ public class FreelancerProfileService {
                 .build();
     }
 
+    // =========================================================
+    // ✅ 내 프리랜서 프로필 조회 (본인용)
+    // =========================================================
     public FreelancerProfileMeResponse getMyProfile(String email) {
         Member member = getFreelancerMember(email);
 
@@ -126,8 +148,10 @@ public class FreelancerProfileService {
                 .build();
     }
 
+    // =========================================================
+    // ✅ 프리랜서 공개 프로필 조회 (비로그인 포함 전체 허용)
+    // =========================================================
     public FreelancerProfileDetailResponse getPublicProfile(Long freelancerId) {
-        // 공개 상세 페이지는 freelancerId 기준으로 승인된 프로필만 노출합니다.
         FreelancerProfile profile = freelancerProfileRepository
                 .findByFreelancerIdAndApprovalStatusCodeAndIsDeletedFalse(freelancerId, "A")
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "프리랜서 프로필을 찾을 수 없습니다."));
@@ -139,7 +163,7 @@ public class FreelancerProfileService {
                 .map(FreelancerProfileAttachmentDto::from)
                 .toList();
 
-        // 2026.04.20 eamil 추가 - 최준열 수정
+        // 2026.04.20 memberEmail 추가 — 본인 팔로우 버튼 숨김 처리용
         return FreelancerProfileDetailResponse.builder()
                 .freelancerId(member.getId())
                 .profileId(profile.getId())
@@ -158,6 +182,9 @@ public class FreelancerProfileService {
                 .build();
     }
 
+    // =========================================================
+    // ✅ 내 프리랜서 프로필 수정
+    // =========================================================
     @Transactional
     public FreelancerProfileMeResponse updateMyProfile(String email, FreelancerProfileUpsertRequest request) {
         Member member = getFreelancerMember(email);
@@ -170,7 +197,6 @@ public class FreelancerProfileService {
 
         profile.updateProfile(
                 specialty,
-                // 포트폴리오 링크는 비우면 null로 저장해 선택 입력 상태를 유지합니다.
                 normalizeOptionalText(request.getSnsLink()),
                 normalizeBlank(request.getBio()),
                 normalizeBlank(request.getCareer()),
@@ -180,6 +206,9 @@ public class FreelancerProfileService {
         return getMyProfile(email);
     }
 
+    // =========================================================
+    // ✅ 관리자 — 승인 대기 목록 조회
+    // =========================================================
     public List<FreelancerApprovalListItemResponse> getPendingProfiles(String email) {
         validateAdmin(email);
 
@@ -199,6 +228,9 @@ public class FreelancerProfileService {
                 .toList();
     }
 
+    // =========================================================
+    // ✅ 관리자 — 프리랜서 신청 승인
+    // =========================================================
     @Transactional
     public void approveProfile(String email, Long profileId) {
         validateAdmin(email);
@@ -215,6 +247,9 @@ public class FreelancerProfileService {
         );
     }
 
+    // =========================================================
+    // ✅ 관리자 — 프리랜서 신청 거절
+    // =========================================================
     @Transactional
     public void rejectProfile(String email, Long profileId) {
         validateAdmin(email);
@@ -225,55 +260,43 @@ public class FreelancerProfileService {
         profile.rejectProfile("반려");
     }
 
+    // ─── private 헬퍼 메서드 ──────────────────────────────────
+
     private Member getUserMember(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."));
-
         if (!"U".equals(member.getRoleCode().getRoleCode())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "일반 회원만 프리랜서 등록을 신청할 수 있습니다.");
         }
-
         return member;
     }
 
     private Member getFreelancerMember(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."));
-
         if (!"F".equals(member.getRoleCode().getRoleCode())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "프리랜서 회원만 접근할 수 있습니다.");
         }
-
         return member;
     }
 
     private void validateAdmin(String email) {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."));
-
         if (!"A".equals(member.getRoleCode().getRoleCode())) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "관리자만 접근할 수 있습니다.");
         }
     }
 
     private String formatAddress(String addr, String addr2) {
-        if (addr == null && addr2 == null) {
-            return "";
-        }
-        if (addr == null) {
-            return addr2;
-        }
-        if (addr2 == null || addr2.isBlank()) {
-            return addr;
-        }
+        if (addr == null && addr2 == null) return "";
+        if (addr == null) return addr2;
+        if (addr2 == null || addr2.isBlank()) return addr;
         return addr + " " + addr2;
     }
 
     private String normalizeBlank(String value) {
-        if (value == null) {
-            return null;
-        }
-
+        if (value == null) return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
