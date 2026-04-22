@@ -218,6 +218,11 @@ export default function ClassFormPage() {
       return;
     }
 
+    if (startDate && endDate && endDate < startDate) {
+      setToast('종료일은 시작일보다 빠를 수 없습니다.');
+      return;
+    }
+
     if (!isLoggedIn) {
       setToast('로그인 후 클래스 등록이 가능합니다.');
       setTimeout(() => navigate('/login'), 1500);
@@ -439,6 +444,7 @@ export default function ClassFormPage() {
                   type="date" 
                   required
                   value={endDate}
+                  min={startDate || undefined}
                   onChange={(e) => setEndDate(e.target.value)}
                   className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
                 />
