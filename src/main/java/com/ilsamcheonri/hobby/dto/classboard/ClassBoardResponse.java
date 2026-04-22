@@ -33,6 +33,8 @@ public class ClassBoardResponse {
     private String updatedAt;
     private List<ClassAttachmentResponse> attachments;
     private String representativeImageUrl;
+    private Double rating;
+    private Long reviews;
 
     public static ClassBoardResponse from(ClassBoard classBoard) {
         return from(classBoard, List.of());
@@ -40,6 +42,15 @@ public class ClassBoardResponse {
 
     //첨부파일 불러오기
     public static ClassBoardResponse from(ClassBoard classBoard, List<ClassAttachmentResponse> attachments) {
+        return from(classBoard, attachments, 0.0, 0L);
+    }
+
+    public static ClassBoardResponse from(
+            ClassBoard classBoard,
+            List<ClassAttachmentResponse> attachments,
+            Double rating,
+            Long reviews
+    ) {
         String representativeImageUrl = attachments.stream()
                 .filter(ClassAttachmentResponse::getIsRepresentative)
                 .findFirst()
@@ -66,6 +77,8 @@ public class ClassBoardResponse {
                 .updatedAt(classBoard.getUpdatedAt() != null ? classBoard.getUpdatedAt().toString() : null)
                 .attachments(attachments)
                 .representativeImageUrl(representativeImageUrl)
+                .rating(rating)
+                .reviews(reviews)
                 .build();
     }
 }

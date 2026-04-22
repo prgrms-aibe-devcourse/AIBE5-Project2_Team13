@@ -50,6 +50,8 @@ public interface ClassBoardRepository extends JpaRepository<ClassBoard, Long> {
      */
     List<ClassBoard> findByFreelancerIdAndBoardTypeAndIsDeletedFalse(Long freelancerId, String boardType);
 
+    List<ClassBoard> findByFreelancerIdAndBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc(Long freelancerId, String boardType);
+
     /**
      * N+1 문제 해결을 위한 JOIN FETCH 쿼리
      * boardType으로 필터링하면서 이미지 정보까지 한 번에 조회합니다.

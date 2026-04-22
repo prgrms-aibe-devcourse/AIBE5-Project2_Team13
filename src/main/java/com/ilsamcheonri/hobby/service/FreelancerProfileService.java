@@ -1,5 +1,7 @@
 package com.ilsamcheonri.hobby.service;
 
+import com.ilsamcheonri.hobby.dto.classboard.ClassAttachmentResponse;
+import com.ilsamcheonri.hobby.dto.classboard.ClassBoardResponse;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileAttachmentDto;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileApplyRequest;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerApprovalListItemResponse;
@@ -7,13 +9,19 @@ import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerApplicationStatusR
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileDetailResponse;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileMeResponse;
 import com.ilsamcheonri.hobby.dto.freelancerprofile.FreelancerProfileUpsertRequest;
+import com.ilsamcheonri.hobby.dto.review.ClassReviewStats;
+import com.ilsamcheonri.hobby.dto.review.ReviewResponse;
+import com.ilsamcheonri.hobby.entity.ClassBoard;
 import com.ilsamcheonri.hobby.entity.Category;
 import com.ilsamcheonri.hobby.entity.FreelancerProfile;
 import com.ilsamcheonri.hobby.entity.Member;
 import com.ilsamcheonri.hobby.repository.CategoryRepository;
+import com.ilsamcheonri.hobby.repository.ClassAttachmentRepository;
+import com.ilsamcheonri.hobby.repository.ClassBoardRepository;
 import com.ilsamcheonri.hobby.repository.FreelancerProfileAttachmentRepository;
 import com.ilsamcheonri.hobby.repository.FreelancerProfileRepository;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
+import com.ilsamcheonri.hobby.repository.ReviewRepository;
 import com.ilsamcheonri.hobby.repository.RoleCodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -22,6 +30,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +45,9 @@ public class FreelancerProfileService {
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
     private final RoleCodeRepository roleCodeRepository;
+    private final ClassBoardRepository classBoardRepository;
+    private final ClassAttachmentRepository classAttachmentRepository;
+    private final ReviewRepository reviewRepository;
 
     @Transactional
     public Long applyFreelancerProfile(String email, FreelancerProfileApplyRequest request) {
@@ -106,7 +121,6 @@ public class FreelancerProfileService {
                 .stream()
                 .map(FreelancerProfileAttachmentDto::from)
                 .toList();
-
         return FreelancerProfileMeResponse.builder()
                 .freelancerId(member.getId())
                 .profileId(profile.getId())
@@ -138,6 +152,19 @@ public class FreelancerProfileService {
                 .stream()
                 .map(FreelancerProfileAttachmentDto::from)
                 .toList();
+        List<ClassBoard> allClassBoards = classBoardRepository
+                .findByFreelancerIdAndBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc(member.getId(), "OFFER");
+        List<ClassBoardResponse> allClasses = toClassResponses(allClassBoards);
+        LocalDateTime now = LocalDateTime.now();
+        List<ClassBoardResponse> activeClasses = toClassResponses(
+                allClassBoards.stream()
+                        .filter(classBoard -> classBoard.getEndAt() == null || !classBoard.getEndAt().isBefore(now))
+                        .toList()
+        );
+        List<ReviewResponse> reviews = reviewRepository.findFreelancerReviews(member.getId())
+                .stream()
+                .map(ReviewResponse::from)
+                .toList();
 
         // 2026.04.20 eamil 추가 - 최준열 수정
         return FreelancerProfileDetailResponse.builder()
@@ -155,6 +182,9 @@ public class FreelancerProfileService {
                 .approvalStatusCode(profile.getApprovalStatusCode())
                 .approvalStatusName(profile.getApprovalStatusName())
                 .attachments(attachments)
+                .activeClasses(activeClasses)
+                .allClasses(allClasses)
+                .reviews(reviews)
                 .build();
     }
 
@@ -280,5 +310,50 @@ public class FreelancerProfileService {
 
     private String normalizeOptionalText(String value) {
         return normalizeBlank(value);
+    }
+
+    private List<ClassBoardResponse> toClassResponses(List<ClassBoard> classBoards) {
+        Map<Long, ClassReviewStats> reviewStatsByClassId = getReviewStatsByClassId(
+                classBoards.stream().map(ClassBoard::getId).toList()
+        );
+
+        return classBoards.stream()
+                .map(classBoard -> {
+                    List<ClassAttachmentResponse> attachments = classAttachmentRepository
+                            .findAllByClassBoardIdAndIsDeletedFalse(classBoard.getId())
+                            .stream()
+                            .map(ClassAttachmentResponse::from)
+                            .collect(Collectors.toList());
+                    ClassReviewStats stats = reviewStatsByClassId.get(classBoard.getId());
+                    return ClassBoardResponse.from(
+                            classBoard,
+                            attachments,
+                            getRoundedAverageRating(stats),
+                            getReviewCount(stats)
+                    );
+                })
+                .toList();
+    }
+
+    private Map<Long, ClassReviewStats> getReviewStatsByClassId(List<Long> classIds) {
+        if (classIds.isEmpty()) {
+            return Map.of();
+        }
+
+        return reviewRepository.findReviewStatsByClassIds(classIds)
+                .stream()
+                .collect(Collectors.toMap(ClassReviewStats::getClassId, Function.identity()));
+    }
+
+    private Double getRoundedAverageRating(ClassReviewStats stats) {
+        if (stats == null || stats.getAverageRating() == null) {
+            return 0.0;
+        }
+
+        return Math.round(stats.getAverageRating() * 10.0) / 10.0;
+    }
+
+    private Long getReviewCount(ClassReviewStats stats) {
+        return stats == null || stats.getReviewCount() == null ? 0L : stats.getReviewCount();
     }
 }

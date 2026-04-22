@@ -17,16 +17,19 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '@/src/lib/utils';
 import { 
-  MOCK_CLASSES, 
-  MOCK_REVIEWS, 
-  CATEGORIES
+  type ClassItem
 } from '@/src/constants';
 import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import { useFollow } from '../context/FollowContext';
 import { DEFAULT_PROFILE_IMAGE_URL } from '@/src/lib/profileImage';
 import axios from 'axios';
 import apiClient from '../api/axios';
-import { getFreelancerProfileByFreelancerId, getMyFreelancerProfile, type FreelancerProfileDetailResponse } from '@/src/api/freelancerProfile';
+import {
+  getFreelancerProfileByFreelancerId,
+  getMyFreelancerProfile,
+  type FreelancerProfileClass,
+  type FreelancerProfileDetailResponse,
+} from '@/src/api/freelancerProfile';
 import { useAuth } from '@/src/context/AuthContext';
 import SafeImage from '../components/SafeImage';
 
@@ -126,8 +129,40 @@ export default function FreelancerProfilePage() {
     return <div className="p-20 text-center">프로필을 찾을 수 없습니다.</div>;
   }
 
-  const freelancerClasses = MOCK_CLASSES.filter(c => c.freelancerId === String(profile.freelancerId) || c.freelancer === profile.memberName);
-  const freelancerReviews = MOCK_REVIEWS;
+  const mapProfileClassToClassItem = (classItem: FreelancerProfileClass): ClassItem => {
+    const imageUrl = classItem.representativeImageUrl
+      || classItem.attachments?.find((attachment) => !!attachment.fileUrl)?.fileUrl
+      || `https://picsum.photos/seed/class${classItem.id}/400/300`;
+
+    return {
+      id: String(classItem.id),
+      title: classItem.title,
+      freelancer: classItem.freelancerName,
+      freelancerEmail: classItem.freelancerEmail,
+      freelancerId: String(classItem.freelancerId),
+      price: classItem.price,
+      category: classItem.categoryName,
+      image: imageUrl,
+      rating: classItem.rating ?? 0,
+      reviews: classItem.reviews ?? 0,
+      isOffline: !classItem.isOnline,
+      location: !classItem.isOnline ? classItem.location ?? '오프라인 장소' : undefined,
+      startAt: classItem.startAt ?? undefined,
+      endAt: classItem.endAt ?? undefined,
+      maxCapacity: classItem.maxCapacity ?? undefined,
+      curriculum: classItem.curriculum ?? undefined,
+      description: classItem.description ?? undefined,
+      status: classItem.status ?? undefined,
+      createdAt: classItem.createdAt ?? new Date().toISOString(),
+      updatedAt: classItem.updatedAt ?? undefined,
+    };
+  };
+  const activeClasses = profile.activeClasses.map(mapProfileClassToClassItem);
+  const freelancerReviews = profile.reviews;
+  const averageRating =
+    freelancerReviews.length > 0
+      ? (freelancerReviews.reduce((sum, review) => sum + review.rating, 0) / freelancerReviews.length).toFixed(1)
+      : '0.0';
   // 공개 응답의 첨부 목록을 캐러셀용 이미지 URL 배열로 평탄화합니다.
   const portfolioImages = profile.attachments.map((attachment) => attachment.fileUrl);
   const visiblePortfolioImages = portfolioImages.slice(portfolioStartIndex, portfolioStartIndex + 4);
@@ -253,7 +288,7 @@ export default function FreelancerProfilePage() {
                   <p className="text-sm text-gray-400 font-bold mb-1 uppercase tracking-wider">평균 평점</p>
                   <div className="flex items-center gap-2">
                     <Star className="text-yellow-400 fill-yellow-400" size={24} />
-                    <span className="text-3xl font-bold text-gray-900">0</span>
+                    <span className="text-3xl font-bold text-gray-900">{averageRating}</span>
                   </div>
                 </div>
                 <div className="text-center md:text-left">
@@ -305,7 +340,7 @@ export default function FreelancerProfilePage() {
         <div className="flex border-b border-coral/10 mb-12">
           {[
             { id: 'portfolio', label: '포트폴리오', icon: ImageIcon },
-            { id: 'classes', label: '진행 중인 클래스', icon: LayoutGrid },
+            { id: 'classes', label: '진행중인 클래스', icon: LayoutGrid },
             { id: 'reviews', label: '리뷰', icon: MessageSquare },
           ].map((tab) => (
             <button
@@ -410,31 +445,38 @@ export default function FreelancerProfilePage() {
 
             {activeTab === 'classes' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-                {freelancerClasses.map(cls => (
-                  <ExplorerItemCard 
-                    key={cls.id} 
-                    {...cls} 
-                    id={cls.id}
-                    image={cls.image}
-                    title={cls.title}
-                    value={cls.price}
-                    valueLabel="수강료"
-                    personName={cls.freelancer}
-                    personLabel="프리랜서"
-                    personId={cls.freelancerId}
-                    categoryName={CATEGORIES.find(cat => cat.id === cls.category)?.name || '기타'}
-                  />
-                ))}
-                {freelancerClasses.length === 0 && (
-                  <div className="col-span-full py-20 text-center text-gray-400 font-medium">
-                    현재 모집 중인 클래스가 없습니다.
-                  </div>
-                )}
+                  {activeClasses.map(cls => (
+                    <ExplorerItemCard
+                      key={cls.id}
+                      {...cls}
+                      id={cls.id}
+                      image={cls.image}
+                      title={cls.title}
+                      value={cls.price}
+                      valueLabel="수강료"
+                      personName={cls.freelancer}
+                      personLabel="프리랜서"
+                      personId={cls.freelancerId}
+                      categoryName={cls.category}
+                      rating={cls.rating}
+                      reviews={cls.reviews}
+                    />
+                  ))}
+                  {activeClasses.length === 0 && (
+                    <div className="col-span-full py-20 text-center text-gray-400 font-medium">
+                      현재 진행 중인 클래스가 없습니다.
+                    </div>
+                  )}
               </div>
             )}
 
             {activeTab === 'reviews' && (
               <div className="space-y-6">
+                {freelancerReviews.length === 0 && (
+                  <div className="rounded-[32px] bg-white border border-coral/10 px-8 py-16 text-center text-gray-400 font-medium">
+                    아직 받은 리뷰가 없습니다.
+                  </div>
+                )}
                 {freelancerReviews.map(review => (
                   <div key={review.id} className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
                     <div className="flex justify-between items-start mb-4">
@@ -451,7 +493,13 @@ export default function FreelancerProfilePage() {
                             ))}
                           </div>
                         </div>
-                        <p className="text-xs text-gray-400">{review.date} · {review.className}</p>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/class/${review.classId}`)}
+                          className="text-xs text-gray-400 hover:text-coral transition-colors cursor-pointer"
+                        >
+                          {review.createdAt || ''} · {review.className}
+                        </button>
                       </div>
                     </div>
                     <p className="text-gray-600 leading-relaxed">{review.content}</p>
