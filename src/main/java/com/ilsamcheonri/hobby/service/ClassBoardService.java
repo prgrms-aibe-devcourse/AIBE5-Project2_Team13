@@ -29,8 +29,9 @@ public class ClassBoardService {
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
     private final ClassAttachmentRepository classAttachmentRepository;
+    private final FileService fileService;
+    private final NotificationService notificationService;
     private final ReviewRepository reviewRepository;
-    private final FileService fileService; // 중복 선언 하나만 남겼어요!
 
     // 제안된 클래스 목록을 최신순으로 조회합니다.
     public List<ClassBoardResponse> getOfferClassList() {
@@ -130,6 +131,10 @@ public class ClassBoardService {
                 throw new RuntimeException("클래스 이미지 업로드에 실패했습니다.", e);
             }
         }
+
+        // ✅ 팔로워 전체에게 알림 발송 — 이 프리랜서를 팔로우하는 일반 사용자에게 알림
+        notificationService.sendToFollowers(member.getId(), classId, request.getTitle());
+
         return classId;
     }
 

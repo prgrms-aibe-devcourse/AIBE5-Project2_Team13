@@ -1,9 +1,7 @@
 import React, { createContext, ReactNode, useCallback, useContext, useEffect, useState } from 'react';
-import axios from 'axios';
 import apiClient from '../api/axios';
 import { ClassItem } from '../constants';
 import { getAccessToken } from '../lib/auth';
-import api from '../api/api'; //리팩토링 위해 추가
 
 interface CreateClassPayload {
     title: string;
@@ -137,13 +135,27 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
     const addClass = async (newClass: CreateClassPayload) => {
         try {
             const formData = new FormData();
-            // ... (FormData append 로직은 동일)
 
-            // 토큰 헤더를 직접 넣지 않아도 api 인스턴스가 알아서 처리합니다!
-            await api.post('/classes', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data', // FormData를 보낼 땐 이게 필요해요
-                },
+            // 텍스트/숫자 필드 추가
+            formData.append('title',       newClass.title);
+            formData.append('description', newClass.description || '');
+            formData.append('categoryId',  String(newClass.categoryId));
+            formData.append('price',       String(newClass.price));
+            formData.append('isOnline',    String(newClass.isOnline));
+            formData.append('startAt',     newClass.startAt);
+            formData.append('endAt',       newClass.endAt);
+            formData.append('maxCapacity', String(newClass.maxCapacity));
+            if (newClass.curriculum) formData.append('curriculum', newClass.curriculum);
+            if (newClass.location)   formData.append('location',   newClass.location);
+
+            // 이미지 파일 추가
+            if (newClass.images?.length) {
+                newClass.images.forEach(file => formData.append('images', file));
+            }
+
+            // apiClient 사용 — sessionStorage + localStorage 둘 다 확인하는 인터셉터 적용
+            await apiClient.post('/classes', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             await fetchClasses();

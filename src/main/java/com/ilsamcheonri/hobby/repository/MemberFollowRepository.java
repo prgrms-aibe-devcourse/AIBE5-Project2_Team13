@@ -17,6 +17,11 @@ public interface MemberFollowRepository extends JpaRepository<MemberFollow, Long
     /** 내 팔로우 목록 전체 조회 — targetId(프리랜서 memberId) 목록 */
     List<MemberFollow> findByFollowerId(Long followerId);
 
+    /** 특정 프리랜서를 팔로우하는 팔로워 목록 — 클래스 등록 알림 발송용
+     * 2026.04.22 최준열 생성
+     * */
+    List<MemberFollow> findByTargetId(Long targetId);
+
     /** 특정 프리랜서의 팔로워 수 */
     long countByTargetId(Long targetId);
 }

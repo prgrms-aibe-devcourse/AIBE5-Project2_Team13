@@ -23,6 +23,7 @@ public class ClassOrderService {
     private final ClassOrderRepository classOrderRepository;
     private final ClassBoardRepository classBoardRepository;
     private final MemberRepository memberRepository;
+    private final NotificationService notificationService; // ✅ 알림 공통 모듈
 
     // [기능: 수강 신청 생성 처리] [이유: 신청 생성 시 class_order와 class_board의 진행 상태를 모두 BEFORE_START로 맞추기 위해]
     @Transactional
@@ -69,6 +70,15 @@ public class ClassOrderService {
         if (classBoard.getCurrentVolume() >= classBoard.getMaxCapacity()) {
             classBoard.updateStatus("CLOSE");
         }
+
+        // ✅ 프리랜서에게 알림 — 새 수강 신청이 들어왔을 때
+        notificationService.send(
+                classBoard.getFreelancer().getId(), // 수신: 프리랜서
+                student.getId(),                    // 발신: 신청한 학생
+                "NEW_ORDER",
+                "'" + classBoard.getTitle() + "' 클래스에 새 수강 신청이 들어왔습니다.",
+                "/profile"  // 프리랜서 마이페이지 수강생 관리 탭
+        );
 
         return saved.getId();
     }
@@ -134,6 +144,15 @@ public class ClassOrderService {
 
         validateFreelancerOwnership(freelancerEmail, classOrder);
         classOrder.updateStatus(ClassOrder.ApprovalStatus.APPROVED, ClassOrder.ProgressStatus.IN_PROGRESS);
+
+        // ✅ 학생에게 알림 — 수강 신청이 승인되었을 때
+        notificationService.send(
+                classOrder.getStudent().getId(),               // 수신: 신청한 학생
+                classOrder.getClassBoard().getFreelancer().getId(), // 발신: 프리랜서
+                "ORDER_APPROVED",
+                "'" + classOrder.getClassBoard().getTitle() + "' 클래스 수강 신청이 승인되었습니다.",
+                "/profile"  // 학생 마이페이지 수강 관리 탭
+        );
     }
 
     // [기능 설명: 수강 신청을 거절하고 관련 클래스의 수강 인원을 차감하며, 정원에 여유가 생기면 모집 상태를 'OPEN'으로 자동 변경합니다.] [작성 이유: 클래스 주문 반려 절차를 수행하고 정원 관리 로직을 통합하여 모집 현황을 정확하게 유지하기 위해 작성함]
@@ -152,6 +171,15 @@ public class ClassOrderService {
                 classBoard.getCurrentVolume() < classBoard.getMaxCapacity()) {
             classBoard.updateStatus("OPEN");
         }
+
+        // ✅ 학생에게 알림 — 수강 신청이 거절되었을 때
+        notificationService.send(
+                classOrder.getStudent().getId(),           // 수신: 신청한 학생
+                classBoard.getFreelancer().getId(),        // 발신: 프리랜서
+                "ORDER_REJECTED",
+                "'" + classBoard.getTitle() + "' 클래스 수강 신청이 거절되었습니다.",
+                "/profile"  // 학생 마이페이지 수강 관리 탭
+        );
     }
 
     // [기능: 수강 신청 취소 처리] [이유: 학생 본인이 신청 취소 시 주문 상태와 클래스 인원을 함께 갱신하기 위해]

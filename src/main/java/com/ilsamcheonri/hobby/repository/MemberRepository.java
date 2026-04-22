@@ -29,6 +29,10 @@ public interface MemberRepository extends JpaRepository<Member, Long> {
     // 회원가입 시 사용: 이메일 중복 검사
     boolean existsByEmail(String email);
 
+    // 2026.04.22 최준열 생성
+    // 관리자 전체 조회 — 알림 발송용 (roleCode = 'A', 탈퇴하지 않은 회원만)
+    List<Member> findByRoleCodeRoleCodeAndIsDeletedFalse(String roleCode);
+
     // MyPage 초기 정보 (이름, 권한)
     // 2026.04.20 id까지 추가 - 최준열 수정
     @Query("""
