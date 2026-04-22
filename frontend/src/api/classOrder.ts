@@ -76,6 +76,16 @@ export async function rejectFreelancerClassOrder(orderId: string): Promise<void>
   await apiClient.patch(`/class-orders/${orderId}/reject`);
 }
 
+// [기능 설명: 프리랜서가 특정 클래스 주문을 완료 처리하여 수강 종료를 확정합니다.] [작성 이유: 클래스가 정상적으로 종료된 후 주문 상태를 '완료'로 변경하여 최종 수강 기록을 관리하기 위해 작성함]
+export async function completeFreelancerClassOrder(orderId: string): Promise<void> {
+  await apiClient.patch(`/class-orders/${orderId}/complete`);
+}
+
+// [기능 설명: 특정 클래스 주문을 제외(exclude) 처리하여 수강 대상에서 제외합니다.] [작성 이유: 수강 중인 학생이 중도 하차하거나 기타 사유로 수강 대상에서 제거해야 할 경우 상태를 업데이트하기 위해 작성함]
+export async function excludeFreelancerClassOrder(orderId: string): Promise<void> {
+  await apiClient.patch(`/class-orders/${orderId}/exclude`);
+}
+
 export async function cancelClassOrder(orderId: string): Promise<void> {
   await apiClient.patch(`/class-orders/${orderId}/cancel`);
 }

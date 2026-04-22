@@ -99,6 +99,8 @@ import {formatPhoneNumber, stripPhoneNumber} from '@/src/lib/phone';
 import {DEFAULT_PROFILE_IMAGE_URL} from '@/src/lib/profileImage';
 import {
     approveFreelancerClassOrder,
+    completeFreelancerClassOrder,
+    excludeFreelancerClassOrder,
     getAdminClassOrders,
     getMyFreelancerClassOrders,
     rejectFreelancerClassOrder
@@ -1317,6 +1319,80 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
         navigate('/chat');
     };
 
+    // [기능 설명: 수강 신청의 상태와 진행 상황을 바탕으로 UI에 표시할 배지 스타일과 라벨을 결정합니다.] [작성 이유: 수강 신청의 다양한 상태 조합에 따른 UI 표시 로직을 중앙화하여 코드 중복을 방지하고 유지보수성을 높이기 위해 작성함]
+    const getFreelancerEnrollmentStatusMeta = (enrollment: EnrollmentItem) => {
+        if (enrollment.status === 'APPROVED' && enrollment.progressStatus === 'COMPLETED') {
+            return {
+                badgeClassName: 'bg-blue-100 text-blue-600',
+                label: '수업 완료',
+            };
+        }
+
+        if (enrollment.status === 'PENDING') {
+            return {
+                badgeClassName: 'bg-yellow-100 text-yellow-600',
+                label: '승인 대기',
+            };
+        }
+
+        if (enrollment.status === 'APPROVED') {
+            return {
+                badgeClassName: 'bg-green-100 text-green-600',
+                label: '수강 중',
+            };
+        }
+
+        if (enrollment.status === 'CANCEL_REQUESTED') {
+            return {
+                badgeClassName: 'bg-orange-100 text-orange-600',
+                label: '취소 요청 중',
+            };
+        }
+
+        return {
+            badgeClassName: 'bg-red-100 text-red-600',
+            label: enrollment.status === 'CANCELLED' ? '취소됨' : '거절됨',
+        };
+    };
+
+    // [기능 설명: 특정 클래스 주문을 완료 처리하고, UI의 수강 신청 상태를 '완료'로 즉시 갱신합니다.] [작성 이유: API 호출 결과를 로컬 상태에 바로 반영하여 데이터 일관성을 유지하고 사용자에게 완료 결과를 피드백하기 위해 작성함]
+    const handleFreelancerComplete = async (id: string) => {
+        try {
+            await completeFreelancerClassOrder(id);
+            setFreelancerEnrollments((prev) =>
+                prev.map((enrollment) =>
+                    enrollment.id === id
+                        ? {...enrollment, status: 'APPROVED', progressStatus: 'COMPLETED'}
+                        : enrollment
+                )
+            );
+            showToast('수업이 완료 처리되었습니다.');
+        } catch (error) {
+            showToast('수업 완료 처리 중 오류가 발생했습니다.', 'error');
+        }
+    };
+
+    // [기능 설명: 수강생에게 제외 여부를 확인한 후, 서버에 제외 요청을 보내고 로컬 상태를 '취소됨'으로 갱신합니다.] [작성 이유: 사용자 확인 절차를 거쳐 의도치 않은 제외를 방지하고, API 통신 성공 시 UI를 즉시 동기화하기 위해 작성함]
+    const handleFreelancerExclude = async (id: string, studentName: string) => {
+        if (!window.confirm(`${studentName}님을 수강 목록에서 제외하시겠습니까?`)) {
+            return;
+        }
+
+        try {
+            await excludeFreelancerClassOrder(id);
+            setFreelancerEnrollments((prev) =>
+                prev.map((enrollment) =>
+                    enrollment.id === id
+                        ? {...enrollment, status: 'CANCELLED', progressStatus: 'CANCELLED'}
+                        : enrollment
+                )
+            );
+            showToast('수강생이 제외되었습니다.');
+        } catch (error) {
+            showToast('수강 제외 처리 중 오류가 발생했습니다.', 'error');
+        }
+    };
+
     // [기능: 프리랜서 수강 신청 승인 상태 반영] [이유: 수강생 관리 탭에서 승인 결과를 실제 신청 목록에 즉시 반영하기 위해]
     const handleFreelancerApprove = (id: string) => {
         handleApprove(id);
@@ -1371,13 +1447,10 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                             <td className="px-6 py-4">
                   <span className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-bold",
-                      e.status === 'PENDING' ? "bg-yellow-100 text-yellow-600" :
-                          e.status === 'APPROVED' ? "bg-green-100 text-green-600" :
-                              e.status === 'CANCEL_REQUESTED' ? "bg-orange-100 text-orange-600" :
-                                  "bg-red-100 text-red-600"
+                      getFreelancerEnrollmentStatusMeta(e).badgeClassName
                   )}>
                     {e.status === 'PENDING' ? '승인 대기' :
-                        e.status === 'APPROVED' ? '수강 중' :
+                        e.status === 'APPROVED' ? (e.progressStatus === 'COMPLETED' ? '수업 완료' : '수강 중') :
                             e.status === 'CANCEL_REQUESTED' ? '취소 요청 중' :
                                 e.status === 'CANCELLED' ? '취소됨' : '거절됨'}
                   </span>
@@ -1401,6 +1474,22 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                                 거절
                                             </button>
                                         </>
+                                    )}
+                                    {e.status === 'APPROVED' && e.progressStatus !== 'COMPLETED' && (
+                                        <button
+                                            onClick={() => handleFreelancerComplete(e.id)}
+                                            className="px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition-all"
+                                        >
+                                            수업 완료
+                                        </button>
+                                    )}
+                                    {e.status === 'APPROVED' && (
+                                        <button
+                                            onClick={() => handleFreelancerExclude(e.id, e.studentName)}
+                                            className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-all"
+                                        >
+                                            수강 제외
+                                        </button>
                                     )}
                                     <button
                                         onClick={() => handleChatSimulation(e.studentName)}
