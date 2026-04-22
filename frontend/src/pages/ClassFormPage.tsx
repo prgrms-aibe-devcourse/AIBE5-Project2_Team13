@@ -278,6 +278,9 @@ export default function ClassFormPage() {
     };
 
     try {
+      if (!window.confirm('등록 후 제목, 카테고리, 모집인원은 수정할 수 없습니다. 이대로 등록하시겠습니까?')) {
+        return;
+      }
       await addClass(createPayload);
       setToast('클래스가 성공적으로 등록되었습니다!');
       setTimeout(() => navigate('/profile'), 1500);
@@ -339,10 +342,16 @@ export default function ClassFormPage() {
               <input 
                 type="text" 
                 required
+                disabled={isEditMode}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="클래스의 핵심을 담은 제목을 입력해주세요"
-                className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all"
+                className={cn(
+                  "w-full px-6 py-4 rounded-2xl border-2 transition-all",
+                  isEditMode
+                    ? "bg-gray-50 text-gray-400 border-transparent cursor-not-allowed"
+                    : "bg-ivory border-transparent focus:border-coral outline-none"
+                )}
               />
             </div>
 
@@ -350,9 +359,15 @@ export default function ClassFormPage() {
               <label className="text-sm font-bold text-gray-700 ml-1">카테고리</label>
               <select 
                 required
+                disabled={isEditMode}
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all appearance-none"
+                className={cn(
+                  "w-full px-6 py-4 rounded-2xl border-2 transition-all appearance-none",
+                  isEditMode
+                    ? "bg-gray-50 text-gray-400 border-transparent cursor-not-allowed"
+                    : "bg-ivory border-transparent focus:border-coral outline-none"
+                )}
               >
                 <option value="">카테고리를 선택해주세요</option>
                 {categories.map(cat => (
@@ -513,9 +528,15 @@ export default function ClassFormPage() {
                     type="number" 
                     required
                     min="1"
+                    disabled={isEditMode}
                     value={capacity}
                     onChange={(e) => setCapacity(e.target.value)}
-                    className="w-full px-6 py-4 bg-ivory rounded-2xl border-2 border-transparent focus:border-coral outline-none transition-all pr-12"
+                    className={cn(
+                      "w-full px-6 py-4 rounded-2xl border-2 transition-all pr-12",
+                      isEditMode
+                        ? "bg-gray-50 text-gray-400 border-transparent cursor-not-allowed"
+                        : "bg-ivory border-transparent focus:border-coral outline-none"
+                    )}
                   />
                   <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 font-bold">명</span>
                 </div>
