@@ -1497,7 +1497,6 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
             showToast('수강 신청 승인 중 오류가 발생했습니다.', 'error');
             return;
         }
-        alert('수강 신청이 승인되었습니다. 유저 상태가 수강자로 변경되었습니다.');
     };
 
 // [기능 설명: 거절 사유를 입력받을 모달을 띄우기 위해 선택된 주문 ID를 설정합니다.] [작성 이유: 거절 프로세스를 버튼 클릭과 모달 확정으로 분리하여 사용자 경험을 개선하고 의도치 않은 거절을 방지하기 위해 작성함]
@@ -1623,7 +1622,6 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     // [기능: 프리랜서 수강 신청 승인 상태 반영] [이유: 수강생 관리 탭에서 승인 결과를 실제 신청 목록에 즉시 반영하기 위해]
     const handleFreelancerApprove = (id: string) => {
         handleApprove(id);
-        alert('수강 신청이 승인되었습니다. 유저 상태가 수강자로 변경되었습니다.');
 
         // [기능: 프리랜서 수강 신청 거절 상태 반영] [이유: 수강생 관리 탭에서 거절 결과를 실제 신청 목록에 즉시 반영하기 위해]
     };
