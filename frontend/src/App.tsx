@@ -4,6 +4,7 @@ import Header from './components/Header';
 import FloatingSupportButton from './components/FloatingSupportButton';
 import Home from './pages/Home';
 import BrowseClasses from './pages/BrowseClasses';
+import SearchPage from './pages/SearchPage';
 import RequestBoard from './pages/RequestBoard';
 import ExpertRegister from './pages/ExpertRegister';
 import AICounseling from './pages/AICounseling';
@@ -48,6 +49,7 @@ export default function App() {
                             <Routes>
                               <Route path="/" element={<Home />} />
                               <Route path="/browse" element={<BrowseClasses />} />
+                              <Route path="/search" element={<SearchPage />} />
                               <Route path="/requests" element={<RequestBoard />} />
                               <Route path="/requests/write" element={<RequestWrite />} />
                               <Route path="/requests/edit/:id" element={<RequestEdit />} />

@@ -42,6 +42,7 @@ type Role = 'ADMIN' | 'FREELANCER' | 'USER';
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen]   = useState(false);
   const [isNotiOpen, setIsNotiOpen]   = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [hasNewChat, setHasNewChat]   = useState(false);
@@ -53,6 +54,18 @@ export default function Header() {
   const location   = useLocation();
   const navigate   = useNavigate();
   const role       = (user?.role as Role) ?? 'USER';
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const trimmedKeyword = searchKeyword.trim();
+    if (!trimmedKeyword) {
+      navigate('/search');
+      return;
+    }
+
+    navigate(`/search?q=${encodeURIComponent(trimmedKeyword)}`);
+  };
 
   // ─── 알림 목록 조회 — 로그인 상태 변경 시에만 (페이지 이동 시 덮어쓰지 않음) ──
   useEffect(() => {
@@ -246,14 +259,16 @@ export default function Header() {
 
           {/* Search */}
           <div className="hidden md:flex w-full max-w-[180px] mr-4 shrink-0">
-            <div className="relative w-full">
+            <form className="relative w-full" onSubmit={handleSearchSubmit}>
               <input
                 type="text"
                 placeholder="검색"
+                value={searchKeyword}
+                onChange={(event) => setSearchKeyword(event.target.value)}
                 className="w-full h-10 pl-10 pr-4 bg-gray-100 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-coral/20 outline-none"
               />
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={16} />
-            </div>
+            </form>
           </div>
 
           {/* Navigation */}
