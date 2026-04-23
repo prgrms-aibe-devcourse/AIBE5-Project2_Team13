@@ -706,8 +706,13 @@ export default function ClassDetail() {
                                                 : handleApply
                                         }
                                         disabled={!isOwner && !currentEnrollment && (applyLoading || isClosed)}
-                                        className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg
-             disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
+                                        className={cn(
+                                            "w-full py-4 font-bold rounded-2xl transition-all text-lg",
+                                            isOwner || !!currentEnrollment
+                                                ? "bg-gray-300 text-gray-500 shadow-none hover:bg-gray-300"
+                                                : "bg-coral text-white hover:bg-coral/90 shadow-lg shadow-coral/20",
+                                            !isOwner && !currentEnrollment && "disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
+                                        )}
                                     >
                                         {applyLoading ? '처리 중...'
                                             : isOwner ? '내 클래스'
