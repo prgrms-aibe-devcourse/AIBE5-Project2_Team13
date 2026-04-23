@@ -1,6 +1,7 @@
 package com.ilsamcheonri.hobby.controller;
 
 import com.ilsamcheonri.hobby.dto.classorder.ClassOrderRequest;
+import com.ilsamcheonri.hobby.dto.classorder.FreelancerDashboardResponse;
 import com.ilsamcheonri.hobby.dto.classorder.ClassOrderSummaryResponse;
 import com.ilsamcheonri.hobby.service.ClassOrderService;
 import jakarta.validation.Valid;
@@ -14,7 +15,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -56,6 +59,28 @@ public class ClassOrderController {
             @AuthenticationPrincipal String email
     ) {
         return ResponseEntity.ok(classOrderService.getFreelancerClassOrders(email));
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 프리랜서의 대시보드 정보를 조회합니다.
+     * - 로그인 사용자 이메일을 기반으로 데이터 조회
+     * - 기간(start, end) 조건으로 필터링 가능
+     *
+     * @param email 로그인 사용자 이메일
+     * @param start 조회 시작일 (선택)
+     * @param end 조회 종료일 (선택)
+     * @return 프리랜서 대시보드 응답 DTO
+     */
+    @GetMapping("/freelancer/me/dashboard")
+    public ResponseEntity<FreelancerDashboardResponse> getFreelancerDashboard(
+            @AuthenticationPrincipal String email,
+            @RequestParam(required = false) LocalDate start,
+            @RequestParam(required = false) LocalDate end
+    ) {
+        return ResponseEntity.ok(classOrderService.getFreelancerDashboard(email, start, end));
     }
 
     // [기능: 프리랜서 수강 신청 승인 API] [이유: 수강생 관리 탭에서 승인 버튼으로 신청 상태를 APPROVED/IN_PROGRESS로 변경하기 위해]

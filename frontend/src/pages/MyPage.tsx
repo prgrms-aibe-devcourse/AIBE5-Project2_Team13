@@ -100,8 +100,10 @@ import {
     completeFreelancerClassOrder,
     excludeFreelancerClassOrder,
     getAdminClassOrders,
+    getFreelancerDashboard,
     getMyFreelancerClassOrders,
-    rejectFreelancerClassOrder
+    rejectFreelancerClassOrder,
+    type FreelancerDashboardResponse
 } from '@/src/api/classOrder';
 import {
     createReview,
@@ -113,6 +115,7 @@ import {useNavigate, Link} from 'react-router-dom';
 import MyRequestManage from './MyRequestManage';
 import SafeImage from '../components/SafeImage';
 import FollowingList from '../components/FollowingList';
+import DatePicker from '@/src/components/DatePicker';
 
 const REVENUE_DATA = [
     {month: '1월', revenue: 1200000, students: 45},
@@ -122,6 +125,53 @@ const REVENUE_DATA = [
     {month: '5월', revenue: 2800000, students: 92},
     {month: '6월', revenue: 3200000, students: 108},
 ];
+
+/**
+ * @author 김한비
+ * @since 2026.04.23
+ *
+ * Date 객체를 input[type="date"] 형식(YYYY-MM-DD)으로 변환합니다.
+ *
+ * @param date 날짜 객체
+ * @return 포맷된 날짜 문자열
+ */
+const formatDateInput = (date: Date) => date.toISOString().slice(0, 10);
+
+/**
+ * @author 김한비
+ * @since 2026.04.23
+ *
+ * 프리랜서 대시보드의 기본 조회 기간을 생성합니다.
+ * - 현재 날짜 기준으로 최근 6개월 범위 설정
+ *
+ * @return 기본 조회 기간 (start, end)
+ */
+const createDefaultDashboardRange = () => {
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    return {
+        start: formatDateInput(start),
+        end: formatDateInput(now),
+    };
+};
+
+/**
+ * @author 김한비
+ * @since 2026.04.23
+ *
+ * 프리랜서 대시보드의 기본값 객체입니다.
+ * - API 응답 전 초기 상태 및 예외 상황 대비
+ */
+const DEFAULT_FREELANCER_DASHBOARD: FreelancerDashboardResponse = {
+    expectedRevenueThisMonth: 0,
+    revenueChangeRate: 0,
+    totalStudents: 0,
+    studentsAddedThisMonth: 0,
+    averageRating: 0,
+    reviewCount: 0,
+    totalRevenue: 0,
+    trend: [],
+};
 
 type MenuType =
     'activity'
@@ -375,7 +425,9 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     const [studentCancelReason, setStudentCancelReason] = useState('');
     const [selectedCity, setSelectedCity] = useState('');
     const [selectedDistrict, setSelectedDistrict] = useState('');
-    const [dashboardDateRange, setDashboardDateRange] = useState({start: '2024-01-01', end: '2024-06-30'});
+    const [dashboardDateRange, setDashboardDateRange] = useState(createDefaultDashboardRange);
+    const [freelancerDashboard, setFreelancerDashboard] = useState<FreelancerDashboardResponse>(DEFAULT_FREELANCER_DASHBOARD);
+    const [freelancerDashboardLoading, setFreelancerDashboardLoading] = useState(false);
     const [freelancerProfile, setFreelancerProfile] = useState({
         freelancerId: null as number | null,
         profileId: null as number | null,
@@ -550,6 +602,55 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
             isMounted = false;
         };
     }, [authLoading, userRole]);
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 프리랜서 대시보드 데이터를 조회합니다.
+     * - 인증 완료 + 프리랜서 권한 + 대시보드 메뉴일 때만 실행
+     * - 선택한 기간 기준으로 API 호출
+     * - 언마운트 시 상태 업데이트 방지 처리 포함
+     */
+    useEffect(() => {
+        if (authLoading || userRole !== 'ROLE_FREELANCER' || activeMenu !== 'freelancer_dashboard') {
+            return;
+        }
+
+        if (!dashboardDateRange.start || !dashboardDateRange.end) {
+            return;
+        }
+
+        let isMounted = true;
+
+        const loadFreelancerDashboard = async () => {
+            setFreelancerDashboardLoading(true);
+            try {
+                const dashboard = await getFreelancerDashboard({
+                    start: dashboardDateRange.start,
+                    end: dashboardDateRange.end,
+                });
+
+                if (isMounted) {
+                    setFreelancerDashboard(dashboard);
+                }
+            } catch (error) {
+                if (isMounted) {
+                    showToast('수익 대시보드를 불러오지 못했습니다.', 'error');
+                }
+            } finally {
+                if (isMounted) {
+                    setFreelancerDashboardLoading(false);
+                }
+            }
+        };
+
+        loadFreelancerDashboard();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [activeMenu, authLoading, dashboardDateRange.end, dashboardDateRange.start, userRole]);
 
     useEffect(() => {
         return () => {
@@ -1699,8 +1800,10 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                         </div>
                         <span className="font-bold text-gray-500">이번 달 예상 수익</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900">2,450,000원</p>
-                    <p className="text-sm text-green-500 font-bold mt-2">▲ 지난 달 대비 15%</p>
+                    <p className="text-3xl font-bold text-gray-900">{freelancerDashboard.expectedRevenueThisMonth.toLocaleString('ko-KR')}원</p>
+                    <p className={cn("text-sm font-bold mt-2", freelancerDashboard.revenueChangeRate >= 0 ? "text-green-500" : "text-red-500")}>
+                        {freelancerDashboard.revenueChangeRate >= 0 ? '▲' : '▼'} 지난 달 대비 {Math.abs(freelancerDashboard.revenueChangeRate)}%
+                    </p>
                 </div>
                 <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
@@ -1709,8 +1812,8 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                         </div>
                         <span className="font-bold text-gray-500">수강생 수</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900">128명</p>
-                    <p className="text-sm text-coral font-bold mt-2">이번 달 +12명</p>
+                    <p className="text-3xl font-bold text-gray-900">{freelancerDashboard.totalStudents.toLocaleString('ko-KR')}명</p>
+                    <p className="text-sm text-coral font-bold mt-2">이번 달 +{freelancerDashboard.studentsAddedThisMonth.toLocaleString('ko-KR')}명</p>
                 </div>
                 <div className="bg-white rounded-[32px] p-8 border border-coral/10 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
@@ -1719,8 +1822,8 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                         </div>
                         <span className="font-bold text-gray-500">평균 별점</span>
                     </div>
-                    <p className="text-3xl font-bold text-gray-900">4.9 / 5.0</p>
-                    <p className="text-sm text-gray-400 mt-2">총 56개의 리뷰</p>
+                    <p className="text-3xl font-bold text-gray-900">{freelancerDashboard.averageRating.toFixed(1)} / 5.0</p>
+                    <p className="text-sm text-gray-400 mt-2">총 {freelancerDashboard.reviewCount.toLocaleString('ko-KR')}개의 리뷰</p>
                 </div>
             </div>
 
@@ -1728,26 +1831,34 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
             <div className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                     <h3 className="text-xl font-bold text-gray-900">수익 및 수강생 추이</h3>
-                    <div className="flex items-center gap-2 bg-ivory p-2 rounded-2xl">
-                        <input
-                            type="date"
+                    <div className="grid w-full gap-3 md:w-auto md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                        <DatePicker
                             value={dashboardDateRange.start}
-                            onChange={(e) => setDashboardDateRange(prev => ({...prev, start: e.target.value}))}
-                            className="bg-transparent text-sm font-bold text-gray-600 outline-none"
+                            onChange={(value) => setDashboardDateRange(prev => ({...prev, start: value}))}
+                            placeholder="시작일 선택"
+                            placement="top"
+                            panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
-                        <span className="text-gray-300">~</span>
-                        <input
-                            type="date"
+                        <span className="text-center text-gray-300">~</span>
+                        <DatePicker
                             value={dashboardDateRange.end}
-                            onChange={(e) => setDashboardDateRange(prev => ({...prev, end: e.target.value}))}
-                            className="bg-transparent text-sm font-bold text-gray-600 outline-none"
+                            onChange={(value) => setDashboardDateRange(prev => ({...prev, end: value}))}
+                            placeholder="종료일 선택"
+                            placement="top"
+                            panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
                     </div>
                 </div>
 
+                {freelancerDashboardLoading && (
+                    <div className="mb-6 rounded-2xl bg-ivory px-4 py-3 text-sm text-gray-500">
+                        대시보드 데이터를 불러오는 중입니다.
+                    </div>
+                )}
+
                 <div className="h-[350px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={REVENUE_DATA}>
+                        <LineChart data={freelancerDashboard.trend}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0"/>
                             <XAxis dataKey="month" axisLine={false} tickLine={false}
                                    tick={{fill: '#9ca3af', fontSize: 12}} dy={10}/>
@@ -1777,11 +1888,11 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                 <div className="grid grid-cols-2 gap-8 mt-12 pt-8 border-t border-coral/5">
                     <div className="text-center">
                         <p className="text-sm font-bold text-gray-400 mb-1">누적 총 수익</p>
-                        <p className="text-2xl font-bold text-gray-900">15,800,000원</p>
+                        <p className="text-2xl font-bold text-gray-900">{freelancerDashboard.totalRevenue.toLocaleString('ko-KR')}원</p>
                     </div>
                     <div className="text-center">
                         <p className="text-sm font-bold text-gray-400 mb-1">누적 총 수강생</p>
-                        <p className="text-2xl font-bold text-gray-900">482명</p>
+                        <p className="text-2xl font-bold text-gray-900">{freelancerDashboard.totalStudents.toLocaleString('ko-KR')}명</p>
                     </div>
                 </div>
             </div>

@@ -57,6 +57,24 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
             ClassOrder.ApprovalStatus approvalStatus
     );
 
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 프리랜서의 클래스 신청 목록을 승인 상태별로 조회합니다.
+     * - 삭제되지 않은 데이터만 조회 후 생성일 기준 오름차순 정렬
+     * - classBoard, student를 함께 조회하여 N+1 문제 방지
+     *
+     * @param freelancerId 프리랜서 ID
+     * @param approvalStatuses 조회할 승인 상태 목록
+     * @return 조건에 해당하는 신청 목록
+     */
+    @EntityGraph(attributePaths = {"classBoard", "student"})
+    List<ClassOrder> findByClassBoardFreelancerIdAndApprovalStatusInAndIsDeletedFalseOrderByCreatedAtAsc(
+            Long freelancerId,
+            List<ClassOrder.ApprovalStatus> approvalStatuses
+    );
+
     // [기능 설명: 삭제되지 않은 모든 클래스 주문 내역을 생성일 기준 최신순으로 조회하며, 관련된 클래스 정보와 학생 정보를 즉시 로딩합니다.] [작성 이유: 관리자 대시보드 등에서 전체 주문 현황을 성능 저하 없이 한 번에 조회하고 N+1 문제를 방지하기 위해 작성함]
     @EntityGraph(attributePaths = {"classBoard", "student"})
     List<ClassOrder> findByIsDeletedFalseOrderByCreatedAtDesc();
@@ -72,8 +90,8 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
      * @author 김한비
      * @since 2026.04.23
      *
-     * 특정 학생의 신청 내역을 소프트 삭제합니다.
-     * - 실제 삭제가 아닌 isDeleted = true로 상태만 변경
+     * 특정 학생의 클래스 신청 내역을 소프트 삭제합니다.
+     * - 실제 삭제가 아닌 isDeleted = true로 상태 변경
      * - 이미 삭제된 데이터는 제외
      *
      * @param studentId 학생 ID
