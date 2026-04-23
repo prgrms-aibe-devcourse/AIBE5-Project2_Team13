@@ -2,19 +2,30 @@ package com.ilsamcheonri.hobby.service;
 
 import com.ilsamcheonri.hobby.dto.classorder.ClassOrderRequest;
 import com.ilsamcheonri.hobby.dto.classorder.ClassOrderSummaryResponse;
+import com.ilsamcheonri.hobby.dto.classorder.FreelancerDashboardResponse;
 import com.ilsamcheonri.hobby.entity.ClassBoard;
 import com.ilsamcheonri.hobby.entity.ClassOrder;
 import com.ilsamcheonri.hobby.entity.Member;
+import com.ilsamcheonri.hobby.entity.Review;
 import com.ilsamcheonri.hobby.repository.ClassBoardRepository;
 import com.ilsamcheonri.hobby.repository.ClassOrderRepository;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
+import com.ilsamcheonri.hobby.repository.ReviewRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +34,7 @@ public class ClassOrderService {
     private final ClassOrderRepository classOrderRepository;
     private final ClassBoardRepository classBoardRepository;
     private final MemberRepository memberRepository;
+    private final ReviewRepository reviewRepository;
     private final NotificationService notificationService; // ✅ 알림 공통 모듈
 
     // [기능: 수강 신청 생성 처리] [이유: 신청 생성 시 class_order와 class_board의 진행 상태를 모두 BEFORE_START로 맞추기 위해]
@@ -270,13 +282,239 @@ public class ClassOrderService {
         }
     }
 
-    // [기능: 프리랜서 소유 클래스 검증] [이유: 본인 클래스 신청 건에 대해서만 승인·거절이 가능하도록 제한하기 위해]
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 프리랜서 대시보드 정보를 조회합니다.
+     * - 승인된 신청 내역과 리뷰를 기반으로 매출, 수강생 수, 평점 통계 계산
+     * - 조회 기간이 없으면 최근 6개월 기준으로 조회
+     * - 시작일이 종료일보다 늦으면 예외 발생
+     *
+     * @param freelancerEmail 프리랜서 이메일
+     * @param start 조회 시작일
+     * @param end 조회 종료일
+     * @return 프리랜서 대시보드 응답 DTO
+     */
+    @Transactional(readOnly = true)
+    public FreelancerDashboardResponse getFreelancerDashboard(String freelancerEmail, LocalDate start, LocalDate end) {
+        Member freelancer = memberRepository.findByEmail(freelancerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        LocalDate safeStart = start != null ? start : LocalDate.now().minusMonths(5).withDayOfMonth(1);
+        LocalDate safeEnd = end != null ? end : LocalDate.now();
+        if (safeStart.isAfter(safeEnd)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "조회 시작일은 종료일보다 늦을 수 없습니다.");
+        }
+
+        List<ClassOrder> paidOrders = classOrderRepository
+                .findByClassBoardFreelancerIdAndApprovalStatusInAndIsDeletedFalseOrderByCreatedAtAsc(
+                        freelancer.getId(),
+                        List.of(ClassOrder.ApprovalStatus.APPROVED)
+                );
+        List<Review> reviews = reviewRepository.findFreelancerReviews(freelancer.getId());
+
+        YearMonth currentMonth = YearMonth.from(LocalDate.now());
+        YearMonth previousMonth = currentMonth.minusMonths(1);
+
+        int currentMonthRevenue = sumRevenueForMonth(paidOrders, currentMonth);
+        int previousMonthRevenue = sumRevenueForMonth(paidOrders, previousMonth);
+
+        double averageRating = reviews.stream()
+                .map(Review::getRating)
+                .filter(rating -> rating != null)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0d);
+
+        return FreelancerDashboardResponse.builder()
+                .expectedRevenueThisMonth(currentMonthRevenue)
+                .revenueChangeRate(calculateRevenueChangeRate(currentMonthRevenue, previousMonthRevenue))
+                .totalStudents(paidOrders.size())
+                .studentsAddedThisMonth(countOrdersForMonth(paidOrders, currentMonth))
+                .averageRating(averageRating)
+                .reviewCount(reviews.size())
+                .totalRevenue(paidOrders.stream()
+                        .map(ClassOrder::getAmount)
+                        .filter(amount -> amount != null)
+                        .mapToInt(Integer::intValue)
+                        .sum())
+                .trend(buildTrend(paidOrders, safeStart, safeEnd))
+                .build();
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 월의 총 매출을 계산합니다.
+     * - 해당 월에 생성된 주문만 필터링
+     * - 금액(amount)이 존재하는 주문만 합산
+     *
+     * @param orders 주문 목록
+     * @param yearMonth 기준 연월
+     * @return 해당 월 총 매출
+     */
+    private int sumRevenueForMonth(List<ClassOrder> orders, YearMonth yearMonth) {
+        return orders.stream()
+                .filter(order -> order.getCreatedAt() != null)
+                .filter(order -> YearMonth.from(order.getCreatedAt()).equals(yearMonth))
+                .map(ClassOrder::getAmount)
+                .filter(amount -> amount != null)
+                .mapToInt(Integer::intValue)
+                .sum();
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 월의 주문 수를 계산합니다.
+     * - 해당 월에 생성된 주문만 카운트
+     *
+     * @param orders 주문 목록
+     * @param yearMonth 기준 연월
+     * @return 해당 월 주문 수
+     */
+    private int countOrdersForMonth(List<ClassOrder> orders, YearMonth yearMonth) {
+        return (int) orders.stream()
+                .filter(order -> order.getCreatedAt() != null)
+                .filter(order -> YearMonth.from(order.getCreatedAt()).equals(yearMonth))
+                .count();
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 전월 대비 매출 증감률을 계산합니다.
+     * - 이전 달 매출이 0 이하일 경우 예외 처리 (현재 매출 > 0이면 100%)
+     * - 계산 결과는 반올림하여 정수로 반환
+     *
+     * @param currentMonthRevenue 현재 월 매출
+     * @param previousMonthRevenue 이전 월 매출
+     * @return 매출 증감률 (%)
+     */
+    private int calculateRevenueChangeRate(int currentMonthRevenue, int previousMonthRevenue) {
+        if (previousMonthRevenue <= 0) {
+            return currentMonthRevenue > 0 ? 100 : 0;
+        }
+
+        double changeRate = ((double) (currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100;
+        return (int) Math.round(changeRate);
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 조회 기간 내 월별 매출 및 수강생 추이 데이터를 생성합니다.
+     * - 시작월부터 종료월까지 월 단위 통계 구조를 미리 생성
+     * - 주문 데이터를 월별로 집계하여 매출과 신청 수를 계산
+     *
+     * @param orders 주문 목록
+     * @param start 조회 시작일
+     * @param end 조회 종료일
+     * @return 월별 추이 데이터 목록
+     */
+    private List<FreelancerDashboardResponse.TrendItem> buildTrend(
+            List<ClassOrder> orders,
+            LocalDate start,
+            LocalDate end
+    ) {
+        Map<YearMonth, int[]> monthlyStats = new LinkedHashMap<>();
+        YearMonth startMonth = YearMonth.from(start);
+        YearMonth endMonth = YearMonth.from(end);
+
+        YearMonth cursor = startMonth;
+        while (!cursor.isAfter(endMonth)) {
+            monthlyStats.put(cursor, new int[]{0, 0});
+            cursor = cursor.plusMonths(1);
+        }
+
+        LocalDateTime startDateTime = start.atStartOfDay();
+        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+
+        for (ClassOrder order : orders) {
+            if (order.getCreatedAt() == null) {
+                continue;
+            }
+
+            LocalDateTime createdAt = order.getCreatedAt();
+            if (createdAt.isBefore(startDateTime) || !createdAt.isBefore(endDateTime)) {
+                continue;
+            }
+
+            int[] stats = monthlyStats.get(YearMonth.from(createdAt));
+            if (stats == null) {
+                continue;
+            }
+
+            stats[0] += order.getAmount() != null ? order.getAmount() : 0;
+            stats[1] += 1;
+        }
+
+        List<FreelancerDashboardResponse.TrendItem> trend = new ArrayList<>();
+        for (Map.Entry<YearMonth, int[]> entry : monthlyStats.entrySet()) {
+            int[] stats = entry.getValue();
+            trend.add(FreelancerDashboardResponse.TrendItem.builder()
+                    .month(formatMonthLabel(entry.getKey(), startMonth, endMonth))
+                    .revenue(stats[0])
+                    .students(stats[1])
+                    .build());
+        }
+        return trend;
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 월 라벨을 포맷팅합니다.
+     * - 동일 연도일 경우 "M월" 형식
+     * - 연도가 다르면 "yy.M" 형식으로 표시
+     *
+     * @param month 대상 월
+     * @param startMonth 시작 월
+     * @param endMonth 종료 월
+     * @return 포맷된 월 문자열
+     */
+    private String formatMonthLabel(YearMonth month, YearMonth startMonth, YearMonth endMonth) {
+        if (startMonth.getYear() == endMonth.getYear()) {
+            return month.getMonthValue() + "월";
+        }
+
+        return month.format(DateTimeFormatter.ofPattern("yy.M", Locale.KOREAN));
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 프리랜서가 해당 신청 건의 소유자인지 검증합니다.
+     * - 클래스 등록자의 이메일과 요청 이메일 비교
+     * - 불일치 시 예외 발생
+     *
+     * @param freelancerEmail 프리랜서 이메일
+     * @param classOrder 신청 정보
+     */
     private void validateFreelancerOwnership(String freelancerEmail, ClassOrder classOrder) {
         if (!classOrder.getClassBoard().getFreelancer().getEmail().equals(freelancerEmail)) {
             throw new IllegalStateException("본인 클래스 신청 건만 처리할 수 있습니다.");
         }
     }
-    // [기능 설명: 제공된 이메일로 회원을 조회하고, 해당 회원의 역할 코드가 'A'(관리자)인지 확인하여 접근 권한을 검증합니다.] [작성 이유: 관리자 전용 API 및 기능에 대한 비인가 접근을 차단하고 보안성을 강화하기 위해 작성함]
+
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 관리자 권한 여부를 검증합니다.
+     * - 이메일로 회원 조회 후 역할 코드 확인
+     * - 관리자(A)가 아니면 접근 차단
+     *
+     * @param email 사용자 이메일
+     */
     private void validateAdmin(String email) {
         Member admin = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
