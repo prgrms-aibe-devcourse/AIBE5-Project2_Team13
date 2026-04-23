@@ -271,7 +271,7 @@ export default function ClassDetail() {
         });
     };
 
-    //클래스 '구매하기' 버튼 눌렀을 때
+    //클래스 '신청하기' 버튼 눌렀을 때
     const handleApply = async () => {
         // 1. 검증 로직을 무조건 맨 위로! (불필요한 API 호출 방지)
         if (isOwner) {
@@ -679,7 +679,7 @@ export default function ClassDetail() {
                                         <div className="text-[15px] text-gray-500">
                                             <div className="flex items-center gap-3">
                                                 <Clock size={14} className="text-gray-400"/>
-                                                <span>수업 일정:</span>
+                                                <span>모집 기간:</span>
                                             </div>
                                             <div className="ml-7 mt-1 text-gray-700">
                                                 {formatSchedule(item.startAt, item.endAt)}
@@ -690,31 +690,9 @@ export default function ClassDetail() {
                                             <span>모집 인원: {item.maxCapacity ?? '-'}</span>
                                         </div>
                                         <div
-                                            className="flex items-center gap-3 text-[15px] text-gray-500 pb-3 border-b border-gray-200">
+                                            className="flex items-center gap-3 text-[15px] text-gray-500">
                                             <MapPin size={14} className="text-gray-400"/>
-                                            <span>수업 지역: {item.isOffline === false ? '온라인' : (item.location ?? '-')}</span>
-                                        </div>
-                                        <div className="pt-3">
-                                            <div className="flex items-center gap-3 text-[15px] text-gray-500 mb-1">
-                                                <ShieldCheck size={14} className="text-gray-400"/>
-                                                <span>등록일</span>
-                                            </div>
-                                            <div className="pl-7 text-[15px] text-gray-700">
-                                                {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ko-KR', {
-                                                    year: 'numeric',
-                                                    month: '2-digit',
-                                                    day: '2-digit'
-                                                }).replace(/\. /g, '. ').replace(/\.$/, '') : '-'}
-                                                {item.updatedAt && (
-                                                    <div className="text-gray-400 text-sm mt-0.5">
-                                                        (최근 수정: {new Date(item.updatedAt).toLocaleDateString('ko-KR', {
-                                                        year: 'numeric',
-                                                        month: '2-digit',
-                                                        day: '2-digit'
-                                                    }).replace(/\. /g, '. ').replace(/\.$/, '')})
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <span>지역: {item.isOffline === false ? '온라인' : (item.location ?? '-')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -730,7 +708,7 @@ export default function ClassDetail() {
                                             : isOwner ? '내 클래스'
                                                 : currentEnrollment ? '신청 완료'
                                                     : isClosed ? '모집 마감'
-                                                        : '구매하기'}
+                                                        : '산청하기'}
                                     </button>
                                     <div className="grid grid-cols-3 gap-2">
                                         <button
