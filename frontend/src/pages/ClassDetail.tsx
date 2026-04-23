@@ -158,6 +158,7 @@ export default function ClassDetail() {
                     location: apiClass.isOnline ? undefined : apiClass.location,
                     startAt: apiClass.startAt,
                     endAt: apiClass.endAt,
+                    currentVolume: apiClass.currentVolume ?? 0,
                     maxCapacity: apiClass.maxCapacity,
                     curriculum: apiClass.curriculum,
                     description: apiClass.description,
@@ -271,7 +272,7 @@ export default function ClassDetail() {
         });
     };
 
-    //클래스 '구매하기' 버튼 눌렀을 때
+    //클래스 '신청하기' 버튼 눌렀을 때
     const handleApply = async () => {
         // 1. 검증 로직을 무조건 맨 위로! (불필요한 API 호출 방지)
         if (isOwner) {
@@ -300,7 +301,7 @@ export default function ClassDetail() {
             applyForClass(item.id, item.title, item.price, String(orderId));
             await refreshEnrollments();
             showToast('신청이 완료되었습니다');
-            setTimeout(() => navigate('/profile'), 1500);
+            setTimeout(() => navigate('/profile/activity'), 1500);
 
         } catch (error: any) {
             // 401 에러가 여기서 잡히는지 확인하세요!
@@ -679,7 +680,7 @@ export default function ClassDetail() {
                                         <div className="text-[15px] text-gray-500">
                                             <div className="flex items-center gap-3">
                                                 <Clock size={14} className="text-gray-400"/>
-                                                <span>수업 일정:</span>
+                                                <span>모집 기간:</span>
                                             </div>
                                             <div className="ml-7 mt-1 text-gray-700">
                                                 {formatSchedule(item.startAt, item.endAt)}
@@ -687,50 +688,37 @@ export default function ClassDetail() {
                                         </div>
                                         <div className="flex items-center gap-3 text-[15px] text-gray-500">
                                             <Users size={14} className="text-gray-400"/>
-                                            <span>모집 인원: {item.maxCapacity ?? '-'}</span>
+                                            <span>모집 인원: {item.currentVolume ?? 0} / {item.maxCapacity ?? '-'}명</span>
                                         </div>
                                         <div
-                                            className="flex items-center gap-3 text-[15px] text-gray-500 pb-3 border-b border-gray-200">
+                                            className="flex items-center gap-3 text-[15px] text-gray-500">
                                             <MapPin size={14} className="text-gray-400"/>
-                                            <span>수업 지역: {item.isOffline === false ? '온라인' : (item.location ?? '-')}</span>
-                                        </div>
-                                        <div className="pt-3">
-                                            <div className="flex items-center gap-3 text-[15px] text-gray-500 mb-1">
-                                                <ShieldCheck size={14} className="text-gray-400"/>
-                                                <span>등록일</span>
-                                            </div>
-                                            <div className="pl-7 text-[15px] text-gray-700">
-                                                {item.createdAt ? new Date(item.createdAt).toLocaleDateString('ko-KR', {
-                                                    year: 'numeric',
-                                                    month: '2-digit',
-                                                    day: '2-digit'
-                                                }).replace(/\. /g, '. ').replace(/\.$/, '') : '-'}
-                                                {item.updatedAt && (
-                                                    <div className="text-gray-400 text-sm mt-0.5">
-                                                        (최근 수정: {new Date(item.updatedAt).toLocaleDateString('ko-KR', {
-                                                        year: 'numeric',
-                                                        month: '2-digit',
-                                                        day: '2-digit'
-                                                    }).replace(/\. /g, '. ').replace(/\.$/, '')})
-                                                    </div>
-                                                )}
-                                            </div>
+                                            <span>지역: {item.isOffline === false ? '온라인' : (item.location ?? '-')}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="space-y-3">
                                     <button
-                                        onClick={handleApply}
-                                        disabled={applyLoading || !!currentEnrollment || isClosed || isOwner}
-                                        className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg
-             disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
+                                        onClick={
+                                            isOwner || !!currentEnrollment
+                                                ? () => navigate('/profile/freelancer/classes')
+                                                : handleApply
+                                        }
+                                        disabled={!isOwner && !currentEnrollment && (applyLoading || isClosed)}
+                                        className={cn(
+                                            "w-full py-4 font-bold rounded-2xl transition-all text-lg",
+                                            isOwner || !!currentEnrollment
+                                                ? "bg-gray-300 text-gray-500 shadow-none hover:bg-gray-300"
+                                                : "bg-coral text-white hover:bg-coral/90 shadow-lg shadow-coral/20",
+                                            !isOwner && !currentEnrollment && "disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
+                                        )}
                                     >
                                         {applyLoading ? '처리 중...'
                                             : isOwner ? '내 클래스'
                                                 : currentEnrollment ? '신청 완료'
                                                     : isClosed ? '모집 마감'
-                                                        : '구매하기'}
+                                                        : '산청하기'}
                                     </button>
                                     <div className="grid grid-cols-3 gap-2">
                                         <button

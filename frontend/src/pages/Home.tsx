@@ -62,7 +62,7 @@ export default function Home() {
       <section className="relative z-20 -mt-28 md:-mt-36 pt-20 pb-20 bg-white rounded-t-[40px] shadow-[0_-18px_40px_rgba(0,0,0,0.08)]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="mb-10">
-            <h2 className="text-2xl font-bold text-gray-900">어떤 취미를 배우고 싶나요?</h2>
+            <h2 className="text-3xl font-bold text-gray-900 mb-3">어떤 취미를 배우고 싶나요?</h2>
           </div>
           <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-4">
             {[

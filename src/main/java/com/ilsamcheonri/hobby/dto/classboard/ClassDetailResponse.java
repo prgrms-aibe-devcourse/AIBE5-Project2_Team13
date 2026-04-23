@@ -27,6 +27,7 @@ public class ClassDetailResponse {
     private Boolean isOnline;
     private String startAt;
     private String endAt;
+    private Integer currentVolume;
     private Integer maxCapacity;
     private String status;
     private String curriculum;
@@ -64,6 +65,7 @@ public class ClassDetailResponse {
                 .isOnline(classBoard.isOnline())
                 .startAt(classBoard.getStartAt() != null ? classBoard.getStartAt().toString() : null)
                 .endAt(classBoard.getEndAt() != null ? classBoard.getEndAt().toString() : null)
+                .currentVolume(classBoard.getCurrentVolume())
                 .maxCapacity(classBoard.getMaxCapacity())
                 .status(classBoard.getStatus())
                 .curriculum(classBoard.getCurriculum())
