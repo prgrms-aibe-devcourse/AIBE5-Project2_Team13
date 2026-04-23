@@ -15,10 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.List;
 
 /**
- * 🔔 알림 공통 모듈 (NotificationService)
+ * 알림 공통 모듈.
  *
- * 다른 Service에서 아래처럼 호출합니다.
- *
+ * <p>다른 Service에서 아래 메서드를 호출해 알림을 발송합니다.</p>
+ * <pre>
  *   // 1명에게 알림
  *   notificationService.send(receiverId, senderId, "ORDER_APPROVED", "메시지", "/class/1");
  *
@@ -27,17 +27,19 @@ import java.util.List;
  *
  *   // 관리자 전체에게 알림 (프리랜서 신청 시)
  *   notificationService.sendToAdmins(senderId, senderName, "FREELANCER_APPLY", "/profile");
+ * </pre>
  *
- * ─────────────────────────────────────────────────────
- * 알림 타입 목록
- * CLASS_REGISTER   → 팔로우한 프리랜서가 클래스 등록 (수신: 팔로워)
- * ORDER_APPROVED   → 수강 신청 승인 (수신: 학생)
- * ORDER_REJECTED   → 수강 신청 거절 (수신: 학생)
- * CLASS_COMPLETED  → 수강 완료 (수신: 학생)
- * CLASS_CANCELLED  → 클래스 종료/취소 (수신: 학생)
- * NEW_ORDER        → 새 수강 신청 (수신: 프리랜서)
- * NEW_REVIEW       → 리뷰 등록 (수신: 프리랜서)
- * FREELANCER_APPLY → 프리랜서 등록 신청 (수신: 관리자)
+ * <p><b>알림 타입 목록</b></p>
+ * <ul>
+ *   <li>CLASS_REGISTER   - 팔로우한 프리랜서가 클래스 등록 (수신: 팔로워)</li>
+ *   <li>ORDER_APPROVED   - 수강 신청 승인 (수신: 학생)</li>
+ *   <li>ORDER_REJECTED   - 수강 신청 거절 (수신: 학생)</li>
+ *   <li>CLASS_COMPLETED  - 수강 완료 (수신: 학생)</li>
+ *   <li>CLASS_CANCELLED  - 클래스 종료/취소 (수신: 학생)</li>
+ *   <li>NEW_ORDER        - 새 수강 신청 (수신: 프리랜서)</li>
+ *   <li>NEW_REVIEW       - 리뷰 등록 (수신: 프리랜서)</li>
+ *   <li>FREELANCER_APPLY - 프리랜서 등록 신청 (수신: 관리자)</li>
+ * </ul>
  */
 @Service
 @RequiredArgsConstructor
@@ -48,9 +50,15 @@ public class NotificationService {
     private final MemberRepository       memberRepository;
     private final MemberFollowRepository memberFollowRepository;
 
-    // =========================================================
-    // ✅ 1. 1명에게 알림 전송
-    // =========================================================
+    /**
+     * 특정 회원 1명에게 알림을 전송합니다.
+     *
+     * @param receiverId  수신자 member.id
+     * @param senderId    발신자 member.id
+     * @param type        알림 타입 (예: ORDER_APPROVED)
+     * @param content     알림 메시지
+     * @param relatedLink 클릭 시 이동할 경로
+     */
     @Transactional
     public void send(Long receiverId, Long senderId, String type, String content, String relatedLink) {
 
@@ -68,9 +76,13 @@ public class NotificationService {
                 .build());
     }
 
-    // =========================================================
-    // ✅ 2. 팔로워 전체에게 알림 전송 — 클래스 등록 시
-    // =========================================================
+    /**
+     * 프리랜서를 팔로우하는 회원 전체에게 클래스 등록 알림을 전송합니다.
+     *
+     * @param freelancerId 클래스를 등록한 프리랜서의 member.id
+     * @param classId      등록된 클래스 ID
+     * @param classTitle   등록된 클래스 제목
+     */
     @Transactional
     public void sendToFollowers(Long freelancerId, Long classId, String classTitle) {
 
@@ -102,9 +114,15 @@ public class NotificationService {
         notificationRepository.saveAll(notifications);
     }
 
-    // =========================================================
-    // ✅ 3. 관리자 전체에게 알림 전송 — 프리랜서 신청 시
-    // =========================================================
+    /**
+     * 관리자 권한(roleCode = 'A')을 가진 모든 회원에게 알림을 전송합니다.
+     * 관리자가 여러 명이어도 모두에게 발송됩니다.
+     *
+     * @param senderId    알림을 발생시킨 회원의 member.id
+     * @param senderName  발신자 이름 (알림 메시지에 포함)
+     * @param type        알림 타입
+     * @param relatedLink 클릭 시 이동할 경로
+     */
     @Transactional
     public void sendToAdmins(Long senderId, String senderName, String type, String relatedLink) {
 
@@ -129,9 +147,12 @@ public class NotificationService {
         notificationRepository.saveAll(notifications);
     }
 
-    // =========================================================
-    // ✅ 4. 내 알림 목록 조회
-    // =========================================================
+    /**
+     * 로그인한 회원의 알림 목록을 최신순으로 조회합니다.
+     *
+     * @param email 로그인한 회원 이메일
+     * @return 알림 목록 (삭제되지 않은 것만)
+     */
     public List<NotificationResponse> getMyNotifications(String email) {
 
         Member member = memberRepository.findByEmail(email)
@@ -144,9 +165,12 @@ public class NotificationService {
                 .toList();
     }
 
-    // =========================================================
-    // ✅ 5. 읽지 않은 알림 수 조회 — 헤더 빨간 점용
-    // =========================================================
+    /**
+     * 읽지 않은 알림 수를 반환합니다. 헤더의 빨간 뱃지 숫자 표시에 사용됩니다.
+     *
+     * @param email 로그인한 회원 이메일
+     * @return 읽지 않은 알림 수
+     */
     public long getUnreadCount(String email) {
 
         Member member = memberRepository.findByEmail(email)
@@ -155,9 +179,12 @@ public class NotificationService {
         return notificationRepository.countByReceiverIdAndIsReadFalseAndIsDeletedFalse(member.getId());
     }
 
-    // =========================================================
-    // ✅ 6. 단건 읽음 처리
-    // =========================================================
+    /**
+     * 알림 단건을 읽음 처리합니다. 본인 알림만 처리할 수 있습니다.
+     *
+     * @param notificationId 읽음 처리할 알림 ID
+     * @param email          로그인한 회원 이메일
+     */
     @Transactional
     public void markAsRead(Long notificationId, String email) {
 
@@ -174,9 +201,11 @@ public class NotificationService {
         notification.markAsRead();
     }
 
-    // =========================================================
-    // ✅ 7. 전체 읽음 처리
-    // =========================================================
+    /**
+     * 로그인한 회원의 읽지 않은 알림을 모두 읽음 처리합니다.
+     *
+     * @param email 로그인한 회원 이메일
+     */
     @Transactional
     public void markAllAsRead(String email) {
 
@@ -192,9 +221,12 @@ public class NotificationService {
         unreadList.forEach(Notification::markAsRead);
     }
 
-    // =========================================================
-    // ✅ 8. 단건 실제 삭제 (DB에서 완전 제거)
-    // =========================================================
+    /**
+     * 알림 단건을 DB에서 완전히 삭제합니다 (소프트 삭제 아님).
+     *
+     * @param notificationId 삭제할 알림 ID
+     * @param email          로그인한 회원 이메일
+     */
     @Transactional
     public void delete(Long notificationId, String email) {
 
@@ -211,9 +243,11 @@ public class NotificationService {
         notificationRepository.delete(notification);
     }
 
-    // =========================================================
-    // ✅ 9. 전체 실제 삭제
-    // =========================================================
+    /**
+     * 로그인한 회원의 알림을 전부 DB에서 완전히 삭제합니다 (소프트 삭제 아님).
+     *
+     * @param email 로그인한 회원 이메일
+     */
     @Transactional
     public void deleteAll(String email) {
 

@@ -146,6 +146,7 @@ public class ClassOrderService {
         classOrder.updateStatus(ClassOrder.ApprovalStatus.APPROVED, ClassOrder.ProgressStatus.IN_PROGRESS);
 
         // ✅ 학생에게 알림 — 수강 신청이 승인되었을 때
+        // 2026.04.22 최준열 생성
         notificationService.send(
                 classOrder.getStudent().getId(),               // 수신: 신청한 학생
                 classOrder.getClassBoard().getFreelancer().getId(), // 발신: 프리랜서
@@ -173,6 +174,7 @@ public class ClassOrderService {
         }
 
         // ✅ 학생에게 알림 — 수강 신청이 거절되었을 때
+        // 2026.04.22 최준열 생성
         notificationService.send(
                 classOrder.getStudent().getId(),           // 수신: 신청한 학생
                 classBoard.getFreelancer().getId(),        // 발신: 프리랜서
@@ -182,7 +184,7 @@ public class ClassOrderService {
         );
     }
 
-    // [기능: 수강 신청 취소 처리] [이유: 학생 본인이 신청 취소 시 주문 상태와 클래스 인원을 함께 갱신하기 위해]
+    // [기능: 수강 완료 처리]
     @Transactional
     public void completeClassOrder(String freelancerEmail, Long orderId) {
         ClassOrder classOrder = classOrderRepository.findById(orderId)
@@ -199,9 +201,19 @@ public class ClassOrderService {
         }
 
         classOrder.updateStatus(ClassOrder.ApprovalStatus.APPROVED, ClassOrder.ProgressStatus.COMPLETED);
+
+        // 학생에게 알림 — 수강이 완료되었을 때
+        // 2026.04.23 최준열 생성
+        notificationService.send(
+                classOrder.getStudent().getId(),                   // 수신: 학생
+                classOrder.getClassBoard().getFreelancer().getId(), // 발신: 프리랜서
+                "CLASS_COMPLETED",
+                "'" + classOrder.getClassBoard().getTitle() + "' 클래스 수강이 완료되었습니다. 리뷰를 남겨보세요!",
+                "/profile/activity"  // 학생 마이페이지 수강 관리 탭
+        );
     }
 
-    // [기능 설명: 수강생을 클래스에서 제외 처리하고, 수강 인원을 차감한 후 정원 여유가 생기면 모집 상태를 'OPEN'으로 변경합니다.] [작성 이유: 수강생 제외 시 관련 비즈니스 로직(인원 관리, 상태 변경)을 처리하여 데이터 정합성을 유지하기 위해 작성함]
+    // [기능 설명: 수강생을 클래스에서 제외 처리하고, 수강 인원을 차감한 후 정원 여유가 생기면 모집 상태를 'OPEN'으로 변경합니다.]
     @Transactional
     public void excludeClassOrder(String freelancerEmail, Long orderId) {
         ClassOrder classOrder = classOrderRepository.findById(orderId)
@@ -215,7 +227,6 @@ public class ClassOrderService {
 
         classOrder.updateStatus(ClassOrder.ApprovalStatus.CANCELLED, ClassOrder.ProgressStatus.CANCELLED);
 
-        // 수강 인원 차감 및 모집 상태 확인
         ClassBoard classBoard = classOrder.getClassBoard();
         classBoard.decreaseVolume();
 
@@ -223,6 +234,16 @@ public class ClassOrderService {
                 classBoard.getCurrentVolume() < classBoard.getMaxCapacity()) {
             classBoard.updateStatus("OPEN");
         }
+
+        // ✅ 학생에게 알림 — 수강에서 제외되었을 때
+        // 2026.04.23 최준열 생성
+        notificationService.send(
+                classOrder.getStudent().getId(),           // 수신: 학생
+                classBoard.getFreelancer().getId(),        // 발신: 프리랜서
+                "CLASS_CANCELLED",
+                "'" + classBoard.getTitle() + "' 클래스 수강에서 제외되었습니다.",
+                "/profile/activity"  // 학생 마이페이지 수강 관리 탭
+        );
     }
 
     @Transactional
