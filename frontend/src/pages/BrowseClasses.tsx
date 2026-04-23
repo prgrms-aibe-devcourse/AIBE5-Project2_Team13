@@ -10,6 +10,7 @@ export default function BrowseClasses() {
   const { wishedIds } = useWish();
   const [searchParams] = useSearchParams();
   const initialSearchQuery = searchParams.get('q')?.trim() ?? '';
+  const initialCategory = searchParams.get('category')?.trim() ?? 'all';
 
 // 검색어, 카테고리, 위치, 모집 여부 등 다양한 필터링 조건들을 종합하여 클래스 항목이 해당 조건들에 부합하는지 판단합니다.
     const filterFn = useCallback(
@@ -60,6 +61,7 @@ export default function BrowseClasses() {
       sortFn={sortFn}
       wishedIds={wishedIds}
       initialSearchQuery={initialSearchQuery}
+      initialCategory={initialCategory}
       renderItem={() => null}
     />
   );

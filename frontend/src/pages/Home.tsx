@@ -78,7 +78,9 @@ export default function Home() {
             ].map((cat, idx) => (
               <Link
                 key={cat.id}
-                to={`/browse?category=${cat.id}`}
+                to={`/browse?category=${encodeURIComponent(
+                  CATEGORIES.find((category) => category.id === cat.id)?.name ?? cat.id
+                )}`}
                 className="group"
               >
                 <motion.div

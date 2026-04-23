@@ -58,6 +58,7 @@ interface ExplorerGridProps<T> {
   loading?: boolean;
   onFilterChange?: () => void;
   initialSearchQuery?: string;
+  initialCategory?: string;
 }
 
 export default function ExplorerGrid<T>({
@@ -68,16 +69,17 @@ export default function ExplorerGrid<T>({
                                           filterFn,
                                           sortFn,
                                           wishedIds = new Set(),
-                                          loading = false,
-                                          onFilterChange,
-                                          initialSearchQuery = '',
-                                        }: ExplorerGridProps<T>) {
+  loading = false,
+  onFilterChange,
+  initialSearchQuery = '',
+  initialCategory = 'all',
+}: ExplorerGridProps<T>) {
   const { categories, loading: catLoading } = useCategories();
   const { toggleWish } = useWish();
   const { enrollments } = useEnrollments();
 
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all');
   const [sortType, setSortType] = useState('latest');
   const [locationFilter, setLocationFilter] = useState('all');
   const [onlyRecruiting, setOnlyRecruiting] = useState(() => type === 'class');
@@ -85,6 +87,10 @@ export default function ExplorerGrid<T>({
   useEffect(() => {
     setSearchQuery(initialSearchQuery);
   }, [initialSearchQuery]);
+
+  useEffect(() => {
+    setSelectedCategory(initialCategory || 'all');
+  }, [initialCategory]);
 
   const handleFilterChange = (filterType: string, value: string | boolean) => {
     if (filterType === 'search') setSearchQuery(String(value));
