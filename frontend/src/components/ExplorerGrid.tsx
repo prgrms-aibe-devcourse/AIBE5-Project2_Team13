@@ -243,12 +243,12 @@ export default function ExplorerGrid<T>({
         </div>
 
         {/* 카테고리 칩 - DB에서 가져온 실제 카테고리로만 렌더링 */}
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-4">
           {/* 전체 버튼 */}
           <button
             onClick={() => handleFilterChange('category', 'all')}
             className={cn(
-              'px-5 py-2.5 rounded-2xl font-bold transition-all text-sm flex items-center gap-2 border',
+              'px-6 py-3 rounded-2xl font-bold transition-all text-base flex items-center gap-2 border',
               selectedCategory === 'all'
                 ? 'bg-gray-900 text-white border-gray-900 shadow-lg shadow-gray-200'
                 : 'bg-white text-gray-500 border-gray-100 hover:border-coral hover:text-coral'
@@ -262,7 +262,7 @@ export default function ExplorerGrid<T>({
             Array.from({ length: 9 }).map((_, i) => (
               <div
                 key={i}
-                className="px-5 py-2.5 rounded-2xl bg-gray-100 animate-pulse w-24 h-10"
+                className="h-12 w-28 rounded-2xl bg-gray-100 animate-pulse"
               />
             ))
           ) : (
@@ -271,7 +271,7 @@ export default function ExplorerGrid<T>({
                 key={cat.id}
                 onClick={() => handleFilterChange('category', cat.name)}
                 className={cn(
-                  'px-5 py-2.5 rounded-2xl font-bold transition-all text-sm flex items-center gap-2 border',
+                  'px-6 py-3 rounded-2xl font-bold transition-all text-base flex items-center gap-2 border',
                   selectedCategory === cat.name
                     ? 'bg-gray-900 text-white border-gray-900 shadow-lg shadow-gray-200'
                     : 'bg-white text-gray-500 border-gray-100 hover:border-coral hover:text-coral'
