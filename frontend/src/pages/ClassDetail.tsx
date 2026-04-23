@@ -718,7 +718,7 @@ export default function ClassDetail() {
                                             : isOwner ? '내 클래스'
                                                 : currentEnrollment ? '신청 완료'
                                                     : isClosed ? '모집 마감'
-                                                        : '산청하기'}
+                                                        : '신청하기'}
                                     </button>
                                     <div className="grid grid-cols-3 gap-2">
                                         <button
