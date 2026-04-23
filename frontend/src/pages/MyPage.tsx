@@ -115,6 +115,7 @@ import {useNavigate, Link} from 'react-router-dom';
 import MyRequestManage from './MyRequestManage';
 import SafeImage from '../components/SafeImage';
 import FollowingList from '../components/FollowingList';
+import DatePicker from '@/src/components/DatePicker';
 
 const REVENUE_DATA = [
     {month: '1월', revenue: 1200000, students: 45},
@@ -1830,19 +1831,21 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
             <div className="bg-white rounded-[40px] p-8 border border-coral/10 shadow-sm">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
                     <h3 className="text-xl font-bold text-gray-900">수익 및 수강생 추이</h3>
-                    <div className="flex items-center gap-2 bg-ivory p-2 rounded-2xl">
-                        <input
-                            type="date"
+                    <div className="grid w-full gap-3 md:w-auto md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:items-center">
+                        <DatePicker
                             value={dashboardDateRange.start}
-                            onChange={(e) => setDashboardDateRange(prev => ({...prev, start: e.target.value}))}
-                            className="bg-transparent text-sm font-bold text-gray-600 outline-none"
+                            onChange={(value) => setDashboardDateRange(prev => ({...prev, start: value}))}
+                            placeholder="시작일 선택"
+                            placement="top"
+                            panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
-                        <span className="text-gray-300">~</span>
-                        <input
-                            type="date"
+                        <span className="text-center text-gray-300">~</span>
+                        <DatePicker
                             value={dashboardDateRange.end}
-                            onChange={(e) => setDashboardDateRange(prev => ({...prev, end: e.target.value}))}
-                            className="bg-transparent text-sm font-bold text-gray-600 outline-none"
+                            onChange={(value) => setDashboardDateRange(prev => ({...prev, end: value}))}
+                            placeholder="종료일 선택"
+                            placement="top"
+                            panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
                     </div>
                 </div>
