@@ -158,6 +158,7 @@ export default function ClassDetail() {
                     location: apiClass.isOnline ? undefined : apiClass.location,
                     startAt: apiClass.startAt,
                     endAt: apiClass.endAt,
+                    currentVolume: apiClass.currentVolume ?? 0,
                     maxCapacity: apiClass.maxCapacity,
                     curriculum: apiClass.curriculum,
                     description: apiClass.description,
@@ -687,7 +688,7 @@ export default function ClassDetail() {
                                         </div>
                                         <div className="flex items-center gap-3 text-[15px] text-gray-500">
                                             <Users size={14} className="text-gray-400"/>
-                                            <span>모집 인원: {item.maxCapacity ?? '-'}</span>
+                                            <span>모집 인원: {item.currentVolume ?? 0} / {item.maxCapacity ?? '-'}명</span>
                                         </div>
                                         <div
                                             className="flex items-center gap-3 text-[15px] text-gray-500">
