@@ -282,8 +282,9 @@ public class MemberService {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
 
-        softDeleteFreelancerReviews(member);
+        softDeleteRelatedData(member);
         member.markDeleted();
+        memberRepository.saveAndFlush(member);
     }
 
     @Transactional
@@ -323,20 +324,6 @@ public class MemberService {
                 .isDeleted(member.isDeleted())
                 .build();
     }
-
-    /**
-     * @author 김한비
-     * @since 2026.04.23
-     *
-     * 회원과 관련된 리뷰 데이터를 소프트 삭제합니다.
-     * - 내부적으로 연관 데이터 일괄 삭제 로직 호출
-     *
-     * @param member 대상 회원
-     */
-    private void softDeleteFreelancerReviews(Member member) {
-        softDeleteRelatedData(member);
-    }
-
 
     /**
      * @author 김한비

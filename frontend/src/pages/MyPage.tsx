@@ -2812,6 +2812,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
 
             <div className="pt-12 border-t border-coral/10">
                 <button
+                    type="button"
                     onClick={handleWithdraw}
                     className="text-gray-400 hover:text-red-500 font-medium flex items-center gap-2 transition-colors"
                 >
