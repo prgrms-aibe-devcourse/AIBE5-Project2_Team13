@@ -4,6 +4,7 @@ import com.ilsamcheonri.hobby.entity.ClassBoard;
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -75,4 +76,24 @@ public interface ClassBoardRepository extends JpaRepository<ClassBoard, Long> {
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT cb FROM ClassBoard cb WHERE cb.id = :id AND cb.isDeleted = false")
     Optional<ClassBoard> findByIdForUpdate(@Param("id") Long id);
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 프리랜서가 등록한 클래스 게시글을 소프트 삭제합니다.
+     * - 실제 삭제가 아닌 isDeleted = true로 상태만 변경
+     * - 이미 삭제된 데이터(isDeleted = true)는 제외
+     *
+     * @param freelancerId 프리랜서 ID
+     * @return 수정된(삭제 처리된) 게시글 수
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update ClassBoard classBoard
+               set classBoard.isDeleted = true
+             where classBoard.isDeleted = false
+               and classBoard.freelancer.id = :freelancerId
+            """)
+    int softDeleteByFreelancerId(@Param("freelancerId") Long freelancerId);
 }

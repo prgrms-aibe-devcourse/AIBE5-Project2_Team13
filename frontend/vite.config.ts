@@ -26,6 +26,14 @@ export default defineConfig(({mode}) => {
         '/api': {
           target: 'http://localhost:8080',
           changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on('proxyReq', (proxyReq, req) => {
+              const authorization = req.headers.authorization;
+              if (authorization) {
+                proxyReq.setHeader('Authorization', authorization);
+              }
+            });
+          },
         },
         '/ws': {
           // 개발 환경 WebSocket도 Vite가 8080 백엔드로 프록시해야 브라우저에서 같은 origin처럼 붙을 수 있습니다.
