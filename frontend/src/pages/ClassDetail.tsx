@@ -301,7 +301,7 @@ export default function ClassDetail() {
             applyForClass(item.id, item.title, item.price, String(orderId));
             await refreshEnrollments();
             showToast('신청이 완료되었습니다');
-            setTimeout(() => navigate('/profile'), 1500);
+            setTimeout(() => navigate('/profile/activity'), 1500);
 
         } catch (error: any) {
             // 401 에러가 여기서 잡히는지 확인하세요!
