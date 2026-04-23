@@ -13,6 +13,10 @@ import java.time.LocalDateTime;
  *
  * relatedLink : 알림 클릭 시 이동할 경로 (예: /class/1, /profile)
  * type        : 알림 종류 (프론트에서 아이콘 구분에 사용 가능)
+ * @author 최준열
+ * @since 2026.04.23
+ * @version 1.0
+ * @see Notification
  */
 @Getter
 @Builder

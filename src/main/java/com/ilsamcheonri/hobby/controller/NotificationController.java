@@ -12,13 +12,14 @@ import java.util.Map;
 
 /**
  * 🔔 알림 API 엔드포인트
- *
+ * <pre>
  * GET    /api/notifications              → 내 알림 목록
  * GET    /api/notifications/unread       → 읽지 않은 알림 수 (헤더 빨간 점)
  * PATCH  /api/notifications/{id}/read   → 단건 읽음 처리
  * PATCH  /api/notifications/read-all    → 전체 읽음 처리
  * DELETE /api/notifications/{id}        → 단건 실제 삭제
  * DELETE /api/notifications             → 전체 실제 삭제
+ * <pre/>
  */
 @RestController
 @RequestMapping("/api/notifications")
