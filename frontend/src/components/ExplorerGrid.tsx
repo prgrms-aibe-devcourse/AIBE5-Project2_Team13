@@ -136,55 +136,6 @@ export default function ExplorerGrid<T>({
       {/* 검색 & 필터 영역 */}
       <div className="space-y-8 mb-12">
         <div className="flex flex-col gap-6 bg-white p-6 rounded-[32px] shadow-sm border border-gray-100">
-          {type === 'class' && (
-            <div className="flex flex-col gap-3 rounded-[24px] bg-ivory/50 px-5 py-4 border border-coral/10">
-              <span className="text-sm font-semibold text-gray-500">{resultStatusText}</span>
-
-              <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
-                <div className="space-y-1">
-                  <p className="text-sm font-bold text-gray-900">모집중인 클래스만 보기</p>
-                  <p className="text-xs text-gray-500">
-                    {onlyRecruiting
-                      ? '지금 신청 가능한 클래스만 보여드려요'
-                      : '모든 클래스를 함께 보여드려요'}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span
-                    className={cn(
-                      'text-xs font-bold transition-colors',
-                      onlyRecruiting ? 'text-coral' : 'text-gray-400'
-                    )}
-                  >
-                    {onlyRecruiting ? 'ON' : 'OFF'}
-                  </span>
-
-                  <input
-                    type="checkbox"
-                    checked={onlyRecruiting}
-                    onChange={(e) => handleFilterChange('recruiting', e.target.checked)}
-                    className="sr-only"
-                  />
-
-                  <span
-                    className={cn(
-                      'relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-300',
-                      onlyRecruiting ? 'bg-coral shadow-lg shadow-coral/20' : 'bg-gray-300'
-                    )}
-                  >
-                    <span
-                      className={cn(
-                        'inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300',
-                        onlyRecruiting ? 'translate-x-7' : 'translate-x-1'
-                      )}
-                    />
-                  </span>
-                </div>
-              </label>
-            </div>
-          )}
-
           <div className="flex flex-col lg:flex-row items-center gap-6">
             {/* 검색 입력창 */}
             <div className="w-full lg:flex-1 relative">
@@ -246,6 +197,55 @@ export default function ExplorerGrid<T>({
               </div>
             </div>
           </div>
+
+          {type === 'class' && (
+            <div className="flex flex-col gap-3 rounded-[24px] bg-ivory/50 px-5 py-4 border border-coral/10">
+              <span className="text-sm font-semibold text-gray-500">{resultStatusText}</span>
+
+              <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-gray-900">모집중인 클래스만 보기</p>
+                  <p className="text-xs text-gray-500">
+                    {onlyRecruiting
+                      ? '지금 신청 가능한 클래스만 보여드려요'
+                      : '모든 클래스를 함께 보여드려요'}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span
+                    className={cn(
+                      'text-xs font-bold transition-colors',
+                      onlyRecruiting ? 'text-coral' : 'text-gray-400'
+                    )}
+                  >
+                    {onlyRecruiting ? 'ON' : 'OFF'}
+                  </span>
+
+                  <input
+                    type="checkbox"
+                    checked={onlyRecruiting}
+                    onChange={(e) => handleFilterChange('recruiting', e.target.checked)}
+                    className="sr-only"
+                  />
+
+                  <span
+                    className={cn(
+                      'relative inline-flex h-8 w-14 items-center rounded-full transition-all duration-300',
+                      onlyRecruiting ? 'bg-coral shadow-lg shadow-coral/20' : 'bg-gray-300'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-6 w-6 transform rounded-full bg-white shadow-md transition-transform duration-300',
+                        onlyRecruiting ? 'translate-x-7' : 'translate-x-1'
+                      )}
+                    />
+                  </span>
+                </div>
+              </label>
+            </div>
+          )}
         </div>
 
         {/* 카테고리 칩 - DB에서 가져온 실제 카테고리로만 렌더링 */}
