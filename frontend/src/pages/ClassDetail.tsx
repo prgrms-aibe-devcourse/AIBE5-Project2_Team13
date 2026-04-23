@@ -700,8 +700,12 @@ export default function ClassDetail() {
 
                                 <div className="space-y-3">
                                     <button
-                                        onClick={handleApply}
-                                        disabled={applyLoading || !!currentEnrollment || isClosed || isOwner}
+                                        onClick={
+                                            isOwner || !!currentEnrollment
+                                                ? () => navigate('/profile/freelancer/classes')
+                                                : handleApply
+                                        }
+                                        disabled={!isOwner && !currentEnrollment && (applyLoading || isClosed)}
                                         className="w-full py-4 bg-coral text-white font-bold rounded-2xl hover:bg-coral/90 transition-all shadow-lg shadow-coral/20 text-lg
              disabled:bg-gray-300 disabled:text-gray-500 disabled:shadow-none disabled:cursor-not-allowed"
                                     >
