@@ -1657,7 +1657,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                         <th className="w-[22%] px-6 py-4 text-sm font-bold text-gray-600">신청자</th>
                         <th className="w-[14%] px-6 py-4 text-sm font-bold text-gray-600 whitespace-nowrap">신청일</th>
                         <th className="w-[12%] px-6 py-4 text-sm font-bold text-gray-600 whitespace-nowrap">상태</th>
-                        <th className="w-[20%] px-6 py-4 text-sm font-bold text-gray-600 whitespace-nowrap text-center">액션</th>
+                        <th className="w-[20%] px-6 py-4 text-sm font-bold text-gray-600">액션</th>
                     </tr>
                     </thead>
                     <tbody>
@@ -1684,43 +1684,45 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                 {e.cancelReason &&
                                     <p className="text-[10px] text-red-400 mt-1">사유: {e.cancelReason}</p>}
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex justify-center gap-2">
-                                    {e.status === 'PENDING' && (
-                                        <>
+                            <td className="px-6 py-4">
+                                <div className="flex flex-col items-start gap-2">
+                                    <div className="flex items-center gap-2">
+                                        {e.status === 'PENDING' && (
+                                            <>
+                                                <button
+                                                    onClick={() => handleFreelancerApprove(e.id)}
+                                                    className="px-3 py-1.5 bg-coral text-white text-xs font-bold rounded-lg hover:bg-coral/90 transition-all whitespace-nowrap"
+                                                >
+                                                    승인
+                                                </button>
+                                                <button
+                                                    onClick={() => handleRejectClick(e.id)}
+                                                    className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all whitespace-nowrap"
+                                                >
+                                                    거절
+                                                </button>
+                                            </>
+                                        )}
+                                        {e.status === 'APPROVED' && e.progressStatus !== 'COMPLETED' && (
                                             <button
-                                                onClick={() => handleFreelancerApprove(e.id)}
-                                                className="px-3 py-1.5 bg-coral text-white text-xs font-bold rounded-lg hover:bg-coral/90 transition-all"
+                                                onClick={() => handleFreelancerComplete(e.id)}
+                                                className="px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition-all whitespace-nowrap"
                                             >
-                                                승인
+                                                수업 완료
                                             </button>
+                                        )}
+                                        {e.status === 'APPROVED' && e.progressStatus !== 'COMPLETED' && (
                                             <button
-                                                onClick={() => handleRejectClick(e.id)}
-                                                className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs font-bold rounded-lg hover:bg-gray-200 transition-all"
+                                                onClick={() => handleFreelancerExclude(e.id, e.studentName)}
+                                                className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-all whitespace-nowrap"
                                             >
-                                                거절
+                                                수강 제외
                                             </button>
-                                        </>
-                                    )}
-                                    {e.status === 'APPROVED' && e.progressStatus !== 'COMPLETED' && (
-                                        <button
-                                            onClick={() => handleFreelancerComplete(e.id)}
-                                            className="px-3 py-1.5 bg-blue-500 text-white text-xs font-bold rounded-lg hover:bg-blue-600 transition-all"
-                                        >
-                                            수업 완료
-                                        </button>
-                                    )}
-                                    {e.status === 'APPROVED' && e.progressStatus !== 'COMPLETED' && (
-                                        <button
-                                            onClick={() => handleFreelancerExclude(e.id, e.studentName)}
-                                            className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-all"
-                                        >
-                                            수강 제외
-                                        </button>
-                                    )}
+                                        )}
+                                    </div>
                                     <button
                                         onClick={() => handleOpenStudentChat(e)}
-                                        className="px-3 py-1.5 border border-coral text-coral text-xs font-bold rounded-lg hover:bg-coral/5 transition-all"
+                                        className="px-3 py-1.5 border border-coral text-coral text-xs font-bold rounded-lg hover:bg-coral/5 transition-all whitespace-nowrap"
                                     >
                                         1:1 대화
                                     </button>
