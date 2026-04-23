@@ -92,7 +92,7 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
     <motion.div
       whileHover={{ y: -8 }}
       className={cn(
-        "bg-white rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 group",
+        "group overflow-hidden rounded-[32px] border border-[#efefea] bg-white shadow-[0_14px_30px_#f4f4f2] transition-all hover:shadow-[0_20px_40px_#f4f4f2]",
         compact && "rounded-[24px]"
       )}
     >
