@@ -200,12 +200,12 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
             </div>
           )}
 
-          <div className={cn("pt-4 border-t border-gray-50 flex justify-between items-center", compact && "pt-3")}>
-            <span className={cn("text-lg font-bold text-gray-900", compact && "text-base")}>
+          <div className={cn("pt-4 border-t border-gray-50 flex items-center justify-between gap-3", compact && "pt-3")}>
+            <span className={cn("shrink-0 whitespace-nowrap text-lg font-bold text-gray-900", compact && "text-base")}>
               {value.toLocaleString()}원
             </span>
             {location && (
-              <span className={cn("text-[10px] text-gray-400 font-medium", compact && "text-[9px]")}>
+              <span className={cn("min-w-0 truncate text-[10px] text-right font-medium text-gray-400", compact && "text-[9px]")}>
                 {location}
               </span>
             )}
