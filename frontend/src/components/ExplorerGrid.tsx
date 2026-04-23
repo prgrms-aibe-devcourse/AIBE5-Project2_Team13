@@ -200,16 +200,10 @@ export default function ExplorerGrid<T>({
 
           {type === 'class' && (
             <div className="flex flex-col gap-3 rounded-[24px] bg-ivory/50 px-5 py-4 border border-coral/10">
-              <span className="text-sm font-semibold text-gray-500">{resultStatusText}</span>
-
               <label className="flex items-center justify-between gap-4 cursor-pointer select-none">
                 <div className="space-y-1">
                   <p className="text-sm font-bold text-gray-900">모집중인 클래스만 보기</p>
-                  <p className="text-xs text-gray-500">
-                    {onlyRecruiting
-                      ? '지금 신청 가능한 클래스만 보여드려요'
-                      : '모든 클래스를 함께 보여드려요'}
-                  </p>
+                  <p className="text-xs text-gray-500">{resultStatusText}</p>
                 </div>
 
                 <div className="flex items-center gap-3">
