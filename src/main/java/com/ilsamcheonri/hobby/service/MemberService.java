@@ -10,8 +10,11 @@ import com.ilsamcheonri.hobby.enums.FileTargetType;
 import com.ilsamcheonri.hobby.jwt.JwtTokenProvider;
 import com.ilsamcheonri.hobby.repository.FreelancerProfileAttachmentRepository;
 import com.ilsamcheonri.hobby.repository.FreelancerProfileRepository;
+import com.ilsamcheonri.hobby.repository.ClassBoardRepository;
+import com.ilsamcheonri.hobby.repository.ClassOrderRepository;
 import com.ilsamcheonri.hobby.repository.MemberAttachmentRepository;
 import com.ilsamcheonri.hobby.repository.MemberRepository;
+import com.ilsamcheonri.hobby.repository.ReviewRepository;
 import com.ilsamcheonri.hobby.repository.RoleCodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -34,9 +37,12 @@ public class MemberService {
 
     private final JwtTokenProvider jwtTokenProvider;
 
+    private final ClassBoardRepository classBoardRepository;
+    private final ClassOrderRepository classOrderRepository;
     private final MemberRepository memberRepository;
     private final MemberAttachmentRepository memberAttachmentRepository;
     private final RoleCodeRepository roleCodeRepository;
+    private final ReviewRepository reviewRepository;
     private final FreelancerProfileRepository freelancerProfileRepository;
     private final FreelancerProfileAttachmentRepository freelancerProfileAttachmentRepository;
     private final PasswordEncoder passwordEncoder;
@@ -82,7 +88,7 @@ public class MemberService {
         }
         System.out.println("LOGIN SUCCESS");
 
-        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail());
+        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail(), toSecurityRole(member));
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
 
         return new LoginResponseDto(accessToken, refreshToken);
@@ -100,7 +106,7 @@ public class MemberService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "탈퇴한 계정입니다.");
         }
 
-        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail());
+        String accessToken = jwtTokenProvider.createAccessToken(member.getEmail(), toSecurityRole(member));
         String refreshToken = jwtTokenProvider.createRefreshToken(member.getEmail());
 
         return new LoginResponseDto(accessToken, refreshToken);
@@ -276,6 +282,7 @@ public class MemberService {
         Member member = memberRepository.findByEmail(email)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "회원 없음"));
 
+        softDeleteFreelancerReviews(member);
         member.markDeleted();
     }
 
@@ -292,9 +299,12 @@ public class MemberService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "관리자 본인은 탈퇴 처리할 수 없습니다.");
         }
 
+        String frontendRole = toFrontendRole(member.getRoleCode().getRoleCode());
+
         if (member.isDeleted()) {
             member.restoreDeleted();
         } else {
+            softDeleteRelatedData(member);
             member.markDeleted();
         }
 
@@ -305,13 +315,53 @@ public class MemberService {
                 .email(member.getEmail())
                 .name(member.getName())
                 .birth(member.getBirth() != null ? member.getBirth().toString() : "")
-                .role(toFrontendRole(member.getRoleCode().getRoleCode()))
+                .role(frontendRole)
                 .phone(member.getPhone())
                 .address(formatAddress(member.getAddr(), member.getAddr2()))
                 .joinedAt(member.getCreatedAt() != null ? member.getCreatedAt().toLocalDate().toString() : "")
                 .quitAt(member.isDeleted() && member.getUpdatedAt() != null ? member.getUpdatedAt().toLocalDate().toString() : null)
                 .isDeleted(member.isDeleted())
                 .build();
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 회원과 관련된 리뷰 데이터를 소프트 삭제합니다.
+     * - 내부적으로 연관 데이터 일괄 삭제 로직 호출
+     *
+     * @param member 대상 회원
+     */
+    private void softDeleteFreelancerReviews(Member member) {
+        softDeleteRelatedData(member);
+    }
+
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 회원과 연관된 데이터들을 소프트 삭제합니다.
+     * - 학생 역할: 리뷰, 신청 내역 삭제
+     * - 프리랜서 역할(F): 추가로 클래스/신청/리뷰 전체 삭제
+     *
+     * @param member 대상 회원
+     */
+    private void softDeleteRelatedData(Member member) {
+        Long memberId = member.getId();
+        String roleCode = member.getRoleCode().getRoleCode();
+
+        reviewRepository.softDeleteByStudentId(memberId);
+        classOrderRepository.softDeleteByStudentId(memberId);
+
+        if (!"F".equals(roleCode)) {
+            return;
+        }
+
+        reviewRepository.softDeleteByFreelancerId(memberId);
+        classOrderRepository.softDeleteByFreelancerId(memberId);
+        classBoardRepository.softDeleteByFreelancerId(memberId);
     }
 
     private String normalizeBlank(String value) {
@@ -433,6 +483,20 @@ public class MemberService {
             case "F" -> "ROLE_FREELANCER";
             default -> "ROLE_USER";
         };
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 회원의 역할 코드를 Spring Security 권한 형식으로 변환합니다.
+     * - 내부적으로 프론트용 역할 변환 로직을 재사용
+     *
+     * @param member 회원 객체
+     * @return Security 권한 문자열 (예: ROLE_USER)
+     */
+    private String toSecurityRole(Member member) {
+        return toFrontendRole(member.getRoleCode().getRoleCode());
     }
 
     private String formatAddress(String addr, String addr2) {

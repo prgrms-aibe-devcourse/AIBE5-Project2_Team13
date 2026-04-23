@@ -30,7 +30,15 @@ apiClient.interceptors.request.use((config) => {
     return config;
 });
 
-// 응답 인터셉터 — 모든 API 응답 직후에 실행됩니다.
+/**
+ * @author 김한비
+ * @since 2026.04.23
+ *
+ * Axios 응답 인터셉터
+ * - 모든 API 응답 이후 공통 에러 처리를 담당
+ * - 401: 조건부 로그아웃 처리
+ * - 400: 서버 메시지 사용자 알림
+ */
 apiClient.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -47,8 +55,16 @@ apiClient.interceptors.response.use(
                 return Promise.reject(error);
             }
 
-            // 만약 토큰 만료 메시지라면 로그아웃 처리
-            if (message && (typeof message === 'string') && (message.includes('expired') || message.includes('만료') || message.includes('인증'))) {
+            const shouldForceLogout =
+                typeof message === 'string' &&
+                (
+                    message.includes('expired') ||
+                    message.includes('만료') ||
+                    message.includes('ExpiredJwtException') ||
+                    message.includes('JWT 인증 실패')
+                );
+
+            if (shouldForceLogout) {
                 clearAccessToken();
                 clearStoredUserContext();
                 if (!window.location.pathname.includes('/login')) {

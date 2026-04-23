@@ -78,6 +78,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         // WebSocket handshake는 JWT를 SecurityFilterChain이 아니라 handshake interceptor에서 검증합니다.
                         .requestMatchers("/ws/**").permitAll()
                         // 카테고리 목록 조회 — 로그인 없이 누구나 접근 가능
@@ -92,6 +93,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/follows/*/count").permitAll()
                         // 채팅 REST API는 로그인한 사용자만 접근 가능합니다.
                         .requestMatchers("/api/chat/**").authenticated()
+                        .requestMatchers("/api/member/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/member/**").authenticated()
                         .anyRequest().authenticated()
                 )

@@ -6,12 +6,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -34,6 +36,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 jwtTokenProvider.validateToken(token);
 
                 String email = jwtTokenProvider.getEmail(token);
+                String role = jwtTokenProvider.getRole(token);
 
                 System.out.println("[JwtAuthenticationFilter] 인증 성공 - URI: " + request.getRequestURI() + ", email: " + email);
 
@@ -41,7 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(
                                 email,
                                 null,
-                                Collections.emptyList()
+                                createAuthorities(role)
                         );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -66,5 +69,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         return null;
+    }
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 사용자 권한 문자열을 Spring Security 권한 객체로 변환합니다.
+     * - role 값이 없으면 빈 권한 리스트 반환
+     * - 단일 권한을 SimpleGrantedAuthority로 생성
+     *
+     * @param role 사용자 권한 문자열 (예: ROLE_USER)
+     * @return 권한 리스트
+     */
+    private List<SimpleGrantedAuthority> createAuthorities(String role) {
+        if (!StringUtils.hasText(role)) {
+            return Collections.emptyList();
+        }
+
+        return List.of(new SimpleGrantedAuthority(role));
     }
 }

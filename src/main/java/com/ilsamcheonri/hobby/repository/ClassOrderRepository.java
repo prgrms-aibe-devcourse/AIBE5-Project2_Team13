@@ -3,6 +3,7 @@ package com.ilsamcheonri.hobby.repository;
 import com.ilsamcheonri.hobby.entity.ClassOrder;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -21,6 +22,20 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
     List<ClassOrder> findByStudentIdAndIsDeletedFalseOrderByCreatedAtDesc(Long studentId);
 
     // [기능 설명: 특정 학생의 ID와 진행 상태를 기반으로, 삭제되지 않은 클래스 주문 내역을 생성일 최신순으로 조회하며 관련 엔티티(classBoard, student)를 즉시 로딩합니다.] [작성 이유: 특정 상태(예: 수업 완료)의 수강 내역을 성능 저하 없이 효율적으로 조회하여 마이페이지 등에 표시하고 N+1 문제를 방지하기 위해 작성함]
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 학생의 신청 목록을 상태별로 조회합니다.
+     * - 삭제되지 않은 데이터만 조회 (isDeleted = false)
+     * - 최신순(createdAt desc)으로 정렬
+     * - classBoard, student를 함께 조회하여 N+1 문제 방지
+     *
+     * @param studentId 학생 ID
+     * @param progressStatus 신청 진행 상태
+     * @return 조건에 해당하는 신청 목록
+     */
     @EntityGraph(attributePaths = {"classBoard", "student"})
     @Query("""
             select classOrder
@@ -52,4 +67,45 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
             Long classBoardId,
             List<ClassOrder.ApprovalStatus> statuses
     );
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 학생의 신청 내역을 소프트 삭제합니다.
+     * - 실제 삭제가 아닌 isDeleted = true로 상태만 변경
+     * - 이미 삭제된 데이터는 제외
+     *
+     * @param studentId 학생 ID
+     * @return 삭제 처리된 신청 건수
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update ClassOrder classOrder
+           set classOrder.isDeleted = true
+         where classOrder.isDeleted = false
+           and classOrder.student.id = :studentId
+        """)
+    int softDeleteByStudentId(@Param("studentId") Long studentId);
+
+
+    /**
+     * @author 김한비
+     * @since 2026.04.23
+     *
+     * 특정 프리랜서의 클래스에 대한 신청 내역을 소프트 삭제합니다.
+     * - 프리랜서가 등록한 클래스에 연결된 모든 신청 대상
+     * - 실제 삭제가 아닌 상태값 변경 방식
+     *
+     * @param freelancerId 프리랜서 ID
+     * @return 삭제 처리된 신청 건수
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update ClassOrder classOrder
+           set classOrder.isDeleted = true
+         where classOrder.isDeleted = false
+           and classOrder.classBoard.freelancer.id = :freelancerId
+        """)
+    int softDeleteByFreelancerId(@Param("freelancerId") Long freelancerId);
 }
