@@ -1650,28 +1650,28 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
         <div className="space-y-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-8">수강 신청 관리</h2>
             <div className="bg-white rounded-[40px] border border-coral/10 overflow-hidden shadow-sm">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full table-fixed text-left border-collapse">
                     <thead>
                     <tr className="bg-ivory border-b border-coral/10">
-                        <th className="px-6 py-4 text-sm font-bold text-gray-600">클래스명</th>
-                        <th className="px-6 py-4 text-sm font-bold text-gray-600">신청자</th>
-                        <th className="px-6 py-4 text-sm font-bold text-gray-600">신청일</th>
-                        <th className="px-6 py-4 text-sm font-bold text-gray-600">상태</th>
-                        <th className="px-6 py-4 text-sm font-bold text-gray-600">액션</th>
+                        <th className="w-[32%] px-6 py-4 text-sm font-bold text-gray-600">클래스명</th>
+                        <th className="w-[22%] px-6 py-4 text-sm font-bold text-gray-600">신청자</th>
+                        <th className="w-[14%] px-6 py-4 text-sm font-bold text-gray-600 whitespace-nowrap">신청일</th>
+                        <th className="w-[12%] px-6 py-4 text-sm font-bold text-gray-600 whitespace-nowrap">상태</th>
+                        <th className="w-[20%] px-6 py-4 text-sm font-bold text-gray-600 whitespace-nowrap text-center">액션</th>
                     </tr>
                     </thead>
                     <tbody>
                     {freelancerEnrollments.map((e) => (
                         <tr key={e.id} className="border-b border-coral/5 hover:bg-ivory/30 transition-colors">
                             <td className="px-6 py-4">
-                                <p className="font-bold text-gray-900 text-sm">{e.classTitle}</p>
+                                <p className="truncate font-bold text-gray-900 text-sm" title={e.classTitle}>{e.classTitle}</p>
                             </td>
                             <td className="px-6 py-4">
                                 <p className="text-sm text-gray-600">{e.studentName}</p>
                                 <p className="text-xs text-gray-400">{e.studentEmail}</p>
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-500">{e.appliedAt}</td>
-                            <td className="px-6 py-4">
+                            <td className="px-6 py-4 text-sm text-gray-500 whitespace-nowrap">{e.appliedAt}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
                   <span className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-bold",
                       getFreelancerEnrollmentStatusMeta(e).badgeClassName
@@ -1684,8 +1684,8 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                 {e.cancelReason &&
                                     <p className="text-[10px] text-red-400 mt-1">사유: {e.cancelReason}</p>}
                             </td>
-                            <td className="px-6 py-4">
-                                <div className="flex gap-2">
+                            <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex justify-center gap-2">
                                     {e.status === 'PENDING' && (
                                         <>
                                             <button
