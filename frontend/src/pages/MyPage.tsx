@@ -742,11 +742,11 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     const teachingClasses = classes.filter(c => c.freelancerEmail === currentUserEmail);
     const pickedClasses = classes.filter(item => wishedIds.has(item.id));
     const pickedRequests = requests.filter(item => wishedIds.has(item.id));
-    const totalUsers = adminUsers.length;
+    const totalUsers = adminUsers.filter((adminUser) => !adminUser.isDeleted).length;
     const today = new Date();
     const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
     const todayRevenue = adminClassOrders
-        .filter((order) => order.appliedAt === todayKey)
+        .filter((order) => order.status === 'APPROVED' && order.appliedAt === todayKey)
         .reduce((sum, order) => sum + (order.price ?? 0), 0);
     const activeClasses = {
         general: classes.filter((classItem) => classItem.status === 'OPEN').length,
@@ -2388,7 +2388,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                 <StatCard
                     title="오늘 결제 금액"
                     value={`${todayRevenue.toLocaleString('ko-KR')}원`}
-                    description="오늘 생성된 주문 금액 합계"
+                    description="오늘 승인된 주문 금액 합계"
                     icon={CreditCard}
                     iconClassName="bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white"
                 />
