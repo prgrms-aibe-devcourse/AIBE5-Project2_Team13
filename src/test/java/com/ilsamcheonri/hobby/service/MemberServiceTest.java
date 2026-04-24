@@ -22,7 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 @TestPropertySource(locations = "classpath:application-test.properties") // H2 설정 파일 적용
 class MemberServiceTest {
 
-    // 진짜 객체들을 주입받습니다!
+    // 진짜 객체들을 주입받습니다! 
     @Autowired private MemberService memberService;
     @Autowired private MemberRepository memberRepository;
     @Autowired private RoleCodeRepository roleCodeRepository;
