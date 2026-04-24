@@ -4,12 +4,16 @@ import { motion } from 'motion/react';
 import { Search, Sparkles, TrendingUp, ChevronRight, Dumbbell, Palette, Utensils, Music, Scissors, Camera, MapPin, Gamepad2, Languages, Trophy, Drama, MoreHorizontal } from 'lucide-react';
 import { CATEGORIES } from '@/src/constants';
 import { cn } from '@/src/lib/utils';
-import ClassCard from '@/src/components/ClassCard';
+import ExplorerItemCard from '@/src/components/ExplorerItemCard';
 import TasteAnalysis from '@/src/components/TasteAnalysis';
 import { useClasses } from '../context/ClassContext';
+import { useWish } from '../context/WishContext';
+import { useEnrollments } from '../context/EnrollmentContext';
 
 export default function Home() {
   const { classes } = useClasses();
+  const { wishedIds, toggleWish } = useWish();
+  const { enrollments } = useEnrollments();
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
 
   return (
@@ -120,7 +124,28 @@ export default function Home() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {/* 모집중인 클래스(status === 'OPEN')만 필터링하여 상위 8개 노출 */}
             {classes.filter(item => item.status === 'OPEN').slice(0, 8).map((item) => (
-              <ClassCard key={item.id} item={item} />
+              <ExplorerItemCard
+                key={item.id}
+                id={item.id}
+                image={item.image}
+                title={item.title}
+                value={item.price}
+                valueLabel="수강료"
+                personName={item.freelancer}
+                personLabel="프리랜서"
+                personId={item.freelancerId}
+                category={item.category}
+                categoryName={item.category}
+                type="class"
+                location={item.location}
+                lessonType={item.isOffline ? '오프라인' : '온라인'}
+                rating={item.rating}
+                reviews={item.reviews}
+                status={item.status}
+                enrollmentStatus={enrollments.find((enrollment) => enrollment.classId === item.id)?.status}
+                isWished={wishedIds.has(item.id)}
+                onWishToggle={() => toggleWish(item.id)}
+              />
             ))}
           </div>
         </div>
