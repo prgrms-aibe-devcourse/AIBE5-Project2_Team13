@@ -1846,6 +1846,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                             onChange={(value) => setDashboardDateRange(prev => ({...prev, end: value}))}
                             placeholder="종료일 선택"
                             minDate={dashboardDateRange.start}
+                            disableFuture
                             placement="top"
                             panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
