@@ -114,7 +114,7 @@ export default function Footer() {
 
           <div>
             <h4 className="mb-6 font-bold text-white">Contact</h4>
-            <p className="mb-2 text-sm text-gray-400">서울특별시 강남구 테헤란로 123</p>
+            <p className="mb-2 text-sm text-gray-400">포근특별시 따스구 연결로 13, 404빌딩 1004호</p>
             <p className="mb-2 text-sm text-gray-400">support@pogeun.com</p>
             <p className="text-sm text-gray-400">02-1234-5678</p>
           </div>
