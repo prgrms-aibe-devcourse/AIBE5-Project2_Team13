@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search,
   ChevronDown,
@@ -160,18 +160,16 @@ export default function ExplorerGrid<T>({
   }, [filteredAndSortedItems.length, hasMoreItems, loading]);
 
   return (
-    <div
-      className="bg-[#FAF7F2] px-4 pt-8 pb-16 sm:px-6 lg:px-8"
-    >
-      <div className="mx-auto max-w-7xl">
-        <div className="mb-8">
-          <h1 className="mb-3 text-4xl font-bold text-[#374151]">{title}</h1>
-          <p className="text-[#6B7280]">{description}</p>
+    <div className="pt-12 pb-0">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-12">
+          <h1 className="mb-4 text-4xl font-bold text-gray-900">{title}</h1>
+          <p className="text-gray-sub">{description}</p>
         </div>
 
-        <div className="space-y-6">
-          <div className="space-y-5">
-            <div className="flex flex-col items-center gap-5 lg:flex-row">
+        <div className="mb-12 space-y-8">
+          <div className="flex flex-col gap-6 rounded-[32px] border border-gray-100 bg-white p-6 shadow-sm">
+            <div className="flex flex-col items-center gap-6 lg:flex-row">
               <div className="relative w-full lg:flex-1">
                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
                 <input
@@ -183,13 +181,13 @@ export default function ExplorerGrid<T>({
                   }
                   value={searchQuery}
                   onChange={(e) => handleFilterChange('search', e.target.value)}
-                    className="w-full rounded-2xl border border-transparent bg-white py-3.5 pl-12 pr-6 text-[#374151] outline-none transition-all focus:border-coral focus:ring-2 focus:ring-coral/10"
+                  className="w-full rounded-2xl border-2 border-transparent bg-ivory/50 py-3.5 pl-12 pr-6 outline-none transition-all focus:border-coral"
                 />
               </div>
 
-              <div className="flex w-full flex-wrap items-center gap-4 lg:w-auto">
+              <div className="flex w-full flex-wrap items-center gap-6 lg:w-auto">
                 {type === 'class' && (
-                  <div className="flex rounded-2xl bg-white p-1.5">
+                  <div className="flex rounded-2xl border border-gray-100 bg-ivory/50 p-1.5">
                     {[
                       { id: 'all', label: '전체' },
                       { id: 'online', label: '온라인' },
@@ -201,8 +199,8 @@ export default function ExplorerGrid<T>({
                         className={cn(
                           'whitespace-nowrap rounded-xl px-5 py-2 text-sm font-bold transition-all',
                           locationFilter === chip.id
-                            ? 'bg-coral text-white shadow-sm'
-                            : 'text-[#6B7280] hover:text-coral'
+                            ? 'bg-white text-coral shadow-sm'
+                            : 'text-gray-500 hover:text-coral'
                         )}
                       >
                         {chip.label}
@@ -215,7 +213,7 @@ export default function ExplorerGrid<T>({
                   <select
                     value={sortType}
                     onChange={(e) => handleFilterChange('sort', e.target.value)}
-                    className="w-full cursor-pointer appearance-none rounded-2xl border border-transparent bg-white py-3.5 pl-5 pr-10 text-sm font-bold text-[#374151] outline-none transition-all focus:border-coral focus:ring-2 focus:ring-coral/10"
+                    className="w-full cursor-pointer appearance-none rounded-2xl border-2 border-transparent bg-ivory/50 py-3.5 pl-5 pr-10 text-sm font-bold text-gray-700 outline-none transition-all focus:border-coral"
                   >
                     <option value="latest">최신순</option>
                     <option value="priceLow">가격 낮은 순</option>
@@ -231,18 +229,18 @@ export default function ExplorerGrid<T>({
             </div>
 
             {type === 'class' && (
-              <div className="rounded-[22px] bg-white px-5 py-4">
+              <div className="rounded-[24px] border border-coral/10 bg-ivory/50 px-5 py-4">
                 <label className="flex cursor-pointer select-none items-center justify-between gap-4">
                   <div className="space-y-1">
-                    <p className="text-sm font-bold text-[#374151]">모집중인 클래스만 보기</p>
-                    <p className="text-xs text-[#6B7280]">{resultStatusText}</p>
+                    <p className="text-sm font-bold text-gray-900">모집중인 클래스만 보기</p>
+                    <p className="text-xs text-gray-500">{resultStatusText}</p>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <span
                       className={cn(
                         'text-xs font-bold transition-colors',
-                        onlyRecruiting ? 'text-coral' : 'text-[#6B7280]'
+                        onlyRecruiting ? 'text-coral' : 'text-gray-400'
                       )}
                     >
                       {onlyRecruiting ? 'ON' : 'OFF'}
@@ -273,48 +271,46 @@ export default function ExplorerGrid<T>({
               </div>
             )}
           </div>
+        </div>
 
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={() => handleFilterChange('category', 'all')}
-              className={cn(
-                'flex items-center gap-2 rounded-2xl border px-6 py-3 text-base font-bold transition-all',
-                selectedCategory === 'all'
-                  ? 'border-coral bg-coral text-white shadow-lg shadow-coral/20'
-                  : 'border-transparent bg-[#f3f4f6] text-[#6B7280] hover:border-coral hover:text-coral'
-              )}
-            >
-              전체
-            </button>
-
-            {catLoading ? (
-              Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="h-12 w-28 animate-pulse rounded-2xl bg-[#f3f4f6]" />
-              ))
-            ) : (
-              categories.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => handleFilterChange('category', cat.name)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-2xl border px-6 py-3 text-base font-bold transition-all',
-                    selectedCategory === cat.name
-                      ? 'border-coral bg-coral text-white shadow-lg shadow-coral/20'
-                      : 'border-transparent bg-[#f3f4f6] text-[#6B7280] hover:border-coral hover:text-coral'
-                  )}
-                >
-                  {getCategoryIcon(cat.name)}
-                  {cat.name}
-                </button>
-              ))
+        <div className="mb-12 flex flex-wrap gap-4">
+          <button
+            onClick={() => handleFilterChange('category', 'all')}
+            className={cn(
+              'flex items-center gap-2 rounded-2xl border px-6 py-3 text-base font-bold transition-all',
+              selectedCategory === 'all'
+                ? 'border-coral bg-coral text-white shadow-lg shadow-coral/20'
+                : 'border-gray-100 bg-white text-gray-500 hover:border-coral hover:text-coral'
             )}
-          </div>
+          >
+            전체
+          </button>
+
+          {catLoading ? (
+            Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="h-12 w-28 animate-pulse rounded-2xl bg-white" />
+            ))
+          ) : (
+            categories.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => handleFilterChange('category', cat.name)}
+                className={cn(
+                  'flex items-center gap-2 rounded-2xl border px-6 py-3 text-base font-bold transition-all',
+                  selectedCategory === cat.name
+                    ? 'border-coral bg-coral text-white shadow-lg shadow-coral/20'
+                    : 'border-gray-100 bg-white text-gray-500 hover:border-coral hover:text-coral'
+                )}
+              >
+                {getCategoryIcon(cat.name)}
+                {cat.name}
+              </button>
+            ))
+          )}
         </div>
       </div>
 
-      <div
-        className="mt-8 bg-[#F6F6F4] py-8"
-      >
+      <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 rounded-t-[48px] bg-[#F5F5F5] pt-12 pb-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading ? (
@@ -374,7 +370,7 @@ export default function ExplorerGrid<T>({
             </div>
           )}
         </div>
-      </div>
+      </section>
     </div>
   );
 }

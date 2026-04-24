@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { RequestItem } from '@/src/constants';
 import ExplorerGrid from '@/src/components/ExplorerGrid';
 import { Plus } from 'lucide-react';
@@ -11,11 +11,24 @@ export default function RequestBoard() {
   const { requests, loading, error } = useRequests();
   const { wishedIds } = useWish();
 
-  const filterFn = (item: RequestItem, query: string, category: string, _locationFilter: string, _onlyRecruiting: boolean) => {
+  const filterFn = (
+      item: RequestItem,
+      query: string,
+      category: string,
+      locationFilter: string,
+      _onlyRecruiting: boolean
+  ) => {
     const matchesCategory = category === 'all' || item.category === category;
-    const matchesSearch = item.title.toLowerCase().includes(query.toLowerCase()) ||
-                         item.author.toLowerCase().includes(query.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const matchesSearch =
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        item.author.toLowerCase().includes(query.toLowerCase());
+
+    const matchesLocation =
+        locationFilter === 'all' ||
+        (locationFilter === 'online' && item.lessonType === '온라인') ||
+        (locationFilter === 'offline' && item.lessonType === '오프라인');
+
+    return matchesCategory && matchesSearch && matchesLocation;
   };
 
   const sortFn = (a: RequestItem, b: RequestItem, sortType: string) => {
@@ -38,7 +51,7 @@ export default function RequestBoard() {
         items={requests}
         type="request"
         title="클래스 요청 목록"
-        description="이런 클래스를 찾고 있어요!"
+        description="이런 클래스를 찾고 있어요"
         filterFn={filterFn}
         sortFn={sortFn}
         renderItem={() => null}

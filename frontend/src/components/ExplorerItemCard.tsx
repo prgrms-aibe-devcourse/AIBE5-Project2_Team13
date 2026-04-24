@@ -1,5 +1,17 @@
-import React from 'react';
-import { Star, Sparkles, Music, Palette, Drama, Languages, Trophy, Gamepad2, Utensils, MoreHorizontal, Heart } from 'lucide-react';
+﻿import React from 'react';
+import {
+  Star,
+  Sparkles,
+  Music,
+  Palette,
+  Drama,
+  Languages,
+  Trophy,
+  Gamepad2,
+  Utensils,
+  MoreHorizontal,
+  Heart,
+} from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
@@ -24,196 +36,193 @@ interface ExplorerItemCardProps {
   reviews?: number;
   status?: string;
   enrollmentStatus?: string;
-  isWished?: boolean; // 찜 여부 — 목록에서 하트 표시용
+  isWished?: boolean; // 찜 여부 (하트 표시)
   compact?: boolean;
   imageLoading?: 'eager' | 'lazy';
   onWishToggle?: () => void | Promise<void>;
 }
 
-// ─────────────────────────────────────────────────
-// 카테고리 이름 → 배경색 매핑
-// 요청 클래스 카드의 이미지 영역 배경으로 사용됩니다.
-// ─────────────────────────────────────────────────
+// 카테고리 배경 색
 const CATEGORY_BG: Record<string, string> = {
-  '뷰티·패션':   'bg-pink-100',
-  '음악·악기':   'bg-purple-100',
-  '미술·공예':   'bg-orange-100',
-  '댄스·연기':   'bg-red-100',
-  '어학·교육':   'bg-blue-100',
+  '뷰티·패션': 'bg-pink-100',
+  '음악·악기': 'bg-purple-100',
+  '미술·공예': 'bg-orange-100',
+  '댄스·연기': 'bg-red-100',
+  '어학·교육': 'bg-blue-100',
   '스포츠·레저': 'bg-green-100',
-  '게임':        'bg-indigo-100',
+  '게임': 'bg-indigo-100',
   '라이프·요리': 'bg-yellow-100',
-  '기타':        'bg-gray-100',
+  '기타': 'bg-gray-100',
 };
 
-// 카테고리 이름 → 아이콘 매핑
+// 카테고리 아이콘
 const getCategoryIcon = (name: string) => {
   const cls = 'w-16 h-16 opacity-40';
+
   switch (name) {
-    case '뷰티·패션':   return <Sparkles className={cls} />;
-    case '음악·악기':   return <Music className={cls} />;
-    case '미술·공예':   return <Palette className={cls} />;
-    case '댄스·연기':   return <Drama className={cls} />;
-    case '어학·교육':   return <Languages className={cls} />;
-    case '스포츠·레저': return <Trophy className={cls} />;
-    case '게임':        return <Gamepad2 className={cls} />;
-    case '라이프·요리': return <Utensils className={cls} />;
-    default:            return <MoreHorizontal className={cls} />;
+    case '뷰티·패션':
+      return <Sparkles className={cls} />;
+    case '음악·악기':
+      return <Music className={cls} />;
+    case '미술·공예':
+      return <Palette className={cls} />;
+    case '댄스·연기':
+      return <Drama className={cls} />;
+    case '어학·교육':
+      return <Languages className={cls} />;
+    case '스포츠·레저':
+      return <Trophy className={cls} />;
+    case '게임':
+      return <Gamepad2 className={cls} />;
+    case '라이프·요리':
+      return <Utensils className={cls} />;
+    default:
+      return <MoreHorizontal className={cls} />;
   }
 };
 
+const lessonTypeBadgeClass = (lessonType?: string) =>
+  lessonType === '온라인'
+    ? 'bg-blue-50 text-blue-500'
+    : lessonType === '오프라인'
+      ? 'bg-orange-50 text-orange-500'
+      : 'bg-gray-100 text-gray-400';
+
 const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
-  id,
-  image,
-  title,
-  value,
-  valueLabel,
-  personName,
-  personLabel,
-  personId,
-  category,
-  categoryName,
-  type = 'class',
-  location,
-  timeSlot,
-  lessonType,
-  rating,
-  reviews,
-  status,
-  enrollmentStatus,
-  isWished = false,
-  compact = false,
-  imageLoading = 'lazy',
-  onWishToggle,
-}) => {
-  const isEnrolled = enrollmentStatus && enrollmentStatus !== 'CANCELLED';
+                                                             id,
+                                                             image,
+                                                             title,
+                                                             value,
+                                                             personName,
+                                                             categoryName,
+                                                             type = 'class',
+                                                             location,
+                                                             lessonType,
+                                                             rating,
+                                                             reviews,
+                                                             status,
+                                                             enrollmentStatus,
+                                                             isWished = false,
+                                                             compact = false,
+                                                             imageLoading = 'lazy',
+                                                             onWishToggle,
+                                                           }) => {
+  const isClosed = status !== 'OPEN';
 
   return (
-    <motion.div
-      whileHover={{ y: -8 }}
-      className={cn(
-        "group overflow-hidden rounded-[32px] border border-[#efefea] bg-white shadow-[0_14px_30px_#f4f4f2] transition-all hover:shadow-[0_20px_40px_#f4f4f2]",
-        compact && "rounded-[24px]"
-      )}
-    >
-      <Link to={type === 'class' ? `/class/${id}` : `/request/${id}`}>
+      <motion.div
+          whileHover={{ y: -8 }}
+          className={cn(
+              'group overflow-hidden rounded-[32px] border border-[#efefea] bg-white shadow-[0_14px_30px_#f4f4f2] transition-all hover:shadow-[0_20px_40px_#f4f4f2]',
+              compact && 'rounded-[24px]'
+          )}
+      >
+        <Link to={type === 'class' ? `/class/${id}` : `/request/${id}`}>
 
-        {/* ── 이미지 / 배경 영역 ── */}
-        <div className={cn("relative aspect-[4/3] overflow-hidden", compact && "aspect-[4/2.8]")}>
+          {/* 이미지 영역 */}
+          <div className={cn('relative aspect-[4/3] overflow-hidden', compact && 'aspect-[4/2.8]')}>
 
-          {type === 'request' ? (
-            // 요청 클래스: 이미지 대신 카테고리 색상 배경 + 아이콘
-            // 이미지가 없는 요청 클래스 특성을 자연스럽게 표현합니다.
-            <div className={`w-full h-full flex flex-col items-center justify-center gap-3
-              ${CATEGORY_BG[categoryName] ?? 'bg-gray-100'}
-              group-hover:brightness-95 transition-all duration-300`}
-            >
-              {getCategoryIcon(categoryName)}
-              <span className="text-sm font-bold text-gray-500 tracking-wide">
+            {type === 'request' ? (
+                <div
+                    className={cn(
+                        'w-full h-full flex flex-col items-center justify-center gap-3',
+                        CATEGORY_BG[categoryName] ?? 'bg-gray-100'
+                    )}
+                >
+                  {getCategoryIcon(categoryName)}
+                  <span className="text-sm font-bold text-gray-500">
                 {categoryName}
               </span>
-            </div>
-          ) : (
-            // 일반 클래스: 기존 이미지 그대로
-            <SafeImage
-              src={image}
-              alt={title}
-              loading={imageLoading}
-              decoding="async"
-              sizes={compact ? '(max-width: 768px) 100vw, 50vw' : '(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 25vw'}
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              referrerPolicy="no-referrer"
-            />
-          )}
+                </div>
+            ) : (
+                <SafeImage
+                    src={image}
+                    alt={title}
+                    loading={imageLoading}
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+            )}
 
-          {/* 카테고리 뱃지 (좌측 상단) */}
-          <div className="absolute top-4 left-4 z-10">
-            <div className={cn(
-              "px-3 py-1 bg-black/50 backdrop-blur-sm rounded-lg text-[13px] font-bold text-white shadow-sm w-fit",
-              compact && "px-2.5 py-1 text-[12px]"
-            )}>
-              {categoryName}
-            </div>
-          </div>
-
-          {/* 모집 상태 뱃지 (우측 상단) */}
-          {type === 'class' && (status !== 'OPEN') && (
-              <div className={cn(
-                  "absolute top-4 right-4 z-10 px-3 py-1 rounded-full text-[11px] font-bold shadow-sm w-fit flex-shrink-0 whitespace-nowrap text-white",
-                  "bg-gray-400", // '신청 완료'배지 없앰. 클래스 카드가 깔끔하게 보이게 하려고 수정
-                  compact && "px-2.5 py-0.5 text-[10px]",
-                  isWished && "right-14"
-              )}>
-                {'모집마감'}
-              </div>
-          )}
-
-          {/* 찜 하트 아이콘 — 찜한 클래스에만 표시 */}
-          {isWished && (
+            {/* 좋아요 버튼 */}
             <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onWishToggle?.();
-              }}
-              className={cn(
-                "absolute top-4 right-4 z-10 rounded-full bg-white/90 p-2 text-coral shadow-sm transition hover:bg-white",
-                !onWishToggle && "cursor-default"
-              )}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onWishToggle?.();
+                }}
+                className="absolute top-3 right-3 z-10 rounded-full bg-white/90 p-2 shadow"
             >
-              <Heart size={compact ? 18 : 22} className="fill-coral text-coral drop-shadow" />
+              <Heart
+                  size={20}
+                  className={cn(
+                      isWished ? 'fill-coral text-coral' : 'text-gray-300'
+                  )}
+              />
             </button>
-          )}
-        </div>
 
-        {/* ── 카드 하단 텍스트 영역 ── */}
-        <div className={cn("p-6", compact && "p-4")}>
-          <p className={cn("text-xs text-gray-400 mb-1 font-medium", compact && "text-[11px]")}>{personName}</p>
-          <h3 className={cn(
-            "font-bold text-gray-900 text-[18px] mb-2 line-clamp-2 group-hover:text-coral transition-colors leading-snug h-[2.8em]",
-            compact && "text-[16px] mb-1.5 h-[2.6em]"
-          )}>
-            {title}
-          </h3>
-
-          {/* 요청 클래스는 별점 대신 온/오프라인 표시 */}
-          {type === 'request' ? (
-            <div className={cn("flex items-center gap-1 mb-4", compact && "mb-3")}>
-              <span className={cn(
-                "text-xs font-bold px-2 py-0.5 rounded-lg",
-                lessonType === '온라인'
-                  ? 'bg-blue-50 text-blue-500'
-                  : lessonType === '오프라인'
-                    ? 'bg-orange-50 text-orange-500'
-                    : 'text-gray-400 font-medium',
-                compact && "text-[11px]"
-              )}>
-                {lessonType ?? '온/오프라인 협의'}
-              </span>
-            </div>
-          ) : (
-            <div className={cn("flex items-center gap-1 mb-4", compact && "mb-3")}>
-              <Star size={compact ? 12 : 14} className="fill-yellow-400 text-yellow-400" />
-              <span className={cn("text-sm font-bold text-gray-900", compact && "text-[13px]")}>{rating || 0}</span>
-              <span className={cn("text-[13px] text-gray-400", compact && "text-[11px]")}>({reviews || 0})</span>
-            </div>
-          )}
-
-          <div className={cn("pt-4 border-t border-gray-50 flex items-center justify-between gap-3", compact && "pt-3")}>
-            <span className={cn("shrink-0 whitespace-nowrap text-lg font-bold text-gray-900", compact && "text-base")}>
-              {value.toLocaleString()}원
-            </span>
-            {location && (
-              <span className={cn("min-w-0 truncate text-[10px] text-right font-medium text-gray-400", compact && "text-[9px]")}>
-                {location}
-              </span>
+            {/* 모집마감 오버레이 */}
+            {type === 'class' && isClosed && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold">
+                  모집마감
+                </div>
             )}
           </div>
-        </div>
 
-      </Link>
-    </motion.div>
+          {/* 텍스트 영역 */}
+          <div className={cn('p-6', compact && 'p-4')}>
+            <p className="text-xs text-gray-400 mb-1">{personName}</p>
+
+            <h3 className="font-bold text-gray-900 text-lg mb-2 line-clamp-2">
+              {title}
+            </h3>
+
+            {/* 평점 or 요청 타입 */}
+            {type === 'request' ? (
+                <div className="mb-3">
+                  <span
+                      className={cn(
+                          'inline-flex rounded-full px-2.5 py-1 text-xs font-bold',
+                          lessonTypeBadgeClass(lessonType)
+                      )}
+                  >
+                    {lessonType ?? '온라인/오프라인 미정'}
+                  </span>
+                </div>
+            ) : (
+                <div className="flex items-center gap-1 mb-3">
+                  {lessonType && (
+                      <span
+                          className={cn(
+                              'mr-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold',
+                              lessonTypeBadgeClass(lessonType)
+                          )}
+                      >
+                        {lessonType}
+                      </span>
+                  )}
+                  <Star className="fill-yellow-400 text-yellow-400" size={14} />
+                  <span className="text-sm font-bold">{rating || 0}</span>
+                  <span className="text-xs text-gray-400">
+                ({reviews || 0})
+              </span>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3 border-t border-[#EAE7E2] pt-3">
+            <span className="shrink-0 whitespace-nowrap text-lg font-bold">
+              {value.toLocaleString()}원
+            </span>
+
+              {location && (
+                  <span className="min-w-0 truncate text-xs text-gray-400">
+                {location}
+              </span>
+              )}
+            </div>
+          </div>
+        </Link>
+      </motion.div>
   );
 };
 
