@@ -310,7 +310,7 @@ export default function ExplorerGrid<T>({
         </div>
       </div>
 
-      <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 rounded-t-[48px] bg-[#F5F5F5] pt-12 pb-16">
+      <section className="relative left-1/2 right-1/2 w-screen -translate-x-1/2 rounded-t-[48px] bg-[#ffffff] pt-12 pb-16">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {loading ? (
