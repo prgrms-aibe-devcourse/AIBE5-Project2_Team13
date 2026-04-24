@@ -13,7 +13,7 @@ export default function FloatingSupportButton() {
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const isRequestBoardPage = location.pathname === '/requests';
+  const shouldLiftForPage = location.pathname === '/requests' || location.pathname === '/browse';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -33,7 +33,7 @@ export default function FloatingSupportButton() {
   return (
     <div className={cn(
       "fixed right-8 z-[9999] flex flex-col items-end gap-4",
-      isRequestBoardPage ? "bottom-28" : "bottom-8"
+      shouldLiftForPage ? "bottom-28" : "bottom-8"
     )}>
       {/* Mini AI Chat Window */}
       <AnimatePresence>
