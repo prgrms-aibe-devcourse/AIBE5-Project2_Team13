@@ -83,8 +83,14 @@ export function WishProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleWish = useCallback(async (classId: string | number) => {
+    const token = getAccessToken();
     const wishId = toWishId(classId);
     const wished = wishedIds.has(wishId);
+
+    if (!token) {
+      alert('로그인이 필요한 서비스입니다.');
+      return false;
+    }
 
     if (wished) {
       await apiClient.delete(`/wishes/${wishId}`);

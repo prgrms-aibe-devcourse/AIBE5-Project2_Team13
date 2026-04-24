@@ -3,7 +3,7 @@ import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-rea
 import { DayPicker } from 'react-day-picker';
 import 'react-day-picker/style.css';
 import { cn } from '@/src/lib/utils';
-import type { DropdownProps } from 'react-day-picker';
+import type { DropdownProps, Matcher } from 'react-day-picker';
 
 type DatePickerProps = {
   value: string;
@@ -12,6 +12,7 @@ type DatePickerProps = {
   disabled?: boolean;
   disableFuture?: boolean;
   minDate?: string;
+  maxDate?: string;
   placement?: 'top' | 'bottom';
   panelClassName?: string;
   className?: string;
@@ -84,6 +85,7 @@ export default function DatePicker({
   disabled = false,
   disableFuture = false,
   minDate,
+  maxDate,
   placement = 'bottom',
   panelClassName,
   className,
@@ -92,6 +94,7 @@ export default function DatePicker({
   const rootRef = useRef<HTMLDivElement>(null);
   const selectedDate = useMemo(() => parseDateValue(value), [value]);
   const minSelectableDate = useMemo(() => parseDateValue(minDate ?? ''), [minDate]);
+  const maxSelectableDate = useMemo(() => parseDateValue(maxDate ?? ''), [maxDate]);
   const [viewMonth, setViewMonth] = useState<Date | undefined>(selectedDate);
 
   useEffect(() => {
@@ -114,6 +117,24 @@ export default function DatePicker({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
+
+  const disabledMatchers = useMemo(() => {
+    const matchers: Matcher[] = [];
+
+    if (disableFuture) {
+      matchers.push({ after: new Date() });
+    }
+
+    if (minSelectableDate) {
+      matchers.push({ before: minSelectableDate });
+    }
+
+    if (maxSelectableDate) {
+      matchers.push({ after: maxSelectableDate });
+    }
+
+    return matchers;
+  }, [disableFuture, minSelectableDate, maxSelectableDate]);
 
   return (
     <div ref={rootRef} className={cn('relative', className)}>
@@ -157,11 +178,8 @@ export default function DatePicker({
             showOutsideDays
             captionLayout="dropdown"
             startMonth={minSelectableDate ?? new Date(1950, 0)}
-            endMonth={disableFuture ? new Date() : new Date(2100, 11)}
-            disabled={{
-              ...(disableFuture ? { after: new Date() } : {}),
-              ...(minSelectableDate ? { before: minSelectableDate } : {}),
-            }}
+            endMonth={maxSelectableDate ?? (disableFuture ? new Date() : new Date(2100, 11))}
+            disabled={disabledMatchers}
             classNames={{
               root: 'w-full',
               months: 'flex justify-center',
