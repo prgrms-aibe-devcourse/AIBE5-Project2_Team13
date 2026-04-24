@@ -103,11 +103,12 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
                                                              status,
                                                              enrollmentStatus,
                                                              isWished = false,
-                                                             compact = false,
-                                                             imageLoading = 'lazy',
-                                                             onWishToggle,
-                                                           }) => {
+                                                           compact = false,
+                                                           imageLoading = 'lazy',
+                                                           onWishToggle,
+                                                         }) => {
   const isClosed = status !== 'OPEN';
+  const classMeta = [lessonType, location].filter(Boolean).join(' · ');
 
   return (
       <motion.div
@@ -177,12 +178,12 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
               {title}
             </h3>
 
-            {/* 평점 or 요청 타입 */}
+            {/* 요청 카드 */}
             {type === 'request' ? (
                 <div className="mb-3">
                   <span
                       className={cn(
-                          'inline-flex rounded-full px-2.5 py-1 text-xs font-bold',
+                          'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold',
                           lessonTypeBadgeClass(lessonType)
                       )}
                   >
@@ -190,35 +191,46 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
                   </span>
                 </div>
             ) : (
-                <div className="flex items-center gap-1 mb-3">
-                  {lessonType && (
-                      <span
-                          className={cn(
-                              'mr-2 inline-flex rounded-full px-2.5 py-1 text-xs font-bold',
-                              lessonTypeBadgeClass(lessonType)
-                          )}
-                      >
-                        {lessonType}
-                      </span>
+                <>
+                  <div className="mb-3 flex min-h-6 items-center gap-2 text-sm text-gray-500">
+                    {lessonType && (
+                        <span
+                            className={cn(
+                                'inline-flex whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-bold',
+                                lessonTypeBadgeClass(lessonType)
+                            )}
+                        >
+                          {lessonType}
+                        </span>
+                    )}
+
+                    {lessonType && location && <span className="text-gray-300">·</span>}
+
+                    {location && (
+                        <span className="min-w-0 truncate text-sm text-gray-500">
+                          {location}
+                        </span>
+                    )}
+                  </div>
+
+                  {!lessonType && !location && classMeta === '' && (
+                      <div className="mb-3 min-h-6" />
                   )}
-                  <Star className="fill-yellow-400 text-yellow-400" size={14} />
-                  <span className="text-sm font-bold">{rating || 0}</span>
-                  <span className="text-xs text-gray-400">
-                ({reviews || 0})
-              </span>
-                </div>
+
+                  <div className="mb-3 flex items-center gap-1">
+                    <Star className="fill-yellow-400 text-yellow-400" size={14} />
+                    <span className="text-sm font-bold">{rating || 0}</span>
+                    <span className="text-xs text-gray-400">
+                  ({reviews || 0})
+                </span>
+                  </div>
+                </>
             )}
 
-            <div className="flex items-center justify-between gap-3 border-t border-[#EAE7E2] pt-3">
-            <span className="shrink-0 whitespace-nowrap text-lg font-bold">
-              {value.toLocaleString()}원
-            </span>
-
-              {location && (
-                  <span className="min-w-0 truncate text-xs text-gray-400">
-                {location}
+            <div className="border-t border-[#EAE7E2] pt-3">
+              <span className="shrink-0 whitespace-nowrap text-lg font-bold">
+                {value.toLocaleString()}원
               </span>
-              )}
             </div>
           </div>
         </Link>

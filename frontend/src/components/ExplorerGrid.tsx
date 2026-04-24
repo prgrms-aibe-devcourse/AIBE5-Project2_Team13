@@ -328,6 +328,12 @@ export default function ExplorerGrid<T>({
             ) : filteredAndSortedItems.length > 0 ? (
               visibleItems.map((item: any) => {
                 const currentEnrollment = enrollments.find((e) => e.classId === item.id);
+                const lessonType =
+                  type === 'class'
+                    ? item.isOffline
+                      ? '오프라인'
+                      : '온라인'
+                    : item.lessonType;
 
                 return (
                   <ExplorerItemCard
@@ -345,7 +351,7 @@ export default function ExplorerGrid<T>({
                     type={type}
                     location={item.location}
                     timeSlot={item.timeSlot}
-                    lessonType={item.lessonType}
+                    lessonType={lessonType}
                     rating={item.rating}
                     reviews={item.reviews}
                     status={type === 'request' ? '요청 중' : item.status}
