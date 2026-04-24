@@ -88,6 +88,8 @@ const lessonTypeBadgeClass = (lessonType?: string) =>
       ? 'bg-orange-50 text-orange-500'
       : 'bg-gray-100 text-gray-400';
 
+const MAX_RATING_STARS = 5;
+
 const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
                                                              id,
                                                              image,
@@ -218,8 +220,23 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
                   )}
 
                   <div className="mb-3 flex items-center gap-1">
-                    <Star className="fill-yellow-400 text-yellow-400" size={14} />
-                    <span className="text-sm font-bold">{rating || 0}</span>
+                    <div className="flex items-center gap-0.5">
+                      {Array.from({ length: MAX_RATING_STARS }).map((_, index) => {
+                        const filledStars = Math.max(0, Math.min(MAX_RATING_STARS, Math.floor(rating || 0)));
+                        const isFilled = index < filledStars;
+
+                        return (
+                          <Star
+                            key={index}
+                            size={14}
+                            className={cn(
+                              isFilled ? 'fill-yellow-400 text-yellow-400' : 'fill-transparent text-gray-300'
+                            )}
+                          />
+                        );
+                      })}
+                    </div>
+                    <span className="ml-1 text-sm font-bold">{rating || 0}</span>
                     <span className="text-xs text-gray-400">
                   ({reviews || 0})
                 </span>
