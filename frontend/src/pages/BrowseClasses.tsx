@@ -77,7 +77,7 @@ export default function BrowseClasses() {
       {isFreelancer && (
         <div className="fixed bottom-10 right-10 z-40">
           <button
-            onClick={() => navigate('/classes/new')}
+            onClick={() => navigate('/class/create')}
             className="flex items-center gap-2 px-8 py-4 bg-coral text-white font-bold rounded-3xl hover:bg-coral/90 transition-all shadow-2xl shadow-coral/40"
           >
             <Plus size={24} /> 새 클래스 등록
