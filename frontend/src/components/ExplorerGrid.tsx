@@ -357,7 +357,7 @@ export default function ExplorerGrid<T>({
                     status={type === 'request' ? '요청 중' : item.status}
                     enrollmentStatus={currentEnrollment?.status}
                     isWished={wishedIds.has(item.id)}
-                    onWishToggle={wishedIds.has(item.id) ? () => toggleWish(item.id) : undefined}
+                    onWishToggle={() => toggleWish(item.id)}
                   />
                 );
               })
