@@ -40,6 +40,7 @@ interface ExplorerItemCardProps {
   compact?: boolean;
   imageLoading?: 'eager' | 'lazy';
   onWishToggle?: () => void | Promise<void>;
+  showClosedOverlay?: boolean;
 }
 
 // 카테고리 배경 색
@@ -108,8 +109,9 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
                                                            compact = false,
                                                            imageLoading = 'lazy',
                                                            onWishToggle,
+                                                           showClosedOverlay = true,
                                                          }) => {
-  const isClosed = status !== 'OPEN';
+  const isClosed = status != null && status !== 'OPEN';
   const classMeta = [lessonType, location].filter(Boolean).join(' · ');
 
   return (
@@ -165,7 +167,7 @@ const ExplorerItemCard: React.FC<ExplorerItemCardProps> = ({
             </button>
 
             {/* 모집마감 오버레이 */}
-            {type === 'class' && isClosed && (
+            {type === 'class' && isClosed && showClosedOverlay && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white font-bold">
                   모집마감
                 </div>
