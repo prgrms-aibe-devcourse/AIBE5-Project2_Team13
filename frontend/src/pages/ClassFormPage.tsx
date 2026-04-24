@@ -136,7 +136,7 @@ export default function ClassFormPage() {
 
     const loadDetail = async () => {
       try {
-        const response = await apiClient.get<ClassDetailResponse>(`/classes/${id}`);
+        const response = await apiClient.get<ClassDetailResponse>(`/class/${id}`);
         const detail = response.data;
         const matchedCategory = categories.find((cat) => cat.name === detail.categoryName);
 
@@ -281,9 +281,9 @@ export default function ClassFormPage() {
       if (!window.confirm('등록 후 제목, 카테고리, 모집인원은 수정할 수 없습니다. 이대로 등록하시겠습니까?')) {
         return;
       }
-      await addClass(createPayload);
+      const createdClassId = await addClass(createPayload);
       setToast('클래스가 성공적으로 등록되었습니다!');
-      setTimeout(() => navigate('/profile'), 1500);
+      setTimeout(() => navigate(`/class/${createdClassId}`), 1500);
     } catch (error: any) {
       const status = error?.response?.status;
       const message = error?.response?.data?.message;
