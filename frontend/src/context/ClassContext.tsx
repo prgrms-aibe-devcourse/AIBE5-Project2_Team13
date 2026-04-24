@@ -21,7 +21,7 @@ interface CreateClassPayload {
 interface ClassContextType {
     classes: ClassItem[];
     fetchClasses: () => Promise<void>;
-    addClass: (newClass: CreateClassPayload) => Promise<void>;
+    addClass: (newClass: CreateClassPayload) => Promise<string>;
     deleteClass: (id: string) => Promise<void>;
     updateClass: (id: string, updatedClass: CreateClassPayload) => Promise<void>;
     toggleStatus: (id: string) => Promise<void>;
@@ -154,11 +154,12 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
             }
 
             // apiClient 사용 — sessionStorage + localStorage 둘 다 확인하는 인터셉터 적용
-            await apiClient.post('/classes', formData, {
+            const response = await apiClient.post<number>('/classes', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             await fetchClasses();
+            return String(response.data);
         } catch (error) {
             console.error('클래스 생성 실패:', error);
             throw error;

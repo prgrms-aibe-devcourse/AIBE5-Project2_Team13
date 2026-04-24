@@ -967,7 +967,10 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     };
 
     const handleWithdraw = () => {
-        if (!window.confirm('정말 회원 탈퇴하시겠습니까?')) {
+        const message =
+            '정말 탈퇴하시겠습니까?\n탈퇴 시 모든 정보는 삭제되며 복구할 수 없습니다.';
+
+        if (!window.confirm(message)) {
             return;
         }
 
@@ -1244,6 +1247,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                         category={classItem.category}
                                         categoryName="승인 대기"
                                         status={classItem.status}
+                                        showClosedOverlay={false}
                                         imageLoading="eager"
                                     />
                                     {renderEnrollmentButton(e)}
