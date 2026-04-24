@@ -83,22 +83,22 @@ export default function Footer() {
                   </Link>
                 </li>
               )}
-              <li>
+              {/* <li>
                 <Link to="/reviews" className="transition-colors hover:text-coral">
-                  이용 리뷰
+                  이용리뷰
                 </Link>
-              </li>
+              </li> */}
             </ul>
           </div>
 
           <div>
             <h4 className="mb-6 font-bold text-white">고객센터</h4>
             <ul className="space-y-4 text-sm text-gray-400">
-              <li>
+              {/* <li>
                 <Link to="/notices" className="transition-colors hover:text-coral">
                   공지사항
                 </Link>
-              </li>
+              </li> */}
               <li>
                 <Link to="/faq" className="transition-colors hover:text-coral">
                   자주 묻는 질문
