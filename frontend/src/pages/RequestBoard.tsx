@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRequests } from '../context/RequestContext';
 import { useWish } from '../context/WishContext';
+import { getAccessToken } from '../lib/auth';
 
 export default function RequestBoard() {
   const navigate = useNavigate();
@@ -37,6 +38,15 @@ export default function RequestBoard() {
     return 0;
   };
 
+  const handleWriteClick = () => {
+    if (!getAccessToken()) {
+      alert('로그인이 필요한 서비스입니다.');
+      return;
+    }
+
+    navigate('/requests/write');
+  };
+
   if (error) {
     return (
       <div className="flex justify-center items-center h-64 text-red-400 text-lg">
@@ -61,7 +71,7 @@ export default function RequestBoard() {
 
       <div className="fixed bottom-10 right-10 z-40">
         <button
-          onClick={() => navigate('/requests/write')}
+          onClick={handleWriteClick}
           className="flex items-center gap-2 px-8 py-4 bg-coral text-white font-bold rounded-3xl hover:bg-coral/90 transition-all shadow-2xl shadow-coral/40"
         >
           <Plus size={24} /> 요청 글쓰기
