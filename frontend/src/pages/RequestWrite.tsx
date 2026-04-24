@@ -19,9 +19,7 @@ export default function RequestWrite() {
   const [maxCapacity, setMaxCapacity] = useState('1');
   const [isOnline, setIsOnline] = useState<boolean>(false);
   const [startDate, setStartDate] = useState('');
-  const [startTime, setStartTime] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [endTime, setEndTime] = useState('');
+  const [endDate,   setEndDate]   = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,16 +37,16 @@ export default function RequestWrite() {
       return;
     }
 
-    if (!startDate || !startTime || !endDate || !endTime) {
-      alert('시작/종료 날짜와 시간을 모두 입력해 주세요.');
+    if (!startDate || !endDate) {
+      alert('시작/종료 날짜를 모두 입력해 주세요.');
       return;
     }
 
-    const startAt = `${startDate}T${startTime}:00`;
-    const endAt = `${endDate}T${endTime}:00`;
+    const startAt = `${startDate}T00:00:00`;  // 날짜만 저장 — 시간은 00:00:00 고정
+    const endAt   = `${endDate}T00:00:00`;
 
-    if (new Date(endAt) <= new Date(startAt)) {
-      alert('종료 일시는 시작 일시보다 이후여야 합니다.');
+    if (new Date(endDate) < new Date(startDate)) {
+      alert('종료 날짜는 시작 날짜보다 이후여야 합니다.');
       return;
     }
 
@@ -159,13 +157,6 @@ export default function RequestWrite() {
                   placeholder="시작일을 선택해 주세요"
                   className="w-full"
                 />
-                <input
-                  type="time"
-                  required
-                  value={startTime}
-                  onChange={(e) => setStartTime(e.target.value)}
-                  className="w-full rounded-2xl border-2 border-transparent bg-ivory px-6 py-4 outline-none transition-all focus:border-coral"
-                />
               </div>
             </div>
 
@@ -180,13 +171,6 @@ export default function RequestWrite() {
                   placeholder="종료일을 선택해 주세요"
                   minDate={startDate}
                   className="w-full"
-                />
-                <input
-                  type="time"
-                  required
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full rounded-2xl border-2 border-transparent bg-ivory px-6 py-4 outline-none transition-all focus:border-coral"
                 />
               </div>
             </div>
