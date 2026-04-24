@@ -148,7 +148,8 @@ const formatDateInput = (date: Date) => date.toISOString().slice(0, 10);
  */
 const createDefaultDashboardRange = () => {
     const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
     return {
         start: formatDateInput(start),
         end: formatDateInput(now),
