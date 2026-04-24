@@ -111,7 +111,7 @@ public class RequestClassService {
 
         // boardType이 "REQUEST"이고 삭제되지 않은 게시글만 조회
         List<ClassBoard> requestClasses =
-                classBoardRepository.findByBoardTypeAndIsDeletedFalse("REQUEST");
+                classBoardRepository.findByBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc("REQUEST");
 
         // Entity 리스트 → DTO 리스트 변환
         return requestClasses.stream()
@@ -156,7 +156,7 @@ public class RequestClassService {
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         return classBoardRepository
-                .findByFreelancerIdAndBoardTypeAndIsDeletedFalse(member.getId(), "REQUEST")
+                .findByFreelancerIdAndBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc(member.getId(), "REQUEST")
                 .stream()
                 .map(RequestClassResponse::from)
                 .collect(Collectors.toList());
