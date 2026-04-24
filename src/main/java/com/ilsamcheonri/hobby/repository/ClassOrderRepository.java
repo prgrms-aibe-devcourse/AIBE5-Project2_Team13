@@ -88,6 +88,23 @@ public interface ClassOrderRepository extends JpaRepository<ClassOrder, Long> {
 
     /**
      * @author 김한비
+     * @since 2026.04.24
+     *
+     * 특정 클래스에 진행 중인 신청이 존재하는지 확인합니다.
+     * - 삭제되지 않은 신청만 조회
+     * - 진행 상태 목록에 해당하는 데이터 존재 여부 반환
+     *
+     * @param classBoardId 클래스 ID
+     * @param progressStatuses 확인할 진행 상태 목록
+     * @return 존재 여부 (true / false)
+     */
+    boolean existsByClassBoardIdAndProgressStatusInAndIsDeletedFalse(
+            Long classBoardId,
+            List<ClassOrder.ProgressStatus> progressStatuses
+    );
+
+    /**
+     * @author 김한비
      * @since 2026.04.23
      *
      * 특정 학생의 클래스 신청 내역을 소프트 삭제합니다.

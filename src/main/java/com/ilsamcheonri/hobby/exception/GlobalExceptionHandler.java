@@ -5,14 +5,38 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-//클래스에서 이미 신청한 클래스라고 인식하는 오류 해결 위해 추가함
+/**
+ * @author 김한비
+ * @since 2026.04.24
+ *
+ * 전역 예외 처리 핸들러입니다.
+ * - 컨트롤러 전반에서 발생하는 예외를 공통 처리
+ * - 비즈니스 로직 예외를 400 Bad Request로 변환
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // 이미 신청한 클래스 같은 비즈니스 로직 에러를 400 Bad Request로 처리
+    /**
+     * IllegalStateException 처리
+     * - 비즈니스 로직 오류를 400 응답으로 반환
+     *
+     * @param e 예외 객체
+     * @return 에러 메시지
+     */
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<String> handleIllegalStateException(IllegalStateException e) {
-        // 클라이언트에게 에러 메시지만 전달
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+
+    /**
+     * IllegalArgumentException 처리
+     * - 잘못된 요청 값에 대해 400 응답 반환
+     *
+     * @param e 예외 객체
+     * @return 에러 메시지
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<String> handleIllegalArgumentException(IllegalArgumentException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
     }
 }

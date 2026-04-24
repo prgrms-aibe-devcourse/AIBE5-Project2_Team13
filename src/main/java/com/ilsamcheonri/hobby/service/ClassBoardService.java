@@ -29,6 +29,7 @@ public class ClassBoardService {
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
     private final ClassAttachmentRepository classAttachmentRepository;
+    private final ClassOrderRepository classOrderRepository;
     private final FileService fileService;
     private final NotificationService notificationService;
     private final ReviewRepository reviewRepository;
@@ -197,7 +198,18 @@ public class ClassBoardService {
         return classBoard.getId();
     }
 
-    // 클래스를 삭제(소프트 삭제)하고 관련된 첨부파일도 함께 처리합니다.
+    /**
+     * @author 김한비
+     * @since 2026.04.24
+     *
+     * 프리랜서가 등록한 OFFER 클래스를 삭제합니다.
+     * - 본인이 등록한 클래스만 삭제 가능
+     * - 수강 예정/수강 중인 회원이 있으면 삭제 불가
+     * - 클래스와 첨부파일을 소프트 삭제 처리
+     *
+     * @param email 로그인 사용자 이메일
+     * @param id 삭제할 클래스 ID
+     */
     @Transactional
     public void deleteOfferClass(String email, Long id) {
         Member member = memberRepository.findByEmail(email)
@@ -209,6 +221,17 @@ public class ClassBoardService {
 
         if (!classBoard.getFreelancer().getId().equals(member.getId())) {
             throw new IllegalArgumentException("삭제 권한이 없습니다.");
+        }
+
+        boolean hasActiveStudents = classOrderRepository.existsByClassBoardIdAndProgressStatusInAndIsDeletedFalse(
+                id,
+                List.of(
+                        ClassOrder.ProgressStatus.BEFORE_START,
+                        ClassOrder.ProgressStatus.IN_PROGRESS
+                )
+        );
+        if (hasActiveStudents) {
+            throw new IllegalArgumentException("수강 예정 또는 수강 중인 회원이 있어 삭제할 수 없습니다.");
         }
 
         classBoard.softDelete();
