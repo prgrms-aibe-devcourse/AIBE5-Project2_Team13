@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageCircle, HelpCircle, X, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/src/lib/utils';
 import MiniAIChat from './MiniAIChat';
 import { useAIChat } from '../context/AIChatContext';
@@ -12,6 +12,8 @@ export default function FloatingSupportButton() {
   const { isChatOpen, setIsChatOpen } = useAIChat();
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+  const isRequestBoardPage = location.pathname === '/requests';
 
   useEffect(() => {
     const handleScroll = () => {
@@ -29,7 +31,10 @@ export default function FloatingSupportButton() {
   }, []);
 
   return (
-    <div className="fixed bottom-8 right-8 z-[9999] flex flex-col items-end gap-4">
+    <div className={cn(
+      "fixed right-8 z-[9999] flex flex-col items-end gap-4",
+      isRequestBoardPage ? "bottom-28" : "bottom-8"
+    )}>
       {/* Mini AI Chat Window */}
       <AnimatePresence>
         {isChatOpen && (
