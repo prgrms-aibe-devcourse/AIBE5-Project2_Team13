@@ -1244,6 +1244,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                         category={classItem.category}
                                         categoryName="승인 대기"
                                         status={classItem.status}
+                                        showClosedOverlay={false}
                                         imageLoading="eager"
                                     />
                                     {renderEnrollmentButton(e)}
