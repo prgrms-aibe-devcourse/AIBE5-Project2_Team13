@@ -1836,6 +1836,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                             value={dashboardDateRange.start}
                             onChange={(value) => setDashboardDateRange(prev => ({...prev, start: value}))}
                             placeholder="시작일 선택"
+                            maxDate={dashboardDateRange.end}
                             placement="top"
                             panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
@@ -1844,6 +1845,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                             value={dashboardDateRange.end}
                             onChange={(value) => setDashboardDateRange(prev => ({...prev, end: value}))}
                             placeholder="종료일 선택"
+                            minDate={dashboardDateRange.start}
                             placement="top"
                             panelClassName="min-h-[392px] w-[320px] max-w-full"
                         />
