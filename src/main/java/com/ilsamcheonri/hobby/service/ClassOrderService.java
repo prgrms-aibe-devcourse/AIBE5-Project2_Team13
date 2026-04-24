@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -422,6 +423,66 @@ public class ClassOrderService {
             LocalDate start,
             LocalDate end
     ) {
+        long daysBetween = ChronoUnit.DAYS.between(start, end) + 1;
+        if (daysBetween <= 7) {
+            return buildDailyTrend(orders, start, end);
+        }
+
+        return buildMonthlyTrend(orders, start, end);
+    }
+
+    private List<FreelancerDashboardResponse.TrendItem> buildDailyTrend(
+            List<ClassOrder> orders,
+            LocalDate start,
+            LocalDate end
+    ) {
+        Map<LocalDate, int[]> dailyStats = new LinkedHashMap<>();
+        LocalDate cursor = start;
+
+        while (!cursor.isAfter(end)) {
+            dailyStats.put(cursor, new int[]{0, 0});
+            cursor = cursor.plusDays(1);
+        }
+
+        LocalDateTime startDateTime = start.atStartOfDay();
+        LocalDateTime endDateTime = end.plusDays(1).atStartOfDay();
+
+        for (ClassOrder order : orders) {
+            if (order.getCreatedAt() == null) {
+                continue;
+            }
+
+            LocalDateTime createdAt = order.getCreatedAt();
+            if (createdAt.isBefore(startDateTime) || !createdAt.isBefore(endDateTime)) {
+                continue;
+            }
+
+            int[] stats = dailyStats.get(createdAt.toLocalDate());
+            if (stats == null) {
+                continue;
+            }
+
+            stats[0] += order.getAmount() != null ? order.getAmount() : 0;
+            stats[1] += 1;
+        }
+
+        List<FreelancerDashboardResponse.TrendItem> trend = new ArrayList<>();
+        for (Map.Entry<LocalDate, int[]> entry : dailyStats.entrySet()) {
+            int[] stats = entry.getValue();
+            trend.add(FreelancerDashboardResponse.TrendItem.builder()
+                    .month(formatDayLabel(entry.getKey()))
+                    .revenue(stats[0])
+                    .students(stats[1])
+                    .build());
+        }
+        return trend;
+    }
+
+    private List<FreelancerDashboardResponse.TrendItem> buildMonthlyTrend(
+            List<ClassOrder> orders,
+            LocalDate start,
+            LocalDate end
+    ) {
         Map<YearMonth, int[]> monthlyStats = new LinkedHashMap<>();
         YearMonth startMonth = YearMonth.from(start);
         YearMonth endMonth = YearMonth.from(end);
@@ -464,6 +525,10 @@ public class ClassOrderService {
                     .build());
         }
         return trend;
+    }
+
+    private String formatDayLabel(LocalDate date) {
+        return date.format(DateTimeFormatter.ofPattern("M/d", Locale.KOREAN));
     }
 
     /**

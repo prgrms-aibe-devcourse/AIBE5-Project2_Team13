@@ -22,6 +22,7 @@ public class ClassBoard {
         BEFORE_START,
         IN_PROGRESS,
         COMPLETED,
+        REJECTED,
         CANCELLED
     }
 
