@@ -82,6 +82,10 @@ export default function ClassDetail() {
     const itemFromContext = classes.find(c => c.id === id);
 
     useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+    }, [id]);
+
+    useEffect(() => {
         if (!id) {
             setAllReviews([]);
             return;

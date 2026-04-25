@@ -292,7 +292,7 @@ export default function ClassFormPage() {
             representativeNewImageIndex >= 0 ? representativeNewImageIndex : undefined,
         });
         setToast('수정되었습니다.');
-        setTimeout(() => navigate('/profile'), 1500);
+        setTimeout(() => navigate(`/class/${id}`), 1500);
       } catch (error) {
         setToast('수정 중 오류가 발생했습니다.');
       }
