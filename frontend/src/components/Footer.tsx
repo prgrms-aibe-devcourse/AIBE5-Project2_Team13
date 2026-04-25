@@ -54,7 +54,7 @@ export default function Footer() {
             <Link to="/" className="mb-[15px] mr-6 flex shrink-0 items-center gap-2">
               <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl border border-coral/10 bg-white shadow-md">
                 <img
-                  src="/pognLogo.png"
+                  src="/Pogn-logo-transparent.png"
                   alt="Pogeun Logo"
                   className="h-full w-full object-contain p-1"
                 />
