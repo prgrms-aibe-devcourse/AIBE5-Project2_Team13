@@ -16,6 +16,8 @@ interface CreateClassPayload {
     location?: string;
     images?: File[];
     deletedImageIds?: number[];
+    representativeImageId?: number;
+    representativeNewImageIndex?: number;
 }
 
 interface ClassContextType {
@@ -147,6 +149,12 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
             formData.append('maxCapacity', String(newClass.maxCapacity));
             if (newClass.curriculum) formData.append('curriculum', newClass.curriculum);
             if (newClass.location)   formData.append('location',   newClass.location);
+            if (newClass.representativeImageId != null) {
+                formData.append('representativeImageId', String(newClass.representativeImageId));
+            }
+            if (newClass.representativeNewImageIndex != null) {
+                formData.append('representativeNewImageIndex', String(newClass.representativeNewImageIndex));
+            }
 
             // 이미지 파일 추가
             if (newClass.images?.length) {
@@ -205,6 +213,14 @@ export const ClassProvider = ({ children }: { children: ReactNode }) => {
         // 3. 특별 처리 필드 (파일이나 배열 등)는 아래에 따로 관리
         if (updatedClass.deletedImageIds?.length) {
             updatedClass.deletedImageIds.forEach((imageId) => formData.append('deletedImageIds', String(imageId)));
+        }
+
+        if (updatedClass.representativeImageId != null) {
+            formData.append('representativeImageId', String(updatedClass.representativeImageId));
+        }
+
+        if (updatedClass.representativeNewImageIndex != null) {
+            formData.append('representativeNewImageIndex', String(updatedClass.representativeNewImageIndex));
         }
 
         if (updatedClass.images?.length) {

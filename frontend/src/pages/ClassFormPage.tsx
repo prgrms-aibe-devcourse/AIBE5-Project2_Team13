@@ -10,9 +10,11 @@ import apiClient from '../api/axios';
 import DatePicker from '@/src/components/DatePicker';
 
 type EditableImageItem = {
+  clientKey: string;
   id: number | null;
   url: string;
   localFile?: File;
+  isRepresentative?: boolean;
 };
 
 interface ClassDetailResponse {
@@ -30,8 +32,14 @@ interface ClassDetailResponse {
   images?: Array<{
     id: number;
     fileUrl?: string | null;
+    isRepresentative?: boolean;
   }>;
 }
+
+const createImageClientKey = () =>
+  typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random()}`;
 
 // 입력된 텍스트를 분석하여 주차별 커리큘럼 미리보기를 생성하는 컴포넌트
 function CurriculumForm({ value, onChange }: { value: string; onChange: (val: string) => void }) {
@@ -119,6 +127,7 @@ export default function ClassFormPage() {
   const [capacity, setCapacity] = useState('1');
   const [price, setPrice] = useState('');
   const [images, setImages] = useState<EditableImageItem[]>([]);
+  const [representativeImageKey, setRepresentativeImageKey] = useState<string | null>(null);
   const [deletedImageIds, setDeletedImageIds] = useState<number[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -127,6 +136,19 @@ export default function ClassFormPage() {
       setCategory(String(categories[0].id));
     }
   }, [isEditMode, category, categories]);
+
+  useEffect(() => {
+    if (images.length === 0) {
+      if (representativeImageKey !== null) {
+        setRepresentativeImageKey(null);
+      }
+      return;
+    }
+
+    if (!representativeImageKey || !images.some((image) => image.clientKey === representativeImageKey)) {
+      setRepresentativeImageKey(images[0].clientKey);
+    }
+  }, [images, representativeImageKey]);
 
   //수정 버튼 누르면 입력창에 자동으로 내용 채워주는 역할
   useEffect(() => {
@@ -151,15 +173,20 @@ export default function ClassFormPage() {
         setEndDate(detail.endAt ? detail.endAt.split('T')[0] : '');
         setCapacity(String(detail.maxCapacity || '1'));
         setDeletedImageIds([]);
-        setImages(
-          Array.isArray(detail.images)
-            ? detail.images
-                .filter((image) => !!image.fileUrl)
-                .map((image) => ({
-                  id: image.id,
-                  url: image.fileUrl as string,
-                }))
-            : []
+        const nextImages = Array.isArray(detail.images)
+          ? detail.images
+              .filter((image) => !!image.fileUrl)
+              .map((image) => ({
+                clientKey: createImageClientKey(),
+                id: image.id,
+                url: image.fileUrl as string,
+                isRepresentative: !!image.isRepresentative,
+              }))
+          : [];
+
+        setImages(nextImages);
+        setRepresentativeImageKey(
+          nextImages.find((image) => image.isRepresentative)?.clientKey ?? nextImages[0]?.clientKey ?? null
         );
       } catch (error) {
         setToast('클래스 정보를 불러오지 못했습니다.');
@@ -188,10 +215,14 @@ export default function ClassFormPage() {
         if (currentImageCount + index < MAX_IMAGE_COUNT) {
           const reader = new FileReader();
           reader.onloadend = () => {
-            setImages((prev) => [
-              ...prev,
-              { id: null, url: reader.result as string, localFile: file },
-            ].slice(0, MAX_IMAGE_COUNT));
+            const nextImage = {
+              clientKey: createImageClientKey(),
+              id: null,
+              url: reader.result as string,
+              localFile: file,
+            };
+
+            setImages((prev) => [...prev, nextImage].slice(0, MAX_IMAGE_COUNT));
           };
           reader.readAsDataURL(file);
         }
@@ -213,6 +244,12 @@ export default function ClassFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const newImages = images.filter((image) => !!image.localFile);
+    const representativeExistingImageId =
+      images.find((image) => image.clientKey === representativeImageKey)?.id ?? undefined;
+    const representativeNewImageIndex = newImages.findIndex(
+      (image) => image.clientKey === representativeImageKey
+    );
 
     if (loading) {
       setToast('로그인 상태를 확인 중입니다. 잠시 후 다시 시도해 주세요.');
@@ -248,10 +285,11 @@ export default function ClassFormPage() {
           startAt: `${startDate}T00:00:00`,
           endAt: `${endDate}T00:00:00`,
           maxCapacity: Number(capacity),
-          images: images
-            .filter((image) => !!image.localFile)
-            .map((image) => image.localFile as File),
+          images: newImages.map((image) => image.localFile as File),
           deletedImageIds,
+          representativeImageId: representativeExistingImageId,
+          representativeNewImageIndex:
+            representativeNewImageIndex >= 0 ? representativeNewImageIndex : undefined,
         });
         setToast('수정되었습니다.');
         setTimeout(() => navigate('/profile'), 1500);
@@ -272,9 +310,9 @@ export default function ClassFormPage() {
       maxCapacity: Number(capacity),
       curriculum,
       location: method === 'offline' ? location : undefined,
-      images: images
-        .filter((image) => !!image.localFile)
-        .map((image) => image.localFile as File),
+      images: newImages.map((image) => image.localFile as File),
+      representativeNewImageIndex:
+        representativeNewImageIndex >= 0 ? representativeNewImageIndex : undefined,
     };
 
     try {
@@ -407,8 +445,28 @@ export default function ClassFormPage() {
               />
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 {images.map((image, idx) => (
-                  <div key={idx} className="relative aspect-square rounded-2xl overflow-hidden group">
+                  <div
+                    key={image.clientKey}
+                    className={cn(
+                      "relative aspect-square rounded-2xl overflow-hidden group border-2",
+                      representativeImageKey === image.clientKey
+                        ? "border-coral shadow-lg shadow-coral/20"
+                        : "border-transparent"
+                    )}
+                  >
                     <img src={image.url} alt={`Preview ${idx}`} className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setRepresentativeImageKey(image.clientKey)}
+                      className={cn(
+                        "absolute left-2 top-2 rounded-full px-3 py-1 text-xs font-bold transition-all",
+                        representativeImageKey === image.clientKey
+                          ? "bg-coral text-white"
+                          : "bg-white/90 text-gray-600 hover:bg-white"
+                      )}
+                    >
+                      {representativeImageKey === image.clientKey ? '대표 사진' : '대표로 지정'}
+                    </button>
                     <button 
                       type="button"
                       onClick={() => removeImage(idx)}

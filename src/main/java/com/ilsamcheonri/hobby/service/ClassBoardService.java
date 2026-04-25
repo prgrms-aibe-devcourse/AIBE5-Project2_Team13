@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -117,16 +118,23 @@ public class ClassBoardService {
 
         Long classId = classBoardRepository.save(offerClass).getId();
 
+        List<FileUploadResponse> uploadedFiles = Collections.emptyList();
         if (request.getImages() != null && !request.getImages().isEmpty()) {
             try {
-                List<FileUploadResponse> uploadedFiles = fileService.uploadMultiple(
+                uploadedFiles = fileService.uploadMultiple(
                         request.getImages(),
                         FileTargetType.CLASS,
                         classId
                 );
 
                 if (!uploadedFiles.isEmpty()) {
-                    updateRepresentativeImage(classId, uploadedFiles.get(0).getFileId());
+                    updateRepresentativeImage(
+                            classId,
+                            resolveRepresentativeFromNewUploads(
+                                    uploadedFiles,
+                                    request.getRepresentativeNewImageIndex()
+                            )
+                    );
                 }
             } catch (IOException e) {
                 throw new RuntimeException("클래스 이미지 업로드에 실패했습니다.", e);
@@ -176,9 +184,10 @@ public class ClassBoardService {
             fileService.deleteMultiple(request.getDeletedImageIds(), FileTargetType.CLASS);
         }
 
+        List<FileUploadResponse> uploadedFiles = Collections.emptyList();
         if (request.getImages() != null && !request.getImages().isEmpty()) {
             try {
-                fileService.uploadMultiple(
+                uploadedFiles = fileService.uploadMultiple(
                         request.getImages(),
                         FileTargetType.CLASS,
                         classBoard.getId()
@@ -192,7 +201,15 @@ public class ClassBoardService {
         List<ClassAttachment> remainingAttachments = classAttachmentRepository
                 .findByClassBoardIdAndIsDeletedFalseOrderByIdAsc(classBoard.getId());
         if (!remainingAttachments.isEmpty()) {
-            updateRepresentativeImage(classBoard.getId(), remainingAttachments.get(0).getId());
+            updateRepresentativeImage(
+                    classBoard.getId(),
+                    resolveRepresentativeForUpdate(
+                            remainingAttachments,
+                            uploadedFiles,
+                            request.getRepresentativeImageId(),
+                            request.getRepresentativeNewImageIndex()
+                    )
+            );
         }
 
         return classBoard.getId();
@@ -268,6 +285,51 @@ public class ClassBoardService {
         }
         classAttachmentRepository.resetRepresentativeByClassId(classId);
         classAttachmentRepository.updateRepresentativeById(newRepresentativeId);
+    }
+
+    private Long resolveRepresentativeFromNewUploads(
+            List<FileUploadResponse> uploadedFiles,
+            Integer representativeNewImageIndex
+    ) {
+        if (uploadedFiles.isEmpty()) {
+            throw new IllegalArgumentException("대표 이미지로 지정할 업로드 파일이 없습니다.");
+        }
+
+        if (representativeNewImageIndex != null &&
+                representativeNewImageIndex >= 0 &&
+                representativeNewImageIndex < uploadedFiles.size()) {
+            return uploadedFiles.get(representativeNewImageIndex).getFileId();
+        }
+
+        return uploadedFiles.get(0).getFileId();
+    }
+
+    private Long resolveRepresentativeForUpdate(
+            List<ClassAttachment> remainingAttachments,
+            List<FileUploadResponse> uploadedFiles,
+            Long representativeImageId,
+            Integer representativeNewImageIndex
+    ) {
+        if (representativeImageId != null) {
+            boolean exists = remainingAttachments.stream()
+                    .anyMatch(attachment -> attachment.getId().equals(representativeImageId));
+            if (exists) {
+                return representativeImageId;
+            }
+        }
+
+        if (representativeNewImageIndex != null &&
+                representativeNewImageIndex >= 0 &&
+                representativeNewImageIndex < uploadedFiles.size()) {
+            Long uploadedRepresentativeId = uploadedFiles.get(representativeNewImageIndex).getFileId();
+            boolean exists = remainingAttachments.stream()
+                    .anyMatch(attachment -> attachment.getId().equals(uploadedRepresentativeId));
+            if (exists) {
+                return uploadedRepresentativeId;
+            }
+        }
+
+        return remainingAttachments.get(0).getId();
     }
 
     private Map<Long, ClassReviewStats> getReviewStatsByClassId(List<Long> classIds) {

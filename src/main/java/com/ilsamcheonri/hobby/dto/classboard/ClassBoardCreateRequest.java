@@ -44,8 +44,10 @@ public class ClassBoardCreateRequest {
 
     private String curriculum;
 
-     private String location;
+    private String location;
 
     private List<MultipartFile> images;
     private List<Long> deletedImageIds;
+    private Long representativeImageId;
+    private Integer representativeNewImageIndex;
 }
