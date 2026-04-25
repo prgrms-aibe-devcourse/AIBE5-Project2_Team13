@@ -15,6 +15,8 @@ const apiClient = axios.create({
     baseURL: '/api',
 });
 
+let isHandlingAuthExpiry = false;
+
 apiClient.interceptors.request.use((config) => {
     const token = getAccessToken();
 
@@ -51,6 +53,11 @@ apiClient.interceptors.response.use(
                 );
 
             if (shouldForceLogout) {
+                if (isHandlingAuthExpiry) {
+                    return Promise.reject(error);
+                }
+
+                isHandlingAuthExpiry = true;
                 clearAccessToken();
                 clearStoredUserContext();
 
@@ -61,6 +68,10 @@ apiClient.interceptors.response.use(
 
                     window.location.href = '/login';
                 }
+
+                window.setTimeout(() => {
+                    isHandlingAuthExpiry = false;
+                }, 1000);
             }
 
             return Promise.reject(error);
