@@ -13,7 +13,10 @@ export default function FloatingSupportButton() {
   const [isHovered, setIsHovered] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const shouldLiftForPage = location.pathname === '/requests' || location.pathname === '/browse';
+  const shouldLiftForPage =
+    location.pathname === '/' ||
+    location.pathname === '/requests' ||
+    location.pathname === '/browse';
 
   useEffect(() => {
     const handleScroll = () => {
