@@ -136,7 +136,7 @@ export default function ClassFormPage() {
 
     const loadDetail = async () => {
       try {
-        const response = await apiClient.get<ClassDetailResponse>(`/class/${id}`);
+        const response = await apiClient.get<ClassDetailResponse>(`/classes/${id}`);
         const detail = response.data;
         const matchedCategory = categories.find((cat) => cat.name === detail.categoryName);
 
