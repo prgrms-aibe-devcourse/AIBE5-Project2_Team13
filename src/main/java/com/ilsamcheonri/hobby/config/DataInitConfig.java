@@ -1,14 +1,17 @@
 package com.ilsamcheonri.hobby.config;
 
 import com.ilsamcheonri.hobby.entity.Category;
+import com.ilsamcheonri.hobby.entity.Member;
 import com.ilsamcheonri.hobby.entity.RoleCode;
 import com.ilsamcheonri.hobby.repository.CategoryRepository;
+import com.ilsamcheonri.hobby.repository.MemberRepository;
 import com.ilsamcheonri.hobby.repository.RoleCodeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.List;
 
@@ -34,6 +37,8 @@ public class DataInitConfig {
     @Bean
     CommandLineRunner init(RoleCodeRepository roleCodeRepo,
                            CategoryRepository categoryRepo,
+                           MemberRepository memberRepo,
+                           PasswordEncoder passwordEncoder,
                            JdbcTemplate jdbcTemplate) {
         return args -> {
 
@@ -52,19 +57,8 @@ public class DataInitConfig {
 
             // ──────────────────────────────────────────
             // 2. 카테고리(CATEGORY) 초기 데이터 — 대분류만 삽입
-            //
-            // 화면에 보이는 탭 순서와 동일하게 sort_order를 지정합니다.
-            // parent = null → 대분류 (최상위 카테고리)
-            // is_visible = true → 화면에 노출
-            //
-            // 중분류는 현재 회의 결과 사용하지 않기로 했으나,
-            // parent_id 컬럼은 남겨두어 나중에 추가할 수 있도록 합니다.
             // ──────────────────────────────────────────
-
-            // 카테고리가 하나도 없을 때만 삽입 (중복 방지)
             if (categoryRepo.count() == 0) {
-
-                // 화면 탭 순서 기준: 전체는 별도 버튼이므로 DB에는 넣지 않습니다.
                 List<Category> categories = List.of(
                         buildCategory("뷰티·패션",   1),
                         buildCategory("음악·악기",   2),
@@ -76,9 +70,30 @@ public class DataInitConfig {
                         buildCategory("라이프·요리", 8),
                         buildCategory("기타",        9)
                 );
-
                 categoryRepo.saveAll(categories);
                 System.out.println("✅ [DataInitConfig] 카테고리 대분류 9개 초기 데이터 삽입 완료");
+            }
+
+            // ──────────────────────────────────────────
+            // 3. 관리자 계정 초기 데이터
+            //
+            // admin@gmail.com 계정이 없을 때만 자동 생성합니다.
+            // - 이 이메일은 ChatService의 관리자 1:1 문의 채팅 고정 대상입니다.
+            // - ADMIN_CHAT_EMAIL 상수와 반드시 동일해야 합니다.
+            // - 초기 비밀번호: Admin1234! (서버 운영 시 변경 권장)
+            // ──────────────────────────────────────────
+            if (memberRepo.findByEmail(ADMIN_CHAT_EMAIL).isEmpty()) {
+                RoleCode adminRole = roleCodeRepo.findByRoleCode("A")
+                        .orElseThrow(() -> new IllegalStateException("관리자 권한 코드가 없습니다."));
+
+                memberRepo.save(Member.builder()
+                        .email(ADMIN_CHAT_EMAIL)
+                        .password(passwordEncoder.encode("qwer1234")) // BCrypt 암호화
+                        .name("관리자")
+                        .roleCode(adminRole)
+                        .build());
+
+                System.out.println("✅ [DataInitConfig] 관리자 계정 생성 완료 (" + ADMIN_CHAT_EMAIL + ")");
             }
 
             initializeIsDeletedColumn(jdbcTemplate);
