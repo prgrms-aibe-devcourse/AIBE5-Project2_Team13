@@ -19,9 +19,14 @@ import {ReviewItem} from '@/src/constants';
 import {getAccessToken} from '../lib/auth';
 import {useWish} from '../context/WishContext';
 import {useAuth} from '@/src/context/AuthContext';
-import {getMyFreelancerProfile} from '@/src/api/freelancerProfile';
+import {
+    getFreelancerProfileByFreelancerId,
+    getMyFreelancerProfile,
+    type FreelancerProfileDetailResponse
+} from '@/src/api/freelancerProfile';
 import {applyClassOrder} from '@/src/api/classOrder';
 import {getClassReviews} from '@/src/api/review';
+import {DEFAULT_PROFILE_IMAGE_URL} from '@/src/lib/profileImage';
 
 const TABS = [
     {id: 'description', label: '클래스 소개'},//명칭 클래스 등록란과 통일 : 서비스 설명->클래스 소개
@@ -52,6 +57,7 @@ export default function ClassDetail() {
     const [activeTab, setActiveTab] = useState('description');
     const [openFaq, setOpenFaq] = useState<number | null>(0);
     const [myFreelancerId, setMyFreelancerId] = useState<number | null>(null);
+    const [freelancerProfile, setFreelancerProfile] = useState<FreelancerProfileDetailResponse | null>(null);
 
     // 현재 로그인한 사람과 클래스 작성자가 같은지 체크
     // detailItem이 null일 수도 있으니까 ?.를 사용해서 안전하게 체크해요
@@ -74,6 +80,10 @@ export default function ClassDetail() {
     const [allReviews, setAllReviews] = useState<ReviewItem[]>([]);
 
     const itemFromContext = classes.find(c => c.id === id);
+
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'auto' });
+    }, [id]);
 
     useEffect(() => {
         if (!id) {
@@ -208,6 +218,32 @@ export default function ClassDetail() {
             isMounted = false;
         };
     }, [user?.role]);
+
+    useEffect(() => {
+        const freelancerId = detailItem?.freelancerId;
+        if (!freelancerId) {
+            setFreelancerProfile(null);
+            return;
+        }
+
+        let isMounted = true;
+
+        getFreelancerProfileByFreelancerId(Number(freelancerId))
+            .then((profile) => {
+                if (isMounted) {
+                    setFreelancerProfile(profile);
+                }
+            })
+            .catch(() => {
+                if (isMounted) {
+                    setFreelancerProfile(null);
+                }
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [detailItem?.freelancerId]);
 
     if (!detailItem) {
         return (
@@ -513,7 +549,7 @@ export default function ClassDetail() {
                             <div className="flex items-center gap-6">
                                 <Link to={`/freelancer/${item.freelancerId || 'f1'}`}>
                                     <img
-                                        src={`https://picsum.photos/seed/${item.freelancer}/200/200`}
+                                        src={freelancerProfile?.memberImageUrl || DEFAULT_PROFILE_IMAGE_URL}
                                         alt={item.freelancer}
                                         className="w-20 h-20 rounded-full object-cover border-2 border-coral/10 shadow-sm"
                                         referrerPolicy="no-referrer"
@@ -554,7 +590,9 @@ export default function ClassDetail() {
                                             </button>
                                         )}
                                     </div>
-                                    <p className="text-gray-500 text-base">{(item as any).expertIntro || '전문가님의 노하우를 담아 친절하게 알려드려요.'}</p>
+                                    <p className="text-gray-500 text-base">
+                                        {freelancerProfile?.bio || (item as any).expertIntro || '전문가님의 노하우를 담아 친절하게 알려드려요.'}
+                                    </p>
                                 </div>
                             </div>
                         </section>

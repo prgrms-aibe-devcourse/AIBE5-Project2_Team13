@@ -967,7 +967,10 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
     };
 
     const handleWithdraw = () => {
-        if (!window.confirm('정말 회원 탈퇴하시겠습니까?')) {
+        const message =
+            '정말 탈퇴하시겠습니까?\n탈퇴 시 모든 정보는 삭제되며 복구할 수 없습니다.';
+
+        if (!window.confirm(message)) {
             return;
         }
 
@@ -1244,6 +1247,7 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                                         category={classItem.category}
                                         categoryName="승인 대기"
                                         status={classItem.status}
+                                        showClosedOverlay={false}
                                         imageLoading="eager"
                                     />
                                     {renderEnrollmentButton(e)}
@@ -1953,7 +1957,12 @@ export default function MyPage({initialMenu}: { initialMenu?: MenuType }) {
                              referrerPolicy="no-referrer"/>
                         <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                                <h4 className="font-bold text-gray-900 line-clamp-1 flex-1">{item.title}</h4>
+                                <h4
+                                    className="font-bold text-gray-900 line-clamp-1 flex-1 cursor-pointer hover:text-coral transition-colors"
+                                    onClick={() => handleClassClick(item.id)}
+                                >
+                                    {item.title}
+                                </h4>
                                 <span className={cn(
                                     "px-2 py-0.5 rounded-full text-[10px] font-bold flex-shrink-0 whitespace-nowrap",
                                     item.status === 'OPEN' ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"

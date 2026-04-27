@@ -7,6 +7,7 @@ import { REGIONS } from '@/src/constants';
 import axios from 'axios';
 import { formatPhoneNumber, stripPhoneNumber } from '@/src/lib/phone';
 import DatePicker from '@/src/components/DatePicker';
+import { clearAccessToken, clearStoredUserContext } from '@/src/lib/auth';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -136,7 +137,9 @@ const handleSubmit = async (e: React.FormEvent) => {
     console.log("회원가입 성공:", response.data);
 
     alert("회원가입 완료");
-    navigate("/login");
+    clearAccessToken();
+    clearStoredUserContext();
+    navigate("/login", { replace: true });
   } catch (error: any) {
     console.error("회원가입 실패:", error);
     const serverMessage =

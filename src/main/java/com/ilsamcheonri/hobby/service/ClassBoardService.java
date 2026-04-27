@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Function;
@@ -29,6 +30,7 @@ public class ClassBoardService {
     private final MemberRepository memberRepository;
     private final CategoryRepository categoryRepository;
     private final ClassAttachmentRepository classAttachmentRepository;
+    private final ClassOrderRepository classOrderRepository;
     private final FileService fileService;
     private final NotificationService notificationService;
     private final ReviewRepository reviewRepository;
@@ -116,16 +118,23 @@ public class ClassBoardService {
 
         Long classId = classBoardRepository.save(offerClass).getId();
 
+        List<FileUploadResponse> uploadedFiles = Collections.emptyList();
         if (request.getImages() != null && !request.getImages().isEmpty()) {
             try {
-                List<FileUploadResponse> uploadedFiles = fileService.uploadMultiple(
+                uploadedFiles = fileService.uploadMultiple(
                         request.getImages(),
                         FileTargetType.CLASS,
                         classId
                 );
 
                 if (!uploadedFiles.isEmpty()) {
-                    updateRepresentativeImage(classId, uploadedFiles.get(0).getFileId());
+                    updateRepresentativeImage(
+                            classId,
+                            resolveRepresentativeFromNewUploads(
+                                    uploadedFiles,
+                                    request.getRepresentativeNewImageIndex()
+                            )
+                    );
                 }
             } catch (IOException e) {
                 throw new RuntimeException("클래스 이미지 업로드에 실패했습니다.", e);
@@ -175,9 +184,10 @@ public class ClassBoardService {
             fileService.deleteMultiple(request.getDeletedImageIds(), FileTargetType.CLASS);
         }
 
+        List<FileUploadResponse> uploadedFiles = Collections.emptyList();
         if (request.getImages() != null && !request.getImages().isEmpty()) {
             try {
-                fileService.uploadMultiple(
+                uploadedFiles = fileService.uploadMultiple(
                         request.getImages(),
                         FileTargetType.CLASS,
                         classBoard.getId()
@@ -191,13 +201,32 @@ public class ClassBoardService {
         List<ClassAttachment> remainingAttachments = classAttachmentRepository
                 .findByClassBoardIdAndIsDeletedFalseOrderByIdAsc(classBoard.getId());
         if (!remainingAttachments.isEmpty()) {
-            updateRepresentativeImage(classBoard.getId(), remainingAttachments.get(0).getId());
+            updateRepresentativeImage(
+                    classBoard.getId(),
+                    resolveRepresentativeForUpdate(
+                            remainingAttachments,
+                            uploadedFiles,
+                            request.getRepresentativeImageId(),
+                            request.getRepresentativeNewImageIndex()
+                    )
+            );
         }
 
         return classBoard.getId();
     }
 
-    // 클래스를 삭제(소프트 삭제)하고 관련된 첨부파일도 함께 처리합니다.
+    /**
+     * @author 김한비
+     * @since 2026.04.24
+     *
+     * 프리랜서가 등록한 OFFER 클래스를 삭제합니다.
+     * - 본인이 등록한 클래스만 삭제 가능
+     * - 수강 예정/수강 중인 회원이 있으면 삭제 불가
+     * - 클래스와 첨부파일을 소프트 삭제 처리
+     *
+     * @param email 로그인 사용자 이메일
+     * @param id 삭제할 클래스 ID
+     */
     @Transactional
     public void deleteOfferClass(String email, Long id) {
         Member member = memberRepository.findByEmail(email)
@@ -209,6 +238,17 @@ public class ClassBoardService {
 
         if (!classBoard.getFreelancer().getId().equals(member.getId())) {
             throw new IllegalArgumentException("삭제 권한이 없습니다.");
+        }
+
+        boolean hasActiveStudents = classOrderRepository.existsByClassBoardIdAndProgressStatusInAndIsDeletedFalse(
+                id,
+                List.of(
+                        ClassOrder.ProgressStatus.BEFORE_START,
+                        ClassOrder.ProgressStatus.IN_PROGRESS
+                )
+        );
+        if (hasActiveStudents) {
+            throw new IllegalArgumentException("수강 예정 또는 수강 중인 회원이 있어 삭제할 수 없습니다.");
         }
 
         classBoard.softDelete();
@@ -245,6 +285,51 @@ public class ClassBoardService {
         }
         classAttachmentRepository.resetRepresentativeByClassId(classId);
         classAttachmentRepository.updateRepresentativeById(newRepresentativeId);
+    }
+
+    private Long resolveRepresentativeFromNewUploads(
+            List<FileUploadResponse> uploadedFiles,
+            Integer representativeNewImageIndex
+    ) {
+        if (uploadedFiles.isEmpty()) {
+            throw new IllegalArgumentException("대표 이미지로 지정할 업로드 파일이 없습니다.");
+        }
+
+        if (representativeNewImageIndex != null &&
+                representativeNewImageIndex >= 0 &&
+                representativeNewImageIndex < uploadedFiles.size()) {
+            return uploadedFiles.get(representativeNewImageIndex).getFileId();
+        }
+
+        return uploadedFiles.get(0).getFileId();
+    }
+
+    private Long resolveRepresentativeForUpdate(
+            List<ClassAttachment> remainingAttachments,
+            List<FileUploadResponse> uploadedFiles,
+            Long representativeImageId,
+            Integer representativeNewImageIndex
+    ) {
+        if (representativeImageId != null) {
+            boolean exists = remainingAttachments.stream()
+                    .anyMatch(attachment -> attachment.getId().equals(representativeImageId));
+            if (exists) {
+                return representativeImageId;
+            }
+        }
+
+        if (representativeNewImageIndex != null &&
+                representativeNewImageIndex >= 0 &&
+                representativeNewImageIndex < uploadedFiles.size()) {
+            Long uploadedRepresentativeId = uploadedFiles.get(representativeNewImageIndex).getFileId();
+            boolean exists = remainingAttachments.stream()
+                    .anyMatch(attachment -> attachment.getId().equals(uploadedRepresentativeId));
+            if (exists) {
+                return uploadedRepresentativeId;
+            }
+        }
+
+        return remainingAttachments.get(0).getId();
     }
 
     private Map<Long, ClassReviewStats> getReviewStatsByClassId(List<Long> classIds) {

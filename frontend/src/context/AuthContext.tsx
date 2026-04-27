@@ -42,8 +42,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadCurrentUser = async () => {
     const [summaryRes, detailRes] = await Promise.all([
-      apiClient.get("/member/me"),
-      apiClient.get("/member/me/detail"),
+      apiClient.get("/member/me", { suppressAuthExpiredAlert: true }),
+      apiClient.get("/member/me/detail", { suppressAuthExpiredAlert: true }),
     ]);
 
     const nextUser = {

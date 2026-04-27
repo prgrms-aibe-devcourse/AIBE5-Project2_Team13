@@ -1,16 +1,25 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { ClassItem } from '@/src/constants';
 import ExplorerGrid from '@/src/components/ExplorerGrid';
 import { useClasses } from '../context/ClassContext';
 import { useWish } from '../context/WishContext';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 export default function BrowseClasses() {
-  const { classes } = useClasses();
+  const navigate = useNavigate();
+  const { classes, fetchClasses } = useClasses();
   const { wishedIds } = useWish();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const initialSearchQuery = searchParams.get('q')?.trim() ?? '';
   const initialCategory = searchParams.get('category')?.trim() ?? 'all';
+  const isFreelancer = user?.role === 'FREELANCER';
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
 
 // 검색어, 카테고리, 위치, 모집 여부 등 다양한 필터링 조건들을 종합하여 클래스 항목이 해당 조건들에 부합하는지 판단합니다.
     const filterFn = useCallback(
@@ -52,6 +61,7 @@ export default function BrowseClasses() {
   );
 
   return (
+    <div className="relative">
     <ExplorerGrid<ClassItem>
       items={classes}
       type="class"
@@ -64,5 +74,16 @@ export default function BrowseClasses() {
       initialCategory={initialCategory}
       renderItem={() => null}
     />
+      {isFreelancer && (
+        <div className="fixed bottom-10 right-10 z-40">
+          <button
+            onClick={() => navigate('/class/create')}
+            className="flex items-center gap-2 px-8 py-4 bg-coral text-white font-bold rounded-3xl hover:bg-coral/90 transition-all shadow-2xl shadow-coral/40"
+          >
+            <Plus size={24} /> 새 클래스 등록
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

@@ -20,6 +20,7 @@ import { useEnrollments } from '../context/EnrollmentContext';
 
 const INITIAL_VISIBLE_COUNT = 8;
 const LOAD_MORE_COUNT = 8;
+const LOAD_MORE_ROOT_MARGIN_PX = 300;
 
 const getCategoryIcon = (categoryName: string) => {
   const name = (categoryName || '').replace(/\s+/g, '');
@@ -150,7 +151,7 @@ export default function ExplorerGrid<T>({
         }
       },
       {
-        rootMargin: '300px 0px',
+        rootMargin: `${LOAD_MORE_ROOT_MARGIN_PX}px 0px`,
       }
     );
 
@@ -158,6 +159,29 @@ export default function ExplorerGrid<T>({
 
     return () => observer.disconnect();
   }, [filteredAndSortedItems.length, hasMoreItems, loading]);
+
+  useEffect(() => {
+    if (loading || !hasMoreItems) {
+      return;
+    }
+
+    const target = loadMoreRef.current;
+
+    if (!target) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const rect = target.getBoundingClientRect();
+      const shouldLoadMore = rect.top <= window.innerHeight + LOAD_MORE_ROOT_MARGIN_PX;
+
+      if (shouldLoadMore) {
+        setVisibleCount((current) => Math.min(current + LOAD_MORE_COUNT, filteredAndSortedItems.length));
+      }
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [filteredAndSortedItems.length, hasMoreItems, loading, visibleCount]);
 
   return (
     <div className="pt-12 pb-0">

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'motion/react';
 import { Search, Sparkles, TrendingUp, ChevronRight, Dumbbell, Palette, Utensils, Music, Scissors, Camera, MapPin, Gamepad2, Languages, Trophy, Drama, MoreHorizontal } from 'lucide-react';
@@ -11,10 +11,14 @@ import { useWish } from '../context/WishContext';
 import { useEnrollments } from '../context/EnrollmentContext';
 
 export default function Home() {
-  const { classes } = useClasses();
+  const { classes, fetchClasses } = useClasses();
   const { wishedIds, toggleWish } = useWish();
   const { enrollments } = useEnrollments();
   const [isAnalysisOpen, setIsAnalysisOpen] = useState(false);
+
+  useEffect(() => {
+    fetchClasses();
+  }, [fetchClasses]);
 
   return (
     <div className="pb-20">
