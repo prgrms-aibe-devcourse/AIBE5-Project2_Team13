@@ -1,5 +1,5 @@
 # AIBE5-Project2_Team13
-<img width="1695" height="928" alt="image" src="https://github.com/user-attachments/assets/dec21bca-f948-404d-a816-37cf84618e31" />
+
 
 # 🚀 일삼천리(Il-sam-cheon-ri) 프로젝트 협업 가이드
 
