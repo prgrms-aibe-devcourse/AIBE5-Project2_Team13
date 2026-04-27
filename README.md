@@ -1,4 +1,6 @@
 # AIBE5-Project2_Team13
+<img width="1695" height="928" alt="image" src="https://github.com/user-attachments/assets/dec21bca-f948-404d-a816-37cf84618e31" />
+
 # 🚀 일삼천리(Il-sam-cheon-ri) 프로젝트 협업 가이드
 
 본 문서는 팀 프로젝트의 코드 품질 유지와 안전한 병합(Merge)을 위한 가이드라인입니다. 모든 팀원은 작업 시작 전 이 내용을 반드시 숙지합니다.
