@@ -1,5 +1,6 @@
-# AIBE5-Project2_Team13
-
+# 포근 (Pogeun) : 당신의 행복한 취미생활을 위한 AI 취미 매칭 플랫폼
+### 프로젝트 소개 : https://www.notion.so/Pogeun-AI-34c3550b7b5580a8b2f7ff926326b032
+<img width="1695" height="928" alt="efa71918-1f71-4885-84c7-a205f0b569f3" src="https://github.com/user-attachments/assets/62b7bbcb-02a3-43f8-a8d1-f7ccfcec2295" />
 
 # 🚀 일삼천리(Il-sam-cheon-ri) 프로젝트 협업 가이드
 
