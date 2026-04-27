@@ -30,7 +30,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -175,10 +174,9 @@ public class FreelancerProfileService {
         List<ClassBoard> allClassBoards = classBoardRepository
                 .findByFreelancerIdAndBoardTypeAndIsDeletedFalseOrderByCreatedAtDesc(member.getId(), "OFFER");
         List<ClassBoardResponse> allClasses = toClassResponses(allClassBoards);
-        LocalDateTime now = LocalDateTime.now();
         List<ClassBoardResponse> activeClasses = toClassResponses(
                 allClassBoards.stream()
-                        .filter(classBoard -> classBoard.getEndAt() == null || !classBoard.getEndAt().isBefore(now))
+                        .filter(classBoard -> "OPEN".equalsIgnoreCase(classBoard.getStatus()))
                         .toList()
         );
         List<ReviewResponse> reviews = reviewRepository.findFreelancerReviews(member.getId())

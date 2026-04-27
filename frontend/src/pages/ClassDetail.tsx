@@ -739,9 +739,11 @@ export default function ClassDetail() {
                                 <div className="space-y-3">
                                     <button
                                         onClick={
-                                            isOwner || !!currentEnrollment
+                                            isOwner
                                                 ? () => navigate('/profile/freelancer/classes')
-                                                : handleApply
+                                                : currentEnrollment
+                                                    ? () => navigate('/profile/activity')
+                                                    : handleApply
                                         }
                                         disabled={!isOwner && !currentEnrollment && (applyLoading || isClosed)}
                                         className={cn(
