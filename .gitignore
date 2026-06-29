@@ -35,3 +35,6 @@ build/
 ### Custom Ignore ###
 # 민감한 정보(DB 접속, JWT Secret 등) 제외
 application-secret.properties
+
+### Codex ###
+.omx
