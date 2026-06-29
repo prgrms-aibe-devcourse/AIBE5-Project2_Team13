@@ -32,8 +32,10 @@ import { FollowProvider } from './context/FollowContext';
 import { WishProvider } from './context/WishContext';
 
 export default function App() {
+  const basename = import.meta.env.BASE_URL.replace(/\/$/, '') || '/';
+
   return (
-    <Router>
+    <Router basename={basename}>
       <AIChatProvider>
         <FreelancerProvider>
           <FollowProvider>
